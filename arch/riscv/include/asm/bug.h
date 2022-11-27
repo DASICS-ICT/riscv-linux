@@ -82,6 +82,8 @@ struct task_struct;
 extern void die(struct pt_regs *regs, const char *str);
 extern void do_trap(struct pt_regs *regs, int signo, int code,
 	unsigned long addr, struct task_struct *tsk);
+extern void show_regs(struct pt_regs *regs);
+extern void show_ext_regs(struct pt_regs *regs);
 
 #endif /* !__ASSEMBLY__ */
 

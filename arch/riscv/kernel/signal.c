@@ -76,6 +76,7 @@ static long restore_sigcontext(struct pt_regs *regs,
 		if (value != 0)
 			return -EINVAL;
 	}
+
 	return err;
 }
 
@@ -131,7 +132,8 @@ static long setup_sigcontext(struct rt_sigframe __user *frame,
 	err |= save_d_state(regs, &sc->sc_fpregs.d);
 	/* We support no other extension state at this time. */
 	for (i = 0; i < ARRAY_SIZE(sc->sc_fpregs.q.reserved); i++)
-		err |= __put_user(0, &sc->sc_fpregs.q.reserved[i]);
+		err |= __put_user(0, &sc->sc_fpregs.q.reserved[i]); 
+
 	return err;
 }
 

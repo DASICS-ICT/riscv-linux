@@ -195,7 +195,7 @@ static unsigned long calibrate_delay_converge(void)
 	/* wait for "start of" clock tick */
 	ticks = jiffies;
 	while (ticks == jiffies)
-		; /* nothing */
+		; /* nothing */ 
 	/* Go .. */
 	ticks = jiffies;
 	do {
@@ -270,6 +270,7 @@ unsigned long __attribute__((weak)) calibrate_delay_is_known(void)
 
 void __attribute__((weak)) calibration_delay_done(void)
 {
+	
 }
 
 void calibrate_delay(void)
@@ -311,6 +312,5 @@ void calibrate_delay(void)
 
 	loops_per_jiffy = lpj;
 	printed = true;
-
 	calibration_delay_done();
 }

@@ -41,7 +41,7 @@ asmlinkage void do_page_fault(struct pt_regs *regs)
 	struct mm_struct *mm;
 	unsigned long addr, cause;
 	unsigned int flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
-	int fault, code = SEGV_MAPERR;
+	int fault, code = SEGV_MAPERR; 
 
 	cause = regs->scause;
 	addr = regs->sbadaddr;
@@ -80,6 +80,7 @@ asmlinkage void do_page_fault(struct pt_regs *regs)
 retry:
 	down_read(&mm->mmap_sem);
 	vma = find_vma(mm, addr);
+
 	if (unlikely(!vma))
 		goto bad_area;
 	if (likely(vma->vm_start <= addr))
@@ -193,6 +194,8 @@ no_context:
 	 * Oops. The kernel tried to access some bad page. We'll have to
 	 * terminate things with extreme prejudice.
 	 */
+	pr_alert("bugs not fixed, ready to die.\n");
+
 	bust_spinlocks(1);
 	pr_alert("Unable to handle kernel %s at virtual address " REG_FMT "\n",
 		(addr < PAGE_SIZE) ? "NULL pointer dereference" :

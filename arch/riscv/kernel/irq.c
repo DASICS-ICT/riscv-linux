@@ -9,6 +9,9 @@
 #include <linux/irqchip.h>
 #include <linux/irqdomain.h>
 
+#include <asm/sbi.h>
+#include <asm/bug.h>
+
 /*
  * Possible interrupt causes:
  */
@@ -23,9 +26,9 @@
  * need to mask it off.
  */
 #define INTERRUPT_CAUSE_FLAG	(1UL << (__riscv_xlen - 1))
-
 asmlinkage void __irq_entry do_IRQ(struct pt_regs *regs, unsigned long cause)
 {
+
 	struct pt_regs *old_regs = set_irq_regs(regs);
 
 	irq_enter();
@@ -53,10 +56,14 @@ asmlinkage void __irq_entry do_IRQ(struct pt_regs *regs, unsigned long cause)
 	set_irq_regs(old_regs);
 }
 
+#ifdef CONFIG_ZYNQ_ONBOARD
 extern int zynq_early_slcr_init(void);
+#endif 
 
 void __init init_IRQ(void)
 {
-  zynq_early_slcr_init();
+#ifdef CONFIG_ZYNQ_ONBOARD
+	zynq_early_slcr_init();
+#endif 
 	irqchip_init();
 }

@@ -73,12 +73,49 @@ void show_regs(struct pt_regs *regs)
 		regs->sstatus, regs->sbadaddr, regs->scause);
 }
 
+void show_ext_regs(struct pt_regs *regs) 
+{	
+	// TODO: Add N Extensions and dasics regs
+	int cnt;
+
+	/* N Extension user regs */
+	pr_cont("ustatus: " REG_FMT " uepc: " REG_FMT " ubadaddr: " REG_FMT "\n",
+		regs->ustatus, regs->uepc, regs->ubadaddr);
+	pr_cont("ucause: " REG_FMT " utvec: " REG_FMT " uie: " REG_FMT "\n",
+		regs->ucause, regs->utvec, regs->uie);
+	pr_cont("uip: " REG_FMT " uscratch: " REG_FMT "\n",
+		regs->uip, regs->uscratch);	
+
+	/* Dasics supervisor regs */
+	pr_cont("DASICS User Main Registers: \n");
+	pr_cont("config: " REG_FMT " bound hi: " REG_FMT " bound lo: " REG_FMT "\n",
+		regs->dasicsUmainCfg, regs->dasicsUmainBoundHi, regs->dasicsUmainBoundLo);
+	
+	/* Dasics user regs */
+	pr_cont("DASICS Lib Registers: \n");
+	pr_cont("config0: " REG_FMT " config1: " REG_FMT "\n",
+		regs->dasicsLibCfg0, regs->dasicsLibCfg1);
+
+	for (cnt = 0; cnt < 32; cnt +=2) {
+		pr_cont("lib bound%d: " REG_FMT " lib bound%d: " REG_FMT "\n",
+			cnt, regs->dasicsLibBounds[cnt], cnt+1, regs->dasicsLibBounds[cnt+1]);
+	}
+	pr_cont("DASICS Other Registers: \n");
+	pr_cont("main call entry: " REG_FMT " return pc: " REG_FMT " free zone return pc: " REG_FMT "\n",
+		regs->dasicsMaincallEntry, regs->dasicsReturnPC, regs->dasicsFreeZoneReturnPC);
+}
+
 void start_thread(struct pt_regs *regs, unsigned long pc,
 	unsigned long sp)
 {
 	regs->sstatus = SR_SPIE /* User mode, irqs on */ | SR_FS_INITIAL;
 	regs->sepc = pc;
 	regs->sp = sp;
+
+#ifdef CONFIG_DASICS 
+	regs->utvec = 0;
+#endif 
+
 	set_fs(USER_DS);
 }
 

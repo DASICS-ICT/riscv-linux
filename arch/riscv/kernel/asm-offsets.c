@@ -116,6 +116,63 @@ void asm_offsets(void)
 	OFFSET(PT_SBADADDR, pt_regs, sbadaddr);
 	OFFSET(PT_SCAUSE, pt_regs, scause);
 
+	/* N extension user registers */
+	OFFSET(PT_USTATUS, pt_regs, ustatus);
+	OFFSET(PT_UEPC, pt_regs, uepc);
+	OFFSET(PT_UBADADDR, pt_regs, ubadaddr);
+	OFFSET(PT_UCAUSE, pt_regs, ucause);
+	OFFSET(PT_UTVEC, pt_regs, utvec);
+	OFFSET(PT_UIE, pt_regs, uie);
+	OFFSET(PT_UIP, pt_regs, uip);
+	OFFSET(PT_USCRATCH, pt_regs, uscratch);
+	
+#ifdef CONFIG_DASICS
+	/* dasics supervisor registers */
+	OFFSET(PT_DUMCFG, pt_regs, dasicsUmainCfg);
+	OFFSET(PT_DUMBOUNDHI, pt_regs, dasicsUmainBoundHi);
+	OFFSET(PT_DUMBOUNDLO, pt_regs, dasicsUmainBoundLo);
+
+	/* dasics user registers */
+	OFFSET(PT_DLCFG0, pt_regs, dasicsLibCfg0);
+	OFFSET(PT_DLCFG1, pt_regs, dasicsLibCfg1);
+	OFFSET(PT_DLBOUND0, pt_regs, dasicsLibBounds[0]);
+	OFFSET(PT_DLBOUND1, pt_regs, dasicsLibBounds[1]);
+	OFFSET(PT_DLBOUND2, pt_regs, dasicsLibBounds[2]);
+	OFFSET(PT_DLBOUND3, pt_regs, dasicsLibBounds[3]);
+	OFFSET(PT_DLBOUND4, pt_regs, dasicsLibBounds[4]);
+	OFFSET(PT_DLBOUND5, pt_regs, dasicsLibBounds[5]);
+	OFFSET(PT_DLBOUND6, pt_regs, dasicsLibBounds[6]);
+	OFFSET(PT_DLBOUND7, pt_regs, dasicsLibBounds[7]);
+	OFFSET(PT_DLBOUND8, pt_regs, dasicsLibBounds[8]);
+	OFFSET(PT_DLBOUND9, pt_regs, dasicsLibBounds[9]);
+	OFFSET(PT_DLBOUND10, pt_regs, dasicsLibBounds[10]);
+	OFFSET(PT_DLBOUND11, pt_regs, dasicsLibBounds[11]);
+	OFFSET(PT_DLBOUND12, pt_regs, dasicsLibBounds[12]);
+	OFFSET(PT_DLBOUND13, pt_regs, dasicsLibBounds[13]);
+	OFFSET(PT_DLBOUND14, pt_regs, dasicsLibBounds[14]);
+	OFFSET(PT_DLBOUND15, pt_regs, dasicsLibBounds[15]);
+	OFFSET(PT_DLBOUND16, pt_regs, dasicsLibBounds[16]);
+	OFFSET(PT_DLBOUND17, pt_regs, dasicsLibBounds[17]);
+	OFFSET(PT_DLBOUND18, pt_regs, dasicsLibBounds[18]);
+	OFFSET(PT_DLBOUND19, pt_regs, dasicsLibBounds[19]);
+	OFFSET(PT_DLBOUND20, pt_regs, dasicsLibBounds[20]);
+	OFFSET(PT_DLBOUND21, pt_regs, dasicsLibBounds[21]);
+	OFFSET(PT_DLBOUND22, pt_regs, dasicsLibBounds[22]);
+	OFFSET(PT_DLBOUND23, pt_regs, dasicsLibBounds[23]);
+	OFFSET(PT_DLBOUND24, pt_regs, dasicsLibBounds[24]);
+	OFFSET(PT_DLBOUND25, pt_regs, dasicsLibBounds[25]);
+	OFFSET(PT_DLBOUND26, pt_regs, dasicsLibBounds[26]);
+	OFFSET(PT_DLBOUND27, pt_regs, dasicsLibBounds[27]);
+	OFFSET(PT_DLBOUND28, pt_regs, dasicsLibBounds[28]);
+	OFFSET(PT_DLBOUND29, pt_regs, dasicsLibBounds[29]);
+	OFFSET(PT_DLBOUND30, pt_regs, dasicsLibBounds[30]);
+	OFFSET(PT_DLBOUND31, pt_regs, dasicsLibBounds[31]);
+
+	OFFSET(PT_DMAINCALL, pt_regs, dasicsMaincallEntry);
+	OFFSET(PT_DRETURNPC, pt_regs, dasicsReturnPC);
+	OFFSET(PT_DFZRETURN, pt_regs, dasicsFreeZoneReturnPC);
+#endif 
+
 	/*
 	 * THREAD_{F,X}* might be larger than a S-type offset can handle, but
 	 * these are used in performance-sensitive assembly so we can't resort

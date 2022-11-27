@@ -44,6 +44,12 @@
 #include <asm/param.h>
 #include <asm/page.h>
 
+#ifdef CONFIG_DASICS
+#include <asm/csr.h>
+#include <asm/kdasics.h>
+#include <asm/thread_info.h>
+#endif /* CONFIG_DASICS */
+
 #ifndef user_long_t
 #define user_long_t long
 #endif
@@ -459,6 +465,109 @@ out:
 	return elf_phdata;
 }
 
+/*
+* This function is used for loading section headers.
+*/
+
+#ifdef CONFIG_DASICS
+static struct elf_shdr *load_elf_shdrs(struct elfhdr *elf_ex,
+				       struct file *elf_file)
+{
+	struct elf_shdr *elf_shdata = NULL;
+	int retval, size, err = -1;
+	loff_t pos = elf_ex->e_shoff;
+
+	/*
+	 * If the size of this structure has changed, then punt, since
+	 * we will be doing the wrong thing.
+	 */
+	if (elf_ex->e_shentsize != sizeof(struct elf_shdr))
+		goto out;
+
+	/* Sanity check the number of program headers... */
+	if (elf_ex->e_shnum < 1 ||
+		elf_ex->e_shnum > 65536U / sizeof(struct elf_shdr))
+		goto out;
+
+	/* ...and their total size. */
+	size = sizeof(struct elf_shdr) * elf_ex->e_shnum;
+	if (size > ELF_MIN_ALIGN)
+		goto out;
+
+	elf_shdata = kmalloc(size, GFP_KERNEL);
+	if (!elf_shdata)
+		goto out;
+
+	/* Read in the program headers */
+	retval = kernel_read(elf_file, elf_shdata, size, &pos);
+	if (retval != size) {
+		err = (retval < 0) ? retval : -EIO;
+		goto out;
+	}
+
+	/* Success! */
+	err = 0;
+out:
+	if (err) {
+		kfree(elf_shdata);
+		elf_shdata = NULL;
+	}
+	return elf_shdata;
+}
+
+static char *load_secstrs(struct elfhdr *elf_ex, 
+						struct file *elf_file,
+						struct elf_shdr *elf_shdata)
+{
+	struct elf_shdr *elf_ssnt;
+	char *secstrs = NULL;	
+	int retval, size, err = -1;
+	loff_t pos;
+
+	elf_ssnt = &(elf_shdata[elf_ex->e_shstrndx]);
+	size = elf_ssnt->sh_size;
+	secstrs = kmalloc(size, GFP_KERNEL);
+	if (!secstrs) {
+		err = -ENOMEM;
+		goto out;
+	}
+
+	pos = elf_ssnt->sh_offset;
+	retval = kernel_read(elf_file, secstrs, size, &pos);
+	if (retval != size) {
+		err = (retval < 0) ? retval : -EIO;
+		goto out;
+	}
+
+	err = 0;
+out:
+	if (err && (secstrs != NULL)) {
+		kfree(secstrs);
+		secstrs = NULL;
+	}
+	return secstrs;
+}
+
+static struct elf_shdr *find_sec(char *secstrs,
+					struct elfhdr *elf_ex,
+					struct elf_shdr *elf_shdata,						
+					const char *name) 
+{	
+	struct elf_shdr *elf_ssnt = NULL;
+	int i;
+
+	for (i = 0, elf_ssnt = elf_shdata; i < elf_ex->e_shnum; i++, elf_ssnt++) {
+		if ((elf_ssnt->sh_flags & SHF_ALLOC)
+                    && strcmp(secstrs + elf_ssnt->sh_name, name) == 0) {
+						return elf_ssnt;
+		}
+	}
+	
+	return NULL;
+}
+
+#endif /* CONFIG_DASICS */
+
 #ifndef CONFIG_ARCH_BINFMT_ELF_STATE
 
 /**
@@ -710,6 +819,13 @@ static int load_elf_binary(struct linux_binprm *bprm)
 	} *loc;
 	struct arch_elf_state arch_state = INIT_ARCH_ELF_STATE;
 	loff_t pos;
+
+#ifdef CONFIG_DASICS
+	struct elf_shdr *elf_shdata, *elf_shtmp;
+	char *secstrs = NULL;
+	unsigned long hi = 0, lo = 0;
+	struct vm_area_struct *vmaptr;
+#endif /* CONFIG_DASICS */
 
 	loc = kmalloc(sizeof(*loc), GFP_KERNEL);
 	if (!loc) {
@@ -1138,7 +1254,7 @@ static int load_elf_binary(struct linux_binprm *bprm)
 
 	if ((current->flags & PF_RANDOMIZE) && (randomize_va_space > 1)) {
 		current->mm->brk = current->mm->start_brk =
-			arch_randomize_brk(current->mm);
+			arch_randomize_brk(current->mm);			
 #ifdef compat_brk_randomized
 		current->brk_randomized = 1;
 #endif
@@ -1166,6 +1282,105 @@ static int load_elf_binary(struct linux_binprm *bprm)
 	 */
 	ELF_PLAT_INIT(regs, reloc_func_desc);
 #endif
+
+#ifdef CONFIG_DASICS
+
+	/* clear dasics csrs */
+    regs->dasicsUmainCfg = 0;
+	regs->dasicsLibCfg0 = 0;
+	regs->dasicsLibCfg1 = 0;
+
+	/* TODO: if .ulibtext exists, set dasics user main boundary registers. */
+	elf_shdata = load_elf_shdrs(&loc->elf_ex, bprm->file);
+	if (!elf_shdata)
+		goto final_exec;
+	secstrs = load_secstrs(&loc->elf_ex, bprm->file, elf_shdata);
+	if (!secstrs)
+		goto out_free_shdata;
+	elf_shtmp = find_sec(secstrs, &loc->elf_ex, elf_shdata, ".ulibtext");
+	if (!elf_shtmp)
+		goto out_free_secstrs;
+
+#ifdef CONFIG_DASICS_DEBUG
+	/* print infos for debugging */
+	pr_info("start_code: 0x%lx, end_code: 0x%lx\n", start_code, end_code);
+	pr_info("start_data: 0x%lx, end_data: 0x%lx\n", start_data, end_data);
+	pr_info("elf_bss: 0x%lx, elf_brk: 0x%lx\n", elf_bss, elf_brk);
+	pr_info("load addr: 0x%lx, load bias: 0x%lx\n", load_addr, load_bias);
+	pr_info("user stack base: 0x%lx\n", current->mm->start_stack);
+	pr_info("user heap base: 0x%lx, end: 0x%lx\n", current->mm->start_brk, current->mm->brk);
+	pr_info("mmap base: 0x%lx mmap_min_addr: 0x%lx\n", current->mm->mmap_base, mmap_min_addr);
+	pr_info("kernel stack pointer: 0x%lx\n", (unsigned long)current->stack);
+#endif 
+
+	hi = elf_shtmp->sh_addr + elf_shtmp->sh_size + load_bias;
+	lo = elf_shtmp->sh_addr + load_bias;
+#ifdef CONFIG_DASICS_DEBUG
+	pr_info("ulibtext start: 0x%lx, end: 0x%lx\n", lo, hi);
+#endif 
+	/* set dasics lib config, need to update dynamic allocation */
+
+	/* kernel stack. This is used in S-state dasics protection. */
+	//regs->dasicsLibBounds[0] = (unsigned long)current->stack + THREAD_SIZE;
+	//regs->dasicsLibBounds[1] = (unsigned long)current->stack;
+
+	/* lib function text */
+	regs->dasicsLibBounds[2] = hi - 0x2UL;  
+	regs->dasicsLibBounds[3] = lo;
+
+	/* get read-only datas. */
+	/* This area contains some other codes, however, lib text should not execute them. */
+	regs->dasicsLibBounds[4] = start_data - 0x2UL;
+	regs->dasicsLibBounds[5] = hi;
+
+	/* Following mapping is related to vm_mmap blocks. */
+	/* This should be updated in future.*/
+#ifdef CONFIG_DASICS_DEBUG
+	for (vmaptr = current->mm->mmap; vmaptr != NULL; vmaptr = vmaptr->vm_next) {
+		pr_info("vm start: 0x%lx, vm end: 0x%lx, vm flag: 0x%lx\n", 
+				vmaptr->vm_start, vmaptr->vm_end, vmaptr->vm_flags);
+	}
+#endif
+
+	/* protect data */
+	/* currently protact heap\mmap\stack together */	
+	regs->dasicsLibBounds[6] = TASK_SIZE;
+	regs->dasicsLibBounds[7] = start_data;
+
+	regs->dasicsLibCfg0 = 0x0b0a0c00;
+
+	/* get main text */
+    elf_shtmp = find_sec(secstrs, &loc->elf_ex, elf_shdata, ".text");
+	hi = elf_shtmp->sh_addr + elf_shtmp->sh_size + load_bias;
+	lo = elf_shtmp->sh_addr + load_bias;
+#ifdef CONFIG_DASICS_DEBUG
+    	pr_info("text start: 0x%lx, end: 0x%lx\n", lo, hi);
+#endif
+
+	regs->dasicsUmainCfg = DASICS_UCFG_ENA; 
+	regs->dasicsUmainBoundHi = hi - 0x2UL;
+	regs->dasicsUmainBoundLo = lo;
+	
+#ifdef CONFIG_DASICS_DEBUG
+	/* NOTE: current tp is kernel tp, and regs->tp is user tp, might be different */
+	/* For kernel init thread, prev_tp == NULL */
+	pr_info("kernel tp: 0x%lx, user tp: 0x%lx\n", (unsigned long)current, regs->tp);
+	pr_info("sstatus: " REG_FMT " sbadaddr: " REG_FMT " scause: " REG_FMT "\n",
+		regs->sstatus, regs->sbadaddr, regs->scause);
+	pr_info("ustatus: " REG_FMT " ubadaddr: " REG_FMT " ucause: " REG_FMT "\n",
+		regs->ustatus, regs->ubadaddr, regs->ucause);
+	pr_info("maincall entry: " REG_FMT " return pc: " REG_FMT " freezone return pc: " REG_FMT "\n",
+		regs->dasicsMaincallEntry, regs->dasicsReturnPC, regs->dasicsFreeZoneReturnPC);
+#endif 
+
+	pr_info("finish dasics initialization.\n");
+
+out_free_secstrs:
+	kfree(secstrs);
+out_free_shdata:
+	kfree(elf_shdata);
+final_exec:
+#endif /* CONFIG_DASICS */
 
 	finalize_exec(bprm);
 	start_thread(regs, elf_entry, bprm->p);

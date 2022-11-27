@@ -56,8 +56,35 @@ struct pt_regs {
 	unsigned long sstatus;
 	unsigned long sbadaddr;
 	unsigned long scause;
-        /* a0 value before the syscall */
-        unsigned long orig_a0;
+    /* a0 value before the syscall */
+    unsigned long orig_a0;
+
+	/* N-extension user registers */
+	unsigned long ustatus;
+	unsigned long uepc;
+	unsigned long ubadaddr;
+	unsigned long ucause;
+	unsigned long utvec;
+	unsigned long uie;
+	unsigned long uip;
+	unsigned long uscratch;
+
+#ifdef CONFIG_DASICS
+	/* dasics supervisor registers */
+	unsigned long dasicsUmainCfg;  		/* initialize should be zero */
+	unsigned long dasicsUmainBoundHi;
+	unsigned long dasicsUmainBoundLo;
+
+	/* dasics user registers */
+	unsigned long dasicsLibCfg0;
+	unsigned long dasicsLibCfg1;
+	unsigned long dasicsLibBounds[32];
+
+	unsigned long dasicsMaincallEntry;
+	unsigned long dasicsReturnPC;
+	unsigned long dasicsFreeZoneReturnPC;	
+#endif 
+
 };
 
 #ifdef CONFIG_64BIT
@@ -68,6 +95,10 @@ struct pt_regs {
 
 #define user_mode(regs) (((regs)->sstatus & SR_SPP) == 0)
 
+#ifdef CONFIG_DASICS
+#define dasics_uena(regs) (((regs)->dasicsUmainCfg & DASICS_UCFG_ENA) != 0)
+#define dasics_uopen(regs) (user_mode(regs) && dasics_uena(regs))
+#endif 
 
 /* Helpers for working with the instruction pointer */
 #define GET_IP(regs) ((regs)->sepc)
