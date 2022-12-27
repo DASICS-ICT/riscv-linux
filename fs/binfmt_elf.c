@@ -1343,16 +1343,32 @@ static int load_elf_binary(struct linux_binprm *bprm)
 #endif
 
 	/* protect data */
-	/* currently protact heap\mmap\stack together */	
-	regs->dasicsLibBounds[6] = TASK_SIZE;
-	regs->dasicsLibBounds[7] = start_data;
+	/* currently protect heap\mmap\stack together */	
+	//regs->dasicsLibBounds[6] = TASK_SIZE;
+	//regs->dasicsLibBounds[7] = start_data;
+	regs->dasicsLibBounds[6] = current->mm->start_stack - 0x2UL;
+	regs->dasicsLibBounds[7] = current->mm->start_brk;
 
-	regs->dasicsLibCfg0 = 0x0b0a0c00;
+	/* set free zone*/ 
+    elf_shtmp = find_sec(secstrs, &loc->elf_ex, elf_shdata, ".ufreezonetext");
+
+	if(elf_shtmp){
+		hi = elf_shtmp->sh_addr + elf_shtmp->sh_size + load_bias;
+		lo = elf_shtmp->sh_addr + load_bias;
+
+		regs->dasicsLibBounds[0] = hi - 0x2UL;
+		regs->dasicsLibBounds[1] = lo;
+	    pr_info("free zone text start: 0x%lx, end: 0x%lx\n", lo, hi);
+	}
+
+	regs->dasicsLibCfg0 = 0x0b0a0c0c;
+
 
 	/* get main text */
     elf_shtmp = find_sec(secstrs, &loc->elf_ex, elf_shdata, ".text");
 	hi = elf_shtmp->sh_addr + elf_shtmp->sh_size + load_bias;
 	lo = elf_shtmp->sh_addr + load_bias;
+
 #ifdef CONFIG_DASICS_DEBUG
     	pr_info("text start: 0x%lx, end: 0x%lx\n", lo, hi);
 #endif
@@ -1360,7 +1376,9 @@ static int load_elf_binary(struct linux_binprm *bprm)
 	regs->dasicsUmainCfg = DASICS_UCFG_ENA; 
 	regs->dasicsUmainBoundHi = hi - 0x2UL;
 	regs->dasicsUmainBoundLo = lo;
-	
+
+
+
 #ifdef CONFIG_DASICS_DEBUG
 	/* NOTE: current tp is kernel tp, and regs->tp is user tp, might be different */
 	/* For kernel init thread, prev_tp == NULL */
