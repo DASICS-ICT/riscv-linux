@@ -749,5 +749,7 @@ ENTRY(excp_vect_table)
 	RISCV_PTR do_trap_dasics  /* dasics sload fault */
 	RISCV_PTR do_trap_dasics  /* dasics ustore fault */
 	RISCV_PTR do_trap_dasics  /* dasics sstore fault */
+	RISCV_PTR do_trap_dasics  /* dasics uecall fault */
+	RISCV_PTR do_trap_dasics  /* dasics secall fault */
 excp_vect_table_end:
 END(excp_vect_table)
