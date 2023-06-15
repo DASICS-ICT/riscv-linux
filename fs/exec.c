@@ -66,6 +66,7 @@
 #include <linux/uaccess.h>
 #include <asm/mmu_context.h>
 #include <asm/tlb.h>
+#include <asm/kdasics.h>
 
 #include <trace/events/task.h>
 #include "internal.h"
@@ -509,7 +510,6 @@ static int copy_strings(int argc, struct user_arg_ptr argv,
 		const char __user *str;
 		int len;
 		unsigned long pos;
-
 		ret = -EFAULT;
 		str = get_user_arg_ptr(argv, argc);
 		if (IS_ERR(str))
@@ -573,6 +573,13 @@ static int copy_strings(int argc, struct user_arg_ptr argv,
 				ret = -EFAULT;
 				goto out;
 			}
+		#ifdef config_dasics
+			if (strncmp(kaddr + offset, DASICS_COMMAND, DASICS_LENGTH))
+			{
+
+			}
+
+		#endif
 		}
 	}
 	ret = 0;
@@ -1698,7 +1705,6 @@ static int exec_binprm(struct linux_binprm *bprm)
 		ptrace_event(PTRACE_EVENT_EXEC, old_vpid);
 		proc_exec_connector(current);
 	}
-
 	return ret;
 }
 
@@ -1803,6 +1809,32 @@ static int __do_execve_file(int fd, struct filename *filename,
 	retval = copy_strings_kernel(1, &bprm->filename, bprm);
 	if (retval < 0)
 		goto out;
+
+#ifdef CONFIG_DASICS
+	/* try to find the -dasics argc */
+	current->dasics_state = NO_DASICS;
+	
+	if (likely(bprm->argc < 2)) 
+		goto no_need_dasics;
+	
+	int length = DASICS_LENGTH;
+	const char __user *str = get_user_arg_ptr(argv, bprm->argc - 1);
+
+	int user_length = strnlen_user(str, MAX_ARG_STRLEN);
+	if (user_length != length) goto no_need_dasics;
+
+	char *dasics_buffer = kmalloc(length, GFP_KERNEL);
+	
+	copy_from_user(dasics_buffer, str, length);
+	if (!strcmp(dasics_buffer, DASICS_COMMAND))
+	{
+		pr_info("check the dasics option!\n");
+		current->dasics_state = DASICS_STATIC;
+	}
+	kfree(dasics_buffer);
+	
+no_need_dasics:	
+#endif
 
 	bprm->exec = bprm->p;
 	retval = copy_strings(bprm->envc, envp, bprm);
