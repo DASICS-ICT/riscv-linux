@@ -1829,6 +1829,7 @@ static int __do_execve_file(int fd, struct filename *filename,
 	if (!strcmp(dasics_buffer, DASICS_COMMAND))
 	{
 		pr_info("check the dasics option!\n");
+		bprm->argc -= 1;
 		current->dasics_state = DASICS_STATIC;
 	}
 	kfree(dasics_buffer);
