@@ -9,6 +9,8 @@
 #include <linux/irqchip.h>
 #include <linux/irqdomain.h>
 
+#include <asm/sbi.h>
+#include <asm/bug.h>
 /*
  * Possible interrupt causes:
  */

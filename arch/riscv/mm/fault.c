@@ -195,6 +195,7 @@ no_context:
 	 * Oops. The kernel tried to access some bad page. We'll have to
 	 * terminate things with extreme prejudice.
 	 */
+	pr_alert("bugs not fixed, ready to die.\n");
 	bust_spinlocks(1);
 	pr_alert("Unable to handle kernel %s at virtual address " REG_FMT "\n",
 		(addr < PAGE_SIZE) ? "NULL pointer dereference" :

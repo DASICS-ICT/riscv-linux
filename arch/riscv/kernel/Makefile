@@ -41,4 +41,7 @@ obj-$(CONFIG_DYNAMIC_FTRACE)	+= mcount-dyn.o
 
 obj-$(CONFIG_PERF_EVENTS)      += perf_event.o
 
+# TODO: Add CONFIG_DASICS
+obj-$(CONFIG_DASICS)			+= kdasics.o
+
 clean:
