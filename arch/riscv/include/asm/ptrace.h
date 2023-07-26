@@ -77,8 +77,7 @@ struct pt_regs {
 
 	/* dasics user registers */
 	unsigned long dasicsLibCfg0;
-	unsigned long dasicsLibCfg1;
-	unsigned long dasicsLibBounds[32];
+	unsigned long dasicsLibBounds[16];
 
 	unsigned long dasicsMaincallEntry;
 	unsigned long dasicsReturnPC;

@@ -70,14 +70,14 @@
 #define EXC_LOAD_PAGE_FAULT     13
 #define EXC_STORE_PAGE_FAULT    15
 
-#ifdef CONFIG_DASICS 
+#ifdef CONFIG_DASICS
 /* Add dasics exceptions */
-#define EXC_DASICS_UFETCH_FAULT   24
-#define EXC_DASICS_SFETCH_FAULT   25
-#define EXC_DASICS_ULOAD_FAULT   26
-#define EXC_DASICS_SLOAD_FAULT   27
-#define EXC_DASICS_USTORE_FAULT  28
-#define EXC_DASICS_SSTORE_FAULT  29
+#define EXC_DASICS_UFETCH_FAULT   16
+#define EXC_DASICS_SFETCH_FAULT   17
+#define EXC_DASICS_ULOAD_FAULT   18
+#define EXC_DASICS_SLOAD_FAULT   19
+#define EXC_DASICS_USTORE_FAULT  20
+#define EXC_DASICS_SSTORE_FAULT  21
 #endif /* CONFIG_DASICS */
 
 #define CSR_CYCLE           0xc00
@@ -115,14 +115,13 @@
 
 /* DASICS Main cfg */
 #define DASICS_MAINCFG_MASK 0xfUL
-#define DASICS_UCFG_CLS     0x8UL
-#define DASICS_SCFG_CLS     0x4UL
+#define DASICS_UCFG_CLS     0x1UL
 #define DASICS_UCFG_ENA     0x2UL
-#define DASICS_SCFG_ENA     0x1UL
+#define DASICS_SCFG_CLS     0x1UL
+#define DASICS_SCFG_ENA     0x2UL
 
 /* DASICS Lib csrs */
 #define CSR_DLCFG0          0x881
-#define CSR_DLCFG1          0x882
 
 #define CSR_DLBOUND0        0x883
 #define CSR_DLBOUND1        0x884
@@ -140,22 +139,6 @@
 #define CSR_DLBOUND13       0x890
 #define CSR_DLBOUND14       0x891
 #define CSR_DLBOUND15       0x892
-#define CSR_DLBOUND16       0x893
-#define CSR_DLBOUND17       0x894
-#define CSR_DLBOUND18       0x895
-#define CSR_DLBOUND19       0x896
-#define CSR_DLBOUND20       0x897
-#define CSR_DLBOUND21       0x898
-#define CSR_DLBOUND22       0x899
-#define CSR_DLBOUND23       0x89a
-#define CSR_DLBOUND24       0x89b
-#define CSR_DLBOUND25       0x89c
-#define CSR_DLBOUND26       0x89d
-#define CSR_DLBOUND27       0x89e
-#define CSR_DLBOUND28       0x89f
-#define CSR_DLBOUND29       0x8a0
-#define CSR_DLBOUND30       0x8a1
-#define CSR_DLBOUND31       0x8a2
 
 #define CSR_DMAINCALL       0x8a3
 #define CSR_DRETURNPC       0x8a4

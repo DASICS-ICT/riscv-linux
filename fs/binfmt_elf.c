@@ -1288,7 +1288,6 @@ static int load_elf_binary(struct linux_binprm *bprm)
 	/* clear dasics csrs */
     regs->dasicsUmainCfg = 0;
 	regs->dasicsLibCfg0 = 0;
-	regs->dasicsLibCfg1 = 0;
 
 	/* TODO: if .ulibtext exists, set dasics user main boundary registers. */
 	elf_shdata = load_elf_shdrs(&loc->elf_ex, bprm->file);
@@ -1349,6 +1348,12 @@ static int load_elf_binary(struct linux_binprm *bprm)
 	regs->dasicsLibBounds[6] = current->mm->start_stack - 0x2UL;
 	regs->dasicsLibBounds[7] = current->mm->start_brk;
 
+#ifdef CONFIG_64BIT
+	regs->dasicsLibCfg0 = 0x0b0a0c00;
+#else
+	regs->dasicsLibCfg0 = 0xbac0;
+#endif
+
 	/* set free zone*/ 
     elf_shtmp = find_sec(secstrs, &loc->elf_ex, elf_shdata, ".ufreezonetext");
 
@@ -1358,11 +1363,9 @@ static int load_elf_binary(struct linux_binprm *bprm)
 
 		regs->dasicsLibBounds[0] = hi - 0x2UL;
 		regs->dasicsLibBounds[1] = lo;
+		regs->dasicsLibCfg0 |= 0xc;
 	    pr_info("free zone text start: 0x%lx, end: 0x%lx\n", lo, hi);
 	}
-
-	regs->dasicsLibCfg0 = 0x0b0a0c0c;
-
 
 	/* get main text */
     elf_shtmp = find_sec(secstrs, &loc->elf_ex, elf_shdata, ".text");

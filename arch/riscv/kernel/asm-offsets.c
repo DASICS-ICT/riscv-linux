@@ -134,7 +134,6 @@ void asm_offsets(void)
 
 	/* dasics user registers */
 	OFFSET(PT_DLCFG0, pt_regs, dasicsLibCfg0);
-	OFFSET(PT_DLCFG1, pt_regs, dasicsLibCfg1);
 	OFFSET(PT_DLBOUND0, pt_regs, dasicsLibBounds[0]);
 	OFFSET(PT_DLBOUND1, pt_regs, dasicsLibBounds[1]);
 	OFFSET(PT_DLBOUND2, pt_regs, dasicsLibBounds[2]);
@@ -151,22 +150,6 @@ void asm_offsets(void)
 	OFFSET(PT_DLBOUND13, pt_regs, dasicsLibBounds[13]);
 	OFFSET(PT_DLBOUND14, pt_regs, dasicsLibBounds[14]);
 	OFFSET(PT_DLBOUND15, pt_regs, dasicsLibBounds[15]);
-	OFFSET(PT_DLBOUND16, pt_regs, dasicsLibBounds[16]);
-	OFFSET(PT_DLBOUND17, pt_regs, dasicsLibBounds[17]);
-	OFFSET(PT_DLBOUND18, pt_regs, dasicsLibBounds[18]);
-	OFFSET(PT_DLBOUND19, pt_regs, dasicsLibBounds[19]);
-	OFFSET(PT_DLBOUND20, pt_regs, dasicsLibBounds[20]);
-	OFFSET(PT_DLBOUND21, pt_regs, dasicsLibBounds[21]);
-	OFFSET(PT_DLBOUND22, pt_regs, dasicsLibBounds[22]);
-	OFFSET(PT_DLBOUND23, pt_regs, dasicsLibBounds[23]);
-	OFFSET(PT_DLBOUND24, pt_regs, dasicsLibBounds[24]);
-	OFFSET(PT_DLBOUND25, pt_regs, dasicsLibBounds[25]);
-	OFFSET(PT_DLBOUND26, pt_regs, dasicsLibBounds[26]);
-	OFFSET(PT_DLBOUND27, pt_regs, dasicsLibBounds[27]);
-	OFFSET(PT_DLBOUND28, pt_regs, dasicsLibBounds[28]);
-	OFFSET(PT_DLBOUND29, pt_regs, dasicsLibBounds[29]);
-	OFFSET(PT_DLBOUND30, pt_regs, dasicsLibBounds[30]);
-	OFFSET(PT_DLBOUND31, pt_regs, dasicsLibBounds[31]);
 
 	OFFSET(PT_DMAINCALL, pt_regs, dasicsMaincallEntry);
 	OFFSET(PT_DRETURNPC, pt_regs, dasicsReturnPC);

@@ -26,25 +26,23 @@
 	.text
 	.altmacro
 
-/* 
- * Don't modify s0-s5 since they will be used in handle_exception, 
+/*
+ * Don't modify s0-s5 since they will be used in handle_exception,
  * Or you should save csr s registers in final.
  * We don't save umcfg here since it is previously saved.
- */ 
+ */
 	.macro SAVE_DASICS
 
-	/* Save dasics main context */	
+	/* Save dasics main context */
 	csrrw t0, CSR_DUMCFG, zero
-  	REG_S t0, PT_DUMCFG(sp)	 
+  	REG_S t0, PT_DUMCFG(sp)
 	csrr t0, CSR_DUMBOUNDHI
 	REG_S t0, PT_DUMBOUNDHI(sp)
 	csrr t1, CSR_DUMBOUNDLO
 	REG_S t1, PT_DUMBOUNDLO(sp)
 
 	csrr t0, CSR_DLCFG0
-	csrr t1, CSR_DLCFG1
 	REG_S t0, PT_DLCFG0(sp)
-	REG_S t1, PT_DLCFG1(sp)
 
 	csrr t0, CSR_DLBOUND0
 	csrr t1, CSR_DLBOUND1
@@ -77,40 +75,7 @@
 	csrr t0, CSR_DLBOUND14
 	csrr t1, CSR_DLBOUND15
 	REG_S t0, PT_DLBOUND14(sp)
-	REG_S t1, PT_DLBOUND15(sp)	
-
-	csrr t0, CSR_DLBOUND16
-	csrr t1, CSR_DLBOUND17
-	REG_S t0, PT_DLBOUND16(sp)
-	REG_S t1, PT_DLBOUND17(sp)
-	csrr t0, CSR_DLBOUND18
-	csrr t1, CSR_DLBOUND19
-	REG_S t0, PT_DLBOUND18(sp)
-	REG_S t1, PT_DLBOUND19(sp)
-	csrr t0, CSR_DLBOUND20
-	csrr t1, CSR_DLBOUND21
-	REG_S t0, PT_DLBOUND20(sp)
-	REG_S t1, PT_DLBOUND21(sp)
-	csrr t0, CSR_DLBOUND22
-	csrr t1, CSR_DLBOUND23
-	REG_S t0, PT_DLBOUND22(sp)
-	REG_S t1, PT_DLBOUND23(sp)
-	csrr t0, CSR_DLBOUND24
-	csrr t1, CSR_DLBOUND25
-	REG_S t0, PT_DLBOUND24(sp)
-	REG_S t1, PT_DLBOUND25(sp)
-	csrr t0, CSR_DLBOUND26
-	csrr t1, CSR_DLBOUND27
-	REG_S t0, PT_DLBOUND26(sp)
-	REG_S t1, PT_DLBOUND27(sp)
-	csrr t0, CSR_DLBOUND28
-	csrr t1, CSR_DLBOUND29
-	REG_S t0, PT_DLBOUND28(sp)
-	REG_S t1, PT_DLBOUND29(sp)
-	csrr t0, CSR_DLBOUND30
-	csrr t1, CSR_DLBOUND31
-	REG_S t0, PT_DLBOUND30(sp)
-	REG_S t1, PT_DLBOUND31(sp)
+	REG_S t1, PT_DLBOUND15(sp)
 
 	csrr t0, CSR_DMAINCALL
 	REG_S t0, PT_DMAINCALL(sp)
@@ -127,21 +92,21 @@
   	csrr t0, CSR_USTATUS
   	REG_S t0, PT_USTATUS(sp)
  	csrr t1, CSR_UEPC
-  	REG_S t1, PT_UEPC(sp) 
+  	REG_S t1, PT_UEPC(sp)
   	csrr t0, CSR_UTVAL
-  	REG_S t0, PT_UBADADDR(sp) 
+  	REG_S t0, PT_UBADADDR(sp)
   	csrr t1, CSR_UCAUSE
   	REG_S t1, PT_UCAUSE(sp)
 	csrr t0, CSR_UTVEC
   	REG_S t0, PT_UTVEC(sp)
-  	csrr t1, CSR_UIE  	
-  	REG_S t1, PT_UIE(sp)	  
+  	csrr t1, CSR_UIE
+  	REG_S t1, PT_UIE(sp)
 	csrr t0, CSR_UIP
   	REG_S t0, PT_UIP(sp)
 	csrr t1, CSR_USCRATCH
  	REG_S t1, PT_USCRATCH(sp)
 
-	.endm 
+	.endm
 
 /*
  * Prepares to enter a system call or exception by saving all registers to the
@@ -230,8 +195,8 @@ _check_kernel:
 
 _check_dasics:
 	/* dasics uregs are thread specific.
-	 * if this thread doesn't open dasics, 
-	 * its umaincfg should be set to 0 
+	 * if this thread doesn't open dasics,
+	 * its umaincfg should be set to 0
 	 * before starting thread. */
 	REG_L t0, PT_DUMCFG(sp)
 	bnez t0, _save_dasics
@@ -239,7 +204,7 @@ _check_dasics:
 _save_dasics:
 	SAVE_UCSR
 	SAVE_DASICS
-_save_end:	
+_save_end:
 	.endm
 
 	.macro RESTORE_DASICS
@@ -254,9 +219,7 @@ _save_end:
 	csrw CSR_DUMBOUNDLO, t1
 
 	REG_L t0, PT_DLCFG0(sp)
-	REG_L t1, PT_DLCFG1(sp)
 	csrw CSR_DLCFG0, t0
-	csrw CSR_DLCFG1, t1
 
 	REG_L t0, PT_DLBOUND0(sp)
 	REG_L t1, PT_DLBOUND1(sp)
@@ -291,39 +254,6 @@ _save_end:
 	csrw CSR_DLBOUND14, t0
 	csrw CSR_DLBOUND15, t1
 
-	REG_L t0, PT_DLBOUND16(sp)
-	REG_L t1, PT_DLBOUND17(sp)
-	csrw CSR_DLBOUND16, t0
-	csrw CSR_DLBOUND17, t1
-	REG_L t0, PT_DLBOUND18(sp)
-	REG_L t1, PT_DLBOUND19(sp)
-	csrw CSR_DLBOUND18, t0
-	csrw CSR_DLBOUND19, t1
-	REG_L t0, PT_DLBOUND20(sp)
-	REG_L t1, PT_DLBOUND21(sp)
-	csrw CSR_DLBOUND20, t0
-	csrw CSR_DLBOUND21, t1
-	REG_L t0, PT_DLBOUND22(sp)
-	REG_L t1, PT_DLBOUND23(sp)
-	csrw CSR_DLBOUND22, t0
-	csrw CSR_DLBOUND23, t1
-	REG_L t0, PT_DLBOUND24(sp)
-	REG_L t1, PT_DLBOUND25(sp)
-	csrw CSR_DLBOUND24, t0
-	csrw CSR_DLBOUND25, t1
-	REG_L t0, PT_DLBOUND26(sp)
-	REG_L t1, PT_DLBOUND27(sp)
-	csrw CSR_DLBOUND26, t0
-	csrw CSR_DLBOUND27, t1
-	REG_L t0, PT_DLBOUND28(sp)
-	REG_L t1, PT_DLBOUND29(sp)
-	csrw CSR_DLBOUND28, t0
-	csrw CSR_DLBOUND29, t1
-	REG_L t0, PT_DLBOUND30(sp)
-	REG_L t1, PT_DLBOUND31(sp)
-	csrw CSR_DLBOUND30, t0
-	csrw CSR_DLBOUND31, t1
-
 	REG_L t0, PT_DMAINCALL(sp)
 	csrw CSR_DMAINCALL, t0
 	REG_L t1, PT_DRETURNPC(sp)
@@ -335,21 +265,21 @@ _save_end:
 	.macro RESTORE_UCSR
 
 	/* Restore N Extension registers. */
-	REG_L t0, PT_USTATUS(sp)	
+	REG_L t0, PT_USTATUS(sp)
 	csrw CSR_USTATUS, t0
 	REG_L t1, PT_UEPC(sp)
 	csrw CSR_UEPC, t1
 	REG_L t0, PT_UBADADDR(sp)
 	csrw CSR_UTVAL, t0
 	REG_L t1, PT_UCAUSE(sp)
-	csrw CSR_UCAUSE, t1	
-	REG_L t0, PT_UTVEC(sp)	
+	csrw CSR_UCAUSE, t1
+	REG_L t0, PT_UTVEC(sp)
 	csrw CSR_UTVEC, t0
-	REG_L t1, PT_UIE(sp)	
-	csrw CSR_UIE, t1	
-	REG_L t0, PT_UIP(sp)	
+	REG_L t1, PT_UIE(sp)
+	csrw CSR_UIE, t1
+	REG_L t0, PT_UIP(sp)
 	csrw CSR_UIP, t0
-	REG_L t1, PT_USCRATCH(sp)	
+	REG_L t1, PT_USCRATCH(sp)
 	csrw CSR_USCRATCH, t1
 	.endm
 
@@ -462,7 +392,7 @@ load_gp:
 	bgeu t0, t2, 1f
 	REG_L t0, 0(t0)
 	jr t0
-1: 
+1:
 	tail do_trap_unknown
 
 handle_syscall:
@@ -735,14 +665,6 @@ ENTRY(excp_vect_table)
 	RISCV_PTR do_page_fault   /* load page fault */
 	RISCV_PTR do_trap_unknown
 	RISCV_PTR do_page_fault   /* store page fault */
-	RISCV_PTR do_trap_unknown
-	RISCV_PTR do_trap_unknown
-	RISCV_PTR do_trap_unknown
-	RISCV_PTR do_trap_unknown
-	RISCV_PTR do_trap_unknown
-	RISCV_PTR do_trap_unknown
-	RISCV_PTR do_trap_unknown
-	RISCV_PTR do_trap_unknown	
 	RISCV_PTR do_trap_dasics  /* dasics ufetch fault */
 	RISCV_PTR do_trap_dasics  /* dasics sfetch fault */
 	RISCV_PTR do_trap_dasics  /* dasics uload fault */

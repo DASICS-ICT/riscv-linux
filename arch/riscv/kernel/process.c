@@ -93,10 +93,9 @@ void show_ext_regs(struct pt_regs *regs)
 	
 	/* Dasics user regs */
 	pr_cont("DASICS Lib Registers: \n");
-	pr_cont("config0: " REG_FMT " config1: " REG_FMT "\n",
-		regs->dasicsLibCfg0, regs->dasicsLibCfg1);
+	pr_cont("config0: " REG_FMT "\n", regs->dasicsLibCfg0);
 
-	for (cnt = 0; cnt < 32; cnt +=2) {
+	for (cnt = 0; cnt < 16; cnt +=2) {
 		pr_cont("lib bound%d: " REG_FMT " lib bound%d: " REG_FMT "\n",
 			cnt, regs->dasicsLibBounds[cnt], cnt+1, regs->dasicsLibBounds[cnt+1]);
 	}
@@ -112,9 +111,9 @@ void start_thread(struct pt_regs *regs, unsigned long pc,
 	regs->sepc = pc;
 	regs->sp = sp;
 
-#ifdef CONFIG_DASICS 
+#ifdef CONFIG_DASICS
 	regs->utvec = 0;
-#endif 
+#endif
 
 	set_fs(USER_DS);
 }
