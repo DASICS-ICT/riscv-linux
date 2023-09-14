@@ -162,6 +162,7 @@
 
 	.endm 
 
+
 /*
  * Prepares to enter a system call or exception by saving all registers to the
  * stack.
@@ -242,21 +243,30 @@ _save_context:
 
 _check_kernel:
 	/* if exception comes from kernel, sscratch contains 0 */
-	# bnez s5, _check_dasics
-	# REG_S zero, PT_DUMCFG(sp)
-	# j _save_end
+	// BUG(wh): the sscratch has been changed to tp, if tp be zero, will lost dasics csrs
+	andi t0, s1, SR_SPP
+	beqz t0, _check_dasics
+	// clear CSR_DUMCFG again
+	csrw CSR_DUMCFG, zero
+	REG_S zero, PT_DUMCFG(sp)
+	j _save_end
 
 _check_dasics:
 	/* dasics uregs are thread specific.
 	 * if this thread doesn't open dasics, 
 	 * its umaincfg should be set to 0 
 	 * before starting thread. */
-	REG_L t0, PT_DUMCFG(sp)
+	// REG_L t0, PT_DUMCFG(sp)
+	// BUG(wh), why read CSR_DUMCFG from kernel stack? the data on the kernel stack is unsure.	
+	csrr t0, CSR_DUMCFG
 	bnez t0, _save_dasics
+
 	j _save_end
 _save_dasics:
 	SAVE_UCSR
 	SAVE_DASICS
+	// now, we enter kernel, clear CSR_DUMCFG again
+	csrw CSR_DUMCFG, zero
 _save_end:	
 	.endm
 
@@ -264,8 +274,9 @@ _save_end:
 
 	/* Restore dasics main context */
 	/* dumaincfg is saved previously */
-	// REG_L t0, PT_DUMCFG(sp)
-	// csrw CSR_DUMCFG, t0
+	/* wh change, we save it to avoid metaphysics */
+	REG_L t0, PT_DUMCFG(sp)
+	csrw CSR_DUMCFG, t0
 	REG_L t1, PT_DUMBOUNDLO(sp)
 	csrw CSR_DUMBOUNDLO, t1
 	REG_L t0, PT_DUMBOUNDHI(sp)
@@ -273,9 +284,7 @@ _save_end:
 
 
 	REG_L t0, PT_DLCFG0(sp)
-	# REG_L t1, PT_DLCFG1(sp)
 	csrw CSR_DLCFG0, t0
-	# csrw CSR_DLCFG1, t1
 
 	REG_L t0, PT_DLBOUND0LO(sp)
 	REG_L t1, PT_DLBOUND0HI(sp)
@@ -408,10 +417,10 @@ _save_end:
 
 _check_kernel:
 	/* How can I know I handled an exception from kernel thread? */
-	# andi t0, a0, SR_SPP
-	# beqz t0, _check_dasics
-	# csrw CSR_DUMCFG, zero
-	# j _restore_general
+	andi t0, a0, SR_SPP
+	beqz t0, _check_dasics
+	csrw CSR_DUMCFG, zero
+	j _restore_general
 _check_dasics:
 	REG_L t0, PT_DUMCFG(sp)
 	csrw CSR_DUMCFG, t0
@@ -421,7 +430,6 @@ _restore_dasics:
 	RESTORE_UCSR
 _restore_general:
 	/* restore general regs */
-
 	REG_L x1,  PT_RA(sp)
 	REG_L x3,  PT_GP(sp)
 	REG_L x4,  PT_TP(sp)
@@ -502,7 +510,7 @@ load_gp:
 	bgeu t0, t2, 1f
 	REG_L t0, 0(t0)
 	jr t0
-1:
+1: 
 	tail do_trap_unknown
 
 handle_syscall:
@@ -543,7 +551,7 @@ ret_from_exception:
 	REG_L s0, PT_SSTATUS(sp)
 	csrc sstatus, SR_SIE
 	andi s0, s0, SR_SPP
-	bnez s0, restore_all
+	bnez s0, restore_all 	/* previous is kernel state */
 
 resume_userspace:
 	/* Interrupts must be disabled here so flags are checked atomically */
@@ -611,7 +619,6 @@ ENTRY(ret_from_kernel_thread)
 	move a0, s1
 	jr s0
 ENDPROC(ret_from_kernel_thread)
-
 
 /*
  * Integer register context switch
@@ -756,7 +763,6 @@ ENTRY(__fstate_restore)
 	csrc sstatus, t1
 	ret
 ENDPROC(__fstate_restore)
-
 
 	.section ".rodata"
 	/* Exception vector table */
