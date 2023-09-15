@@ -894,7 +894,9 @@ static int load_elf_binary(struct linux_binprm *bprm)
 	char *secstrs = NULL;
 	unsigned long hi = 0, lo = 0;
 	struct vm_area_struct *vmaptr;
-	int dasics_idx = 0;
+	int dasics_libidx = 0;
+	int dasics_jumpidx = 0;
+
 	unsigned long copy_interp;
 #endif /* CONFIG_DASICS */
 
@@ -1421,12 +1423,6 @@ static int load_elf_binary(struct linux_binprm *bprm)
 	pr_info("mmap base: 0x%lx mmap_min_addr: 0x%lx\n", current->mm->mmap_base, mmap_min_addr);
 	pr_info("kernel stack pointer: 0x%lx\n", (unsigned long)current->stack);
 #endif 
-
-	hi = elf_shtmp->sh_addr + elf_shtmp->sh_size + load_bias;
-	lo = elf_shtmp->sh_addr + load_bias;
-#ifdef CONFIG_DASICS_DEBUG
-	pr_info("ulibtext start: 0x%lx, end: 0x%lx\n", lo, hi);
-#endif 
 	/* set dasics lib config, need to update dynamic allocation */
 
 	/* kernel stack. This is used in S-state dasics protection. */
@@ -1436,14 +1432,31 @@ static int load_elf_binary(struct linux_binprm *bprm)
 #define align8up(addr) 		 (addr & ~(0x7)) + 0x8	
 #define align8down(addr) 	 (addr & ~(0x7)) - 0x8	
 
-	/* lib function text */
-	regs->dasicsJumpBounds[0][0] = align8down(lo);
-	regs->dasicsJumpBounds[0][1] = align8up(hi);  
+	if (elf_shtmp)
+	{
+		hi = elf_shtmp->sh_addr + elf_shtmp->sh_size + load_bias;
+		lo = elf_shtmp->sh_addr + load_bias;
+		
+		#ifdef CONFIG_DASICS_DEBUG
+			pr_info("ulibtext start: 0x%lx, end: 0x%lx\n", lo, hi);
+		#endif 
 
-	/* get read-only datas. */
-	/* This area contains some other codes, however, lib text should not execute them. */
-	regs->dasicsLibBounds[0][0] = align8down(hi);
-	regs->dasicsLibBounds[0][1] = align8up(start_data);
+		/* lib function text */
+		// regs->dasicsJumpBounds[dasics_jumpidx][0] = align8down(lo);
+		// regs->dasicsJumpBounds[dasics_jumpidx++][1] = align8up(hi);  	
+
+		/* get read-only datas. */
+		/* This area contains some other codes, however, lib text should not execute them. */
+		regs->dasicsLibBounds[dasics_libidx][0] = align8down(hi);
+		regs->dasicsLibBounds[dasics_libidx++][1] = align8up(start_data);	
+
+	}
+
+
+
+
+
+
 
 	/* Following mapping is related to vm_mmap blocks. */
 	/* This should be updated in future.*/
@@ -1456,8 +1469,8 @@ static int load_elf_binary(struct linux_binprm *bprm)
 
 	/* protect data */
 	/* currently protact heap\mmap\stack together */	
-	regs->dasicsLibBounds[1][0] = align8down(current->mm->start_brk);
-	regs->dasicsLibBounds[1][1] = align8up(current->mm->start_stack);
+	regs->dasicsLibBounds[dasics_libidx][0] = align8down(current->mm->start_brk);
+	regs->dasicsLibBounds[dasics_libidx++][1] = align8up(current->mm->start_stack);
 
 	//jbound0: lib code jump enable     
 	//mbound0: v  | r  | hi -- start_data - 0x2UL
@@ -1474,8 +1487,8 @@ static int load_elf_binary(struct linux_binprm *bprm)
 		lo = elf_shtmp->sh_addr + load_bias;
 
 		//jbound1: lib freezone jump enable 
-		regs->dasicsJumpBounds[1][0] = align8down(lo);
-		regs->dasicsJumpBounds[1][1] = align8up(hi);  
+		regs->dasicsJumpBounds[dasics_jumpidx][0] = align8down(lo);
+		regs->dasicsJumpBounds[dasics_jumpidx++][1] = align8up(hi);  
 		regs->dasicsJumpCfg =   (DASICS_JUMPCFG_V << 1*16) | regs->dasicsJumpCfg;
 
 	    pr_info("free zone text start: 0x%lx, end: 0x%lx\n", lo, hi);
@@ -1487,7 +1500,12 @@ static int load_elf_binary(struct linux_binprm *bprm)
 	lo = elf_shtmp->sh_addr + load_bias;
 
 	if (likely(current->dasics_state == DASICS_DYNAMIC))
+	{
 		lo = DASICS_LINKER_BASE;
+		// the dasics will always go to the elf entry but not the dynamic linker
+		elf_entry = loc->elf_ex.e_entry;
+	}
+		
 
 #ifdef CONFIG_DASICS_DEBUG
     	pr_info("text start: 0x%lx, end: 0x%lx\n", lo, hi);
