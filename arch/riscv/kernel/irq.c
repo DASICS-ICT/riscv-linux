@@ -11,6 +11,9 @@
 #include <asm/smp.h>
 
 extern int zynq_early_slcr_init(void);
+#include <asm/sbi.h>
+#include <asm/bug.h>
+// maybe useless?
 
 int arch_show_interrupts(struct seq_file *p, int prec)
 {

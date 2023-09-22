@@ -25,6 +25,11 @@ struct pt_regs;
 
 extern void show_regs(struct pt_regs *);
 
+
+#ifdef CONFIG_DASICS 
+extern void show_ext_regs(struct pt_regs *);
+#endif 
+
 /*
  * TASK is a pointer to the task whose backtrace we want to see (or NULL for current
  * task), SP is the stack pointer of the first frame that should be shown in the back
