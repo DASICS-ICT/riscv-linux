@@ -12,19 +12,168 @@
 #include <asm/unistd.h>
 #include <asm/thread_info.h>
 #include <asm/asm-offsets.h>
+#include <asm/page.h>
 
 //TODO: WAIT TO BE CHANGED
 
-#if !IS_ENABLED(CONFIG_PREEMPTION)
-.set resume_kernel, restore_all
-#endif
+// === macro defination zone ===
 
-ENTRY(handle_exception)
+/* 
+ * Don't modify s0-s5 since they will be used in handle_exception, 
+ * Or you should save csr s registers in final.
+ * We don't save umcfg here since it is previously saved.
+ */ 
+	.macro SAVE_DASICS
+
+	/* Save dasics main context */	
+	csrrw t0, CSR_DUMCFG, zero
+  	REG_S t0, PT_DUMCFG(sp)	 
+	csrr t1, CSR_DUMBOUNDLO
+	REG_S t1, PT_DUMBOUNDLO(sp)
+	csrr t0, CSR_DUMBOUNDHI
+	REG_S t0, PT_DUMBOUNDHI(sp)
+
+
+	csrr t0, CSR_DLCFG0
+	#csrr t1, CSR_DLCFG1
+	REG_S t0, PT_DLCFG0(sp)
+	#REG_S t1, PT_DLCFG1(sp)
+
+	csrr t0, CSR_DLBOUND0LO
+	csrr t1, CSR_DLBOUND0HI
+	REG_S t0, PT_DLBOUND0LO(sp)
+	REG_S t1, PT_DLBOUND0HI(sp)
+	csrr t0, CSR_DLBOUND1LO
+	csrr t1, CSR_DLBOUND1HI
+	REG_S t0, PT_DLBOUND1LO(sp)
+	REG_S t1, PT_DLBOUND1HI(sp)
+	csrr t0, CSR_DLBOUND2LO
+	csrr t1, CSR_DLBOUND2HI
+	REG_S t0, PT_DLBOUND2LO(sp)
+	REG_S t1, PT_DLBOUND2HI(sp)
+	csrr t0, CSR_DLBOUND3LO
+	csrr t1, CSR_DLBOUND3HI
+	REG_S t0, PT_DLBOUND3LO(sp)
+	REG_S t1, PT_DLBOUND3HI(sp)
+	csrr t0, CSR_DLBOUND4LO
+	csrr t1, CSR_DLBOUND4HI
+	REG_S t0, PT_DLBOUND4LO(sp)
+	REG_S t1, PT_DLBOUND4HI(sp)
+	csrr t0, CSR_DLBOUND5LO
+	csrr t1, CSR_DLBOUND5HI
+	REG_S t0, PT_DLBOUND5LO(sp)
+	REG_S t1, PT_DLBOUND5HI(sp)
+	csrr t0, CSR_DLBOUND6LO
+	csrr t1, CSR_DLBOUND6HI
+	REG_S t0, PT_DLBOUND6LO(sp)
+	REG_S t1, PT_DLBOUND6HI(sp)
+	csrr t0, CSR_DLBOUND7LO
+	csrr t1, CSR_DLBOUND7HI
+	REG_S t0, PT_DLBOUND7LO(sp)
+	REG_S t1, PT_DLBOUND7HI(sp)
+
+	csrr t0, CSR_DLBOUND8LO
+	csrr t1, CSR_DLBOUND8HI
+	REG_S t0, PT_DLBOUND8LO(sp)
+	REG_S t1, PT_DLBOUND8HI(sp)
+	csrr t0, CSR_DLBOUND9LO
+	csrr t1, CSR_DLBOUND9HI
+	REG_S t0, PT_DLBOUND9LO(sp)
+	REG_S t1, PT_DLBOUND9HI(sp)
+	csrr t0, CSR_DLBOUND10LO
+	csrr t1, CSR_DLBOUND10HI
+	REG_S t0, PT_DLBOUND10LO(sp)
+	REG_S t1, PT_DLBOUND10HI(sp)
+	csrr t0, CSR_DLBOUND11LO
+	csrr t1, CSR_DLBOUND11HI
+	REG_S t0, PT_DLBOUND11LO(sp)
+	REG_S t1, PT_DLBOUND11HI(sp)
+	csrr t0, CSR_DLBOUND12LO
+	csrr t1, CSR_DLBOUND12HI
+	REG_S t0, PT_DLBOUND12LO(sp)
+	REG_S t1, PT_DLBOUND12HI(sp)
+	csrr t0, CSR_DLBOUND13LO
+	csrr t1, CSR_DLBOUND13HI
+	REG_S t0, PT_DLBOUND13LO(sp)
+	REG_S t1, PT_DLBOUND13HI(sp)
+	csrr t0, CSR_DLBOUND14LO
+	csrr t1, CSR_DLBOUND14HI
+	REG_S t0, PT_DLBOUND14LO(sp)
+	REG_S t1, PT_DLBOUND14HI(sp)
+	csrr t0, CSR_DLBOUND15LO
+	csrr t1, CSR_DLBOUND15HI
+	REG_S t0, PT_DLBOUND15LO(sp)
+	REG_S t1, PT_DLBOUND15HI(sp)
+
+	csrr t0, CSR_DMAINCALL
+	REG_S t0, PT_DMAINCALL(sp)
+	csrr t1, CSR_DRETURNPC
+	REG_S t1, PT_DRETURNPC(sp)
+	csrr t0, CSR_DFZRETURN
+	REG_S t0, PT_DFZRETURN(sp)
+
+	csrr t0, CSR_DJBOUND0LO
+	csrr t1, CSR_DJBOUND0HI
+	REG_S t0, PT_DJBOUND0LO(sp)
+	REG_S t1, PT_DJBOUND0HI(sp)
+	csrr t0, CSR_DJBOUND1LO
+	csrr t1, CSR_DJBOUND1HI
+	REG_S t0, PT_DJBOUND1LO(sp)
+	REG_S t1, PT_DJBOUND1HI(sp)
+	csrr t0, CSR_DJBOUND2LO
+	csrr t1, CSR_DJBOUND2HI
+	REG_S t0, PT_DJBOUND2LO(sp)
+	REG_S t1, PT_DJBOUND2HI(sp)
+	csrr t0, CSR_DJBOUND3LO
+	csrr t1, CSR_DJBOUND3HI
+	REG_S t0, PT_DJBOUND3LO(sp)
+	REG_S t1, PT_DJBOUND3HI(sp)
+
+	csrr t0, CSR_DJCFG
+	REG_S t0, PT_DJCFG(sp)
+
+	.endm
+
+	.macro SAVE_UCSR
+
+	/* save N Extension registers. */
+  	csrr t0, CSR_USTATUS
+  	REG_S t0, PT_USTATUS(sp)
+ 	csrr t1, CSR_UEPC
+  	REG_S t1, PT_UEPC(sp) 
+  	csrr t0, CSR_UTVAL
+  	REG_S t0, PT_UBADADDR(sp) 
+  	csrr t1, CSR_UCAUSE
+  	REG_S t1, PT_UCAUSE(sp)
+	csrr t0, CSR_UTVEC
+  	REG_S t0, PT_UTVEC(sp)
+  	csrr t1, CSR_UIE  	
+  	REG_S t1, PT_UIE(sp)	  
+	csrr t0, CSR_UIP
+  	REG_S t0, PT_UIP(sp)
+	csrr t1, CSR_USCRATCH
+ 	REG_S t1, PT_USCRATCH(sp)
+
+	.endm 
+
+*
+ * Prepares to enter a system call or exception by saving all registers to the
+ * stack.
+ */
+	.macro SAVE_ALL
+	LOCAL _restore_kernel_tpsp
+	LOCAL _save_context
+	LOCAL _check_kernel
+	LOCAL _check_dasics
+	LOCAL _save_dasics
+	LOCAL _save_end
+
 	/*
 	 * If coming from userspace, preserve the user thread pointer and load
-	 * the kernel thread pointer.  If we came from the kernel, the scratch
-	 * register will contain 0, and we should continue on the current TP.
+	 * the kernel thread pointer.  If we came from the kernel, sscratch
+	 * will contain 0, and we should continue on the current TP.
 	 */
+
 	csrrw tp, CSR_SCRATCH, tp
 	bnez tp, _save_context
 
@@ -87,12 +236,265 @@ _save_context:
 	REG_S s4, PT_CAUSE(sp)
 	REG_S s5, PT_TP(sp)
 
+_check_kernel:
+	/* if exception comes from kernel, sscratch contains 0 */
+	# bnez s5, _check_dasics
+	# REG_S zero, PT_DUMCFG(sp)
+	# j _save_end
+
+_check_dasics:
+	/* dasics uregs are thread specific.
+	 * if this thread doesn't open dasics, 
+	 * its umaincfg should be set to 0 
+	 * before starting thread. */
+	REG_L t0, PT_DUMCFG(sp)
+	bnez t0, _save_dasics
+	j _save_end
+_save_dasics:
+	SAVE_UCSR
+	SAVE_DASICS
+_save_end:	
+	.endm
+
+	.macro RESTORE_DASICS
+
+	/* Restore dasics main context */
+	/* dumaincfg is saved previously */
+	// REG_L t0, PT_DUMCFG(sp)
+	// csrw CSR_DUMCFG, t0
+	REG_L t1, PT_DUMBOUNDLO(sp)
+	csrw CSR_DUMBOUNDLO, t1
+	REG_L t0, PT_DUMBOUNDHI(sp)
+	csrw CSR_DUMBOUNDHI, t0
+
+
+	REG_L t0, PT_DLCFG0(sp)
+	# REG_L t1, PT_DLCFG1(sp)
+	csrw CSR_DLCFG0, t0
+	# csrw CSR_DLCFG1, t1
+
+	REG_L t0, PT_DLBOUND0LO(sp)
+	REG_L t1, PT_DLBOUND0HI(sp)
+	csrw 	 CSR_DLBOUND0LO, t0
+	csrw 	 CSR_DLBOUND0HI, t1
+	REG_L t0, PT_DLBOUND1LO(sp)
+	REG_L t1, PT_DLBOUND1HI(sp)
+	csrw 	 CSR_DLBOUND1LO, t0
+	csrw 	 CSR_DLBOUND1HI, t1
+	REG_L t0, PT_DLBOUND2LO(sp)
+	REG_L t1, PT_DLBOUND2HI(sp)
+	csrw 	 CSR_DLBOUND2LO, t0
+	csrw 	 CSR_DLBOUND2HI, t1
+	REG_L t0, PT_DLBOUND3LO(sp)
+	REG_L t1, PT_DLBOUND3HI(sp)
+	csrw 	 CSR_DLBOUND3LO, t0
+	csrw 	 CSR_DLBOUND3HI, t1
+	REG_L t0, PT_DLBOUND4LO(sp)
+	REG_L t1, PT_DLBOUND4HI(sp)
+	csrw 	 CSR_DLBOUND4LO, t0
+	csrw 	 CSR_DLBOUND4HI, t1
+	REG_L t0, PT_DLBOUND5LO(sp)
+	REG_L t1, PT_DLBOUND5HI(sp)
+	csrw 	 CSR_DLBOUND5LO, t0
+	csrw 	 CSR_DLBOUND5HI, t1
+	REG_L t0, PT_DLBOUND6LO(sp)
+	REG_L t1, PT_DLBOUND6HI(sp)
+	csrw 	 CSR_DLBOUND6LO, t0
+	csrw 	 CSR_DLBOUND6HI, t1
+	REG_L t0, PT_DLBOUND7LO(sp)
+	REG_L t1, PT_DLBOUND7HI(sp)
+	csrw 	 CSR_DLBOUND7LO, t0
+	csrw 	 CSR_DLBOUND7HI, t1
+
+	REG_L t0, PT_DLBOUND8LO(sp)
+	REG_L t1, PT_DLBOUND8HI(sp)
+	csrw 	 CSR_DLBOUND8LO, t0
+	csrw 	 CSR_DLBOUND8HI, t1
+	REG_L t0, PT_DLBOUND9LO(sp)
+	REG_L t1, PT_DLBOUND9HI(sp)
+	csrw 	 CSR_DLBOUND9LO, t0
+	csrw 	 CSR_DLBOUND9HI, t1
+	REG_L t0, PT_DLBOUND10LO(sp)
+	REG_L t1, PT_DLBOUND10HI(sp)
+	csrw 	 CSR_DLBOUND10LO, t0
+	csrw 	 CSR_DLBOUND10HI, t1
+	REG_L t0, PT_DLBOUND11LO(sp)
+	REG_L t1, PT_DLBOUND11HI(sp)
+	csrw 	 CSR_DLBOUND11LO, t0
+	csrw 	 CSR_DLBOUND11HI, t1
+	REG_L t0, PT_DLBOUND12LO(sp)
+	REG_L t1, PT_DLBOUND12HI(sp)
+	csrw 	 CSR_DLBOUND12LO, t0
+	csrw 	 CSR_DLBOUND12HI, t1
+	REG_L t0, PT_DLBOUND13LO(sp)
+	REG_L t1, PT_DLBOUND13HI(sp)
+	csrw 	 CSR_DLBOUND13LO, t0
+	csrw 	 CSR_DLBOUND13HI, t1
+	REG_L t0, PT_DLBOUND14LO(sp)
+	REG_L t1, PT_DLBOUND14HI(sp)
+	csrw 	 CSR_DLBOUND14LO, t0
+	csrw 	 CSR_DLBOUND14HI, t1
+	REG_L t0, PT_DLBOUND15LO(sp)
+	REG_L t1, PT_DLBOUND15HI(sp)
+	csrw 	 CSR_DLBOUND15LO, t0
+	csrw 	 CSR_DLBOUND15HI, t1
+
+	REG_L t0, PT_DMAINCALL(sp)
+	csrw CSR_DMAINCALL, t0
+	REG_L t1, PT_DRETURNPC(sp)
+	csrw CSR_DRETURNPC, t1
+	REG_L t0, PT_DFZRETURN(sp)
+	csrw CSR_DFZRETURN, t0
+
+	REG_L t0, PT_DLBOUND0LO(sp)
+	REG_L t1, PT_DLBOUND0HI(sp)
+	csrw 	 CSR_DLBOUND0LO, t0
+	csrw 	 CSR_DLBOUND0HI, t1
+	REG_L t0, PT_DLBOUND1LO(sp)
+	REG_L t1, PT_DLBOUND1HI(sp)
+	csrw 	 CSR_DLBOUND1LO, t0
+	csrw 	 CSR_DLBOUND1HI, t1
+	REG_L t0, PT_DLBOUND2LO(sp)
+	REG_L t1, PT_DLBOUND2HI(sp)
+	csrw 	 CSR_DLBOUND2LO, t0
+	csrw 	 CSR_DLBOUND2HI, t1
+	REG_L t0, PT_DLBOUND3LO(sp)
+	REG_L t1, PT_DLBOUND3HI(sp)
+	csrw 	 CSR_DLBOUND3LO, t0
+	csrw 	 CSR_DLBOUND3HI, t1
+
+	REG_L t0, PT_DJCFG(sp)
+	csrw 	 CSR_DJCFG, t0
+
+	.endm
+
+	.macro RESTORE_UCSR
+
+	/* Restore N Extension registers. */
+	REG_L t0, PT_USTATUS(sp)	
+	csrw CSR_USTATUS, t0
+	REG_L t1, PT_UEPC(sp)
+	csrw CSR_UEPC, t1
+	REG_L t0, PT_UBADADDR(sp)
+	csrw CSR_UTVAL, t0
+	REG_L t1, PT_UCAUSE(sp)
+	csrw CSR_UCAUSE, t1	
+	REG_L t0, PT_UTVEC(sp)	
+	csrw CSR_UTVEC, t0
+	REG_L t1, PT_UIE(sp)	
+	csrw CSR_UIE, t1	
+	REG_L t0, PT_UIP(sp)	
+	csrw CSR_UIP, t0
+	REG_L t1, PT_USCRATCH(sp)	
+	csrw CSR_USCRATCH, t1
+	.endm
+/*
+ * Prepares to return from a system call or exception by restoring all
+ * registers from the stack.
+ */
+	.macro RESTORE_ALL
+	LOCAL _restore_general
+	LOCAL _check_kernel
+	LOCAL _check_dasics
+	LOCAL _restore_dasics
+
+	REG_L a0, PT_STATUS(sp)
+	/*
+	 * The current load reservation is effectively part of the processor's
+	 * state, in the sense that load reservations cannot be shared between
+	 * different hart contexts.  We can't actually save and restore a load
+	 * reservation, so instead here we clear any existing reservation --
+	 * it's always legal for implementations to clear load reservations at
+	 * any point (as long as the forward progress guarantee is kept, but
+	 * we'll ignore that here).
+	 *
+	 * Dangling load reservations can be the result of taking a trap in the
+	 * middle of an LR/SC sequence, but can also be the result of a taken
+	 * forward branch around an SC -- which is how we implement CAS.  As a
+	 * result we need to clear reservations between the last CAS and the
+	 * jump back to the new context.  While it is unlikely the store
+	 * completes, implementations are allowed to expand reservations to be
+	 * arbitrarily large.
+	 */
+	REG_L  a2, PT_EPC(sp)
+	REG_SC x0, a2, PT_EPC(sp)
+
+	csrw CSR_STATUS, a0
+	csrw CSR_EPC, a2
+
+_check_kernel:
+	/* How can I know I handled an exception from kernel thread? */
+	# andi t0, a0, SR_SPP
+	# beqz t0, _check_dasics
+	# csrw CSR_DUMCFG, zero
+	# j _restore_general
+_check_dasics:
+	REG_L t0, PT_DUMCFG(sp)
+	csrw CSR_DUMCFG, t0
+	beqz t0, _restore_general
+_restore_dasics:
+	RESTORE_DASICS
+	RESTORE_UCSR
+_restore_general:
+	/* restore general regs */
+
+	REG_L x1,  PT_RA(sp)
+	REG_L x3,  PT_GP(sp)
+	REG_L x4,  PT_TP(sp)
+	REG_L x5,  PT_T0(sp)
+	REG_L x6,  PT_T1(sp)
+	REG_L x7,  PT_T2(sp)
+	REG_L x8,  PT_S0(sp)
+	REG_L x9,  PT_S1(sp)
+	REG_L x10, PT_A0(sp)
+	REG_L x11, PT_A1(sp)
+	REG_L x12, PT_A2(sp)
+	REG_L x13, PT_A3(sp)
+	REG_L x14, PT_A4(sp)
+	REG_L x15, PT_A5(sp)
+	REG_L x16, PT_A6(sp)
+	REG_L x17, PT_A7(sp)
+	REG_L x18, PT_S2(sp)
+	REG_L x19, PT_S3(sp)
+	REG_L x20, PT_S4(sp)
+	REG_L x21, PT_S5(sp)
+	REG_L x22, PT_S6(sp)
+	REG_L x23, PT_S7(sp)
+	REG_L x24, PT_S8(sp)
+	REG_L x25, PT_S9(sp)
+	REG_L x26, PT_S10(sp)
+	REG_L x27, PT_S11(sp)
+	REG_L x28, PT_T3(sp)
+	REG_L x29, PT_T4(sp)
+	REG_L x30, PT_T5(sp)
+	REG_L x31, PT_T6(sp)
+
+	REG_L x2,  PT_SP(sp)
+	.endm
+
+// === macro defination zone end ===
+
+
+
+#if !IS_ENABLED(CONFIG_PREEMPTION)
+.set resume_kernel, restore_all
+#endif
+
+ENTRY(handle_exception)
+	/*
+	 * If coming from userspace, preserve the user thread pointer and load
+	 * the kernel thread pointer.  If we came from the kernel, the scratch
+	 * register will contain 0, and we should continue on the current TP.
+	 */
+	sfence.vma
+	SAVE_ALL
 	/*
 	 * Set the scratch register to 0, so that if a recursive exception
 	 * occurs, the exception vector knows it came from the kernel
 	 */
 	csrw CSR_SCRATCH, x0
 
+load_gp:
 	/* Load the global pointer */
 .option push
 .option norelax
@@ -266,62 +668,8 @@ restore_all:
 	call __trace_hardirqs_off
 2:
 #endif
-	REG_L a0, PT_STATUS(sp)
-	/*
-	 * The current load reservation is effectively part of the processor's
-	 * state, in the sense that load reservations cannot be shared between
-	 * different hart contexts.  We can't actually save and restore a load
-	 * reservation, so instead here we clear any existing reservation --
-	 * it's always legal for implementations to clear load reservations at
-	 * any point (as long as the forward progress guarantee is kept, but
-	 * we'll ignore that here).
-	 *
-	 * Dangling load reservations can be the result of taking a trap in the
-	 * middle of an LR/SC sequence, but can also be the result of a taken
-	 * forward branch around an SC -- which is how we implement CAS.  As a
-	 * result we need to clear reservations between the last CAS and the
-	 * jump back to the new context.  While it is unlikely the store
-	 * completes, implementations are allowed to expand reservations to be
-	 * arbitrarily large.
-	 */
-	REG_L  a2, PT_EPC(sp)
-	REG_SC x0, a2, PT_EPC(sp)
 
-	csrw CSR_STATUS, a0
-	csrw CSR_EPC, a2
-
-	REG_L x1,  PT_RA(sp)
-	REG_L x3,  PT_GP(sp)
-	REG_L x4,  PT_TP(sp)
-	REG_L x5,  PT_T0(sp)
-	REG_L x6,  PT_T1(sp)
-	REG_L x7,  PT_T2(sp)
-	REG_L x8,  PT_S0(sp)
-	REG_L x9,  PT_S1(sp)
-	REG_L x10, PT_A0(sp)
-	REG_L x11, PT_A1(sp)
-	REG_L x12, PT_A2(sp)
-	REG_L x13, PT_A3(sp)
-	REG_L x14, PT_A4(sp)
-	REG_L x15, PT_A5(sp)
-	REG_L x16, PT_A6(sp)
-	REG_L x17, PT_A7(sp)
-	REG_L x18, PT_S2(sp)
-	REG_L x19, PT_S3(sp)
-	REG_L x20, PT_S4(sp)
-	REG_L x21, PT_S5(sp)
-	REG_L x22, PT_S6(sp)
-	REG_L x23, PT_S7(sp)
-	REG_L x24, PT_S8(sp)
-	REG_L x25, PT_S9(sp)
-	REG_L x26, PT_S10(sp)
-	REG_L x27, PT_S11(sp)
-	REG_L x28, PT_T3(sp)
-	REG_L x29, PT_T4(sp)
-	REG_L x30, PT_T5(sp)
-	REG_L x31, PT_T6(sp)
-
-	REG_L x2,  PT_SP(sp)
+	RESTORE_ALL
 
 #ifdef CONFIG_RISCV_M_MODE
 	mret
@@ -444,6 +792,95 @@ ENTRY(__switch_to)
 	ret
 ENDPROC(__switch_to)
 
+
+// fstate l/s
+ENTRY(__fstate_save)
+	li  a2,  TASK_THREAD_F0
+	add a0, a0, a2
+	li t1, SR_FS
+	csrs sstatus, t1
+	frcsr t0
+	fsd f0,  TASK_THREAD_F0_F0(a0)
+	fsd f1,  TASK_THREAD_F1_F0(a0)
+	fsd f2,  TASK_THREAD_F2_F0(a0)
+	fsd f3,  TASK_THREAD_F3_F0(a0)
+	fsd f4,  TASK_THREAD_F4_F0(a0)
+	fsd f5,  TASK_THREAD_F5_F0(a0)
+	fsd f6,  TASK_THREAD_F6_F0(a0)
+	fsd f7,  TASK_THREAD_F7_F0(a0)
+	fsd f8,  TASK_THREAD_F8_F0(a0)
+	fsd f9,  TASK_THREAD_F9_F0(a0)
+	fsd f10, TASK_THREAD_F10_F0(a0)
+	fsd f11, TASK_THREAD_F11_F0(a0)
+	fsd f12, TASK_THREAD_F12_F0(a0)
+	fsd f13, TASK_THREAD_F13_F0(a0)
+	fsd f14, TASK_THREAD_F14_F0(a0)
+	fsd f15, TASK_THREAD_F15_F0(a0)
+	fsd f16, TASK_THREAD_F16_F0(a0)
+	fsd f17, TASK_THREAD_F17_F0(a0)
+	fsd f18, TASK_THREAD_F18_F0(a0)
+	fsd f19, TASK_THREAD_F19_F0(a0)
+	fsd f20, TASK_THREAD_F20_F0(a0)
+	fsd f21, TASK_THREAD_F21_F0(a0)
+	fsd f22, TASK_THREAD_F22_F0(a0)
+	fsd f23, TASK_THREAD_F23_F0(a0)
+	fsd f24, TASK_THREAD_F24_F0(a0)
+	fsd f25, TASK_THREAD_F25_F0(a0)
+	fsd f26, TASK_THREAD_F26_F0(a0)
+	fsd f27, TASK_THREAD_F27_F0(a0)
+	fsd f28, TASK_THREAD_F28_F0(a0)
+	fsd f29, TASK_THREAD_F29_F0(a0)
+	fsd f30, TASK_THREAD_F30_F0(a0)
+	fsd f31, TASK_THREAD_F31_F0(a0)
+	sw t0, TASK_THREAD_FCSR_F0(a0)
+	csrc sstatus, t1
+	ret
+ENDPROC(__fstate_save)
+
+ENTRY(__fstate_restore)
+	li  a2,  TASK_THREAD_F0
+	add a0, a0, a2
+	li t1, SR_FS
+	lw t0, TASK_THREAD_FCSR_F0(a0)
+	csrs sstatus, t1
+	fld f0,  TASK_THREAD_F0_F0(a0)
+	fld f1,  TASK_THREAD_F1_F0(a0)
+	fld f2,  TASK_THREAD_F2_F0(a0)
+	fld f3,  TASK_THREAD_F3_F0(a0)
+	fld f4,  TASK_THREAD_F4_F0(a0)
+	fld f5,  TASK_THREAD_F5_F0(a0)
+	fld f6,  TASK_THREAD_F6_F0(a0)
+	fld f7,  TASK_THREAD_F7_F0(a0)
+	fld f8,  TASK_THREAD_F8_F0(a0)
+	fld f9,  TASK_THREAD_F9_F0(a0)
+	fld f10, TASK_THREAD_F10_F0(a0)
+	fld f11, TASK_THREAD_F11_F0(a0)
+	fld f12, TASK_THREAD_F12_F0(a0)
+	fld f13, TASK_THREAD_F13_F0(a0)
+	fld f14, TASK_THREAD_F14_F0(a0)
+	fld f15, TASK_THREAD_F15_F0(a0)
+	fld f16, TASK_THREAD_F16_F0(a0)
+	fld f17, TASK_THREAD_F17_F0(a0)
+	fld f18, TASK_THREAD_F18_F0(a0)
+	fld f19, TASK_THREAD_F19_F0(a0)
+	fld f20, TASK_THREAD_F20_F0(a0)
+	fld f21, TASK_THREAD_F21_F0(a0)
+	fld f22, TASK_THREAD_F22_F0(a0)
+	fld f23, TASK_THREAD_F23_F0(a0)
+	fld f24, TASK_THREAD_F24_F0(a0)
+	fld f25, TASK_THREAD_F25_F0(a0)
+	fld f26, TASK_THREAD_F26_F0(a0)
+	fld f27, TASK_THREAD_F27_F0(a0)
+	fld f28, TASK_THREAD_F28_F0(a0)
+	fld f29, TASK_THREAD_F29_F0(a0)
+	fld f30, TASK_THREAD_F30_F0(a0)
+	fld f31, TASK_THREAD_F31_F0(a0)
+	fscsr t0
+	csrc sstatus, t1
+	ret
+ENDPROC(__fstate_restore)
+
+
 #ifndef CONFIG_MMU
 #define do_page_fault do_trap_unknown
 #endif
@@ -468,6 +905,22 @@ ENTRY(excp_vect_table)
 	RISCV_PTR do_page_fault   /* load page fault */
 	RISCV_PTR do_trap_unknown
 	RISCV_PTR do_page_fault   /* store page fault */
+	RISCV_PTR do_trap_unknown
+	RISCV_PTR do_trap_unknown
+	RISCV_PTR do_trap_unknown
+	RISCV_PTR do_trap_unknown
+	RISCV_PTR do_trap_unknown
+	RISCV_PTR do_trap_unknown
+	RISCV_PTR do_trap_unknown
+	RISCV_PTR do_trap_unknown	
+	RISCV_PTR do_trap_dasics  /* dasics ufetch fault */
+	RISCV_PTR do_trap_dasics  /* dasics sfetch fault */
+	RISCV_PTR do_trap_dasics  /* dasics uload fault */
+	RISCV_PTR do_trap_dasics  /* dasics sload fault */
+	RISCV_PTR do_trap_dasics  /* dasics ustore fault */
+	RISCV_PTR do_trap_dasics  /* dasics sstore fault */
+	RISCV_PTR do_trap_dasics  /* dasics uecall fault */
+	RISCV_PTR do_trap_dasics  /* dasics secall fault */
 excp_vect_table_end:
 END(excp_vect_table)
 
