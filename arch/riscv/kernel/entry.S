@@ -13,6 +13,8 @@
 #include <asm/thread_info.h>
 #include <asm/asm-offsets.h>
 
+//TODO: WAIT TO BE CHANGED
+
 #if !IS_ENABLED(CONFIG_PREEMPTION)
 .set resume_kernel, restore_all
 #endif

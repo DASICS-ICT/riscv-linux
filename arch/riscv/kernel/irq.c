@@ -10,6 +10,10 @@
 #include <linux/seq_file.h>
 #include <asm/smp.h>
 
+#include <asm/sbi.h>
+#include <asm/bug.h>
+// maybe useless?
+
 int arch_show_interrupts(struct seq_file *p, int prec)
 {
 	show_ipi_stats(p, prec);
