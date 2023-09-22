@@ -12,17 +12,81 @@
 #include <asm/unistd.h>
 #include <asm/thread_info.h>
 #include <asm/asm-offsets.h>
+#include <asm/page.h>
 
-#if !IS_ENABLED(CONFIG_PREEMPTION)
-.set resume_kernel, restore_all
-#endif
+// === macro defination zone ===
 
-ENTRY(handle_exception)
+	.text
+	.altmacro
+
+/* 
+ * Don't modify s0-s5 since they will be used in handle_exception, 
+ * Or you should save csr s registers in final.
+ * We don't save umcfg here since it is previously saved.
+ */ 
+	.macro SAVE_DASICS
+
+	/* Save dasics main context */	
+	csrrw t0, CSR_DUMCFG, zero
+  	REG_S t0, PT_DUMCFG(sp)	 
+	csrr t1, CSR_DUMBOUNDLO
+	REG_S t1, PT_DUMBOUNDLO(sp)
+	csrr t0, CSR_DUMBOUNDHI
+	REG_S t0, PT_DUMBOUNDHI(sp)
+
+	csrr t0, CSR_DLCFG0
+	REG_S t0, PT_DLCFG0(sp)
+
+	csrr t0, CSR_DLBOUND0LO
+	csrr t1, CSR_DLBOUND0HI
+	REG_S t0, PT_DLBOUND0LO(sp)
+	REG_S t1, PT_DLBOUND0HI(sp)
+	csrr t0, CSR_DLBOUND1LO
+	csrr t1, CSR_DLBOUND1HI
+	REG_S t0, PT_DLBOUND1LO(sp)
+	REG_S t1, PT_DLBOUND1HI(sp)
+	csrr t0, CSR_DLBOUND2LO
+	csrr t1, CSR_DLBOUND2HI
+	REG_S t0, PT_DLBOUND2LO(sp)
+	REG_S t1, PT_DLBOUND2HI(sp)
+	csrr t0, CSR_DLBOUND3LO
+	csrr t1, CSR_DLBOUND3HI
+	REG_S t0, PT_DLBOUND3LO(sp)
+	REG_S t1, PT_DLBOUND3HI(sp)
+
+	csrr t0, CSR_DMAINCALL
+	REG_S t0, PT_DMAINCALL(sp)
+	csrr t1, CSR_DRETURNPC
+	REG_S t1, PT_DRETURNPC(sp)
+
+	csrr t0, CSR_DJBOUND0LO
+	csrr t1, CSR_DJBOUND0HI
+	REG_S t0, PT_DJBOUND0LO(sp)
+	REG_S t1, PT_DJBOUND0HI(sp)
+
+	csrr t0, CSR_DJCFG
+	REG_S t0, PT_DJCFG(sp)
+
+	.endm
+
+/*
+ * Prepares to enter a system call or exception by saving all registers to the
+ * stack.
+ */
+	.macro SAVE_ALL
+	LOCAL _restore_kernel_tpsp
+	LOCAL _save_context
+	LOCAL _check_kernel
+	LOCAL _check_dasics
+	LOCAL _save_dasics
+	LOCAL _save_end
+
 	/*
 	 * If coming from userspace, preserve the user thread pointer and load
-	 * the kernel thread pointer.  If we came from the kernel, the scratch
-	 * register will contain 0, and we should continue on the current TP.
+	 * the kernel thread pointer.  If we came from the kernel, sscratch
+	 * will contain 0, and we should continue on the current TP.
 	 */
+
 	csrrw tp, CSR_SCRATCH, tp
 	bnez tp, _save_context
 
@@ -85,12 +149,177 @@ _save_context:
 	REG_S s4, PT_CAUSE(sp)
 	REG_S s5, PT_TP(sp)
 
+_check_kernel:
+	/* if exception comes from kernel, sscratch contains 0 */
+	# bnez s5, _check_dasics
+	# REG_S zero, PT_DUMCFG(sp)
+	# j _save_end
+
+_check_dasics:
+	/* dasics uregs are thread specific.
+	 * if this thread doesn't open dasics, 
+	 * its umaincfg should be set to 0 
+	 * before starting thread. */
+	REG_L t0, PT_DUMCFG(sp)
+	bnez t0, _save_dasics
+	j _save_end
+_save_dasics:
+	SAVE_DASICS
+_save_end:	
+	.endm
+
+	.macro RESTORE_DASICS
+
+	/* Restore dasics main context */
+	/* dumaincfg is saved previously */
+	// REG_L t0, PT_DUMCFG(sp)
+	// csrw CSR_DUMCFG, t0
+	REG_L t1, PT_DUMBOUNDLO(sp)
+	csrw CSR_DUMBOUNDLO, t1
+	REG_L t0, PT_DUMBOUNDHI(sp)
+	csrw CSR_DUMBOUNDHI, t0
+
+
+	REG_L t0, PT_DLCFG0(sp)
+	csrw CSR_DLCFG0, t0
+
+	REG_L t0, PT_DLBOUND0LO(sp)
+	REG_L t1, PT_DLBOUND0HI(sp)
+	csrw 	 CSR_DLBOUND0LO, t0
+	csrw 	 CSR_DLBOUND0HI, t1
+	REG_L t0, PT_DLBOUND1LO(sp)
+	REG_L t1, PT_DLBOUND1HI(sp)
+	csrw 	 CSR_DLBOUND1LO, t0
+	csrw 	 CSR_DLBOUND1HI, t1
+	REG_L t0, PT_DLBOUND2LO(sp)
+	REG_L t1, PT_DLBOUND2HI(sp)
+	csrw 	 CSR_DLBOUND2LO, t0
+	csrw 	 CSR_DLBOUND2HI, t1
+	REG_L t0, PT_DLBOUND3LO(sp)
+	REG_L t1, PT_DLBOUND3HI(sp)
+	csrw 	 CSR_DLBOUND3LO, t0
+	csrw 	 CSR_DLBOUND3HI, t1
+
+	REG_L t0, PT_DMAINCALL(sp)
+	csrw CSR_DMAINCALL, t0
+	REG_L t1, PT_DRETURNPC(sp)
+	csrw CSR_DRETURNPC, t1
+
+	REG_L t0, PT_DJBOUND0LO(sp)
+	REG_L t1, PT_DJBOUND0HI(sp)
+	csrw 	 CSR_DJBOUND0LO, t0
+	csrw 	 CSR_DJBOUND0HI, t1
+
+	REG_L t0, PT_DJCFG(sp)
+	csrw 	 CSR_DJCFG, t0
+
+	.endm
+/*
+ * Prepares to return from a system call or exception by restoring all
+ * registers from the stack.
+ */
+	.macro RESTORE_ALL
+	LOCAL _restore_general
+	LOCAL _check_kernel
+	LOCAL _check_dasics
+	LOCAL _restore_dasics
+
+	REG_L a0, PT_STATUS(sp)
+	/*
+	 * The current load reservation is effectively part of the processor's
+	 * state, in the sense that load reservations cannot be shared between
+	 * different hart contexts.  We can't actually save and restore a load
+	 * reservation, so instead here we clear any existing reservation --
+	 * it's always legal for implementations to clear load reservations at
+	 * any point (as long as the forward progress guarantee is kept, but
+	 * we'll ignore that here).
+	 *
+	 * Dangling load reservations can be the result of taking a trap in the
+	 * middle of an LR/SC sequence, but can also be the result of a taken
+	 * forward branch around an SC -- which is how we implement CAS.  As a
+	 * result we need to clear reservations between the last CAS and the
+	 * jump back to the new context.  While it is unlikely the store
+	 * completes, implementations are allowed to expand reservations to be
+	 * arbitrarily large.
+	 */
+	REG_L  a2, PT_EPC(sp)
+	REG_SC x0, a2, PT_EPC(sp)
+
+	csrw CSR_STATUS, a0
+	csrw CSR_EPC, a2
+
+_check_kernel:
+	/* How can I know I handled an exception from kernel thread? */
+	# andi t0, a0, SR_SPP
+	# beqz t0, _check_dasics
+	# csrw CSR_DUMCFG, zero
+	# j _restore_general
+_check_dasics:
+	REG_L t0, PT_DUMCFG(sp)
+	csrw CSR_DUMCFG, t0
+	beqz t0, _restore_general
+_restore_dasics:
+	RESTORE_DASICS
+_restore_general:
+	/* restore general regs */
+
+	REG_L x1,  PT_RA(sp)
+	REG_L x3,  PT_GP(sp)
+	REG_L x4,  PT_TP(sp)
+	REG_L x5,  PT_T0(sp)
+	REG_L x6,  PT_T1(sp)
+	REG_L x7,  PT_T2(sp)
+	REG_L x8,  PT_S0(sp)
+	REG_L x9,  PT_S1(sp)
+	REG_L x10, PT_A0(sp)
+	REG_L x11, PT_A1(sp)
+	REG_L x12, PT_A2(sp)
+	REG_L x13, PT_A3(sp)
+	REG_L x14, PT_A4(sp)
+	REG_L x15, PT_A5(sp)
+	REG_L x16, PT_A6(sp)
+	REG_L x17, PT_A7(sp)
+	REG_L x18, PT_S2(sp)
+	REG_L x19, PT_S3(sp)
+	REG_L x20, PT_S4(sp)
+	REG_L x21, PT_S5(sp)
+	REG_L x22, PT_S6(sp)
+	REG_L x23, PT_S7(sp)
+	REG_L x24, PT_S8(sp)
+	REG_L x25, PT_S9(sp)
+	REG_L x26, PT_S10(sp)
+	REG_L x27, PT_S11(sp)
+	REG_L x28, PT_T3(sp)
+	REG_L x29, PT_T4(sp)
+	REG_L x30, PT_T5(sp)
+	REG_L x31, PT_T6(sp)
+
+	REG_L x2,  PT_SP(sp)
+	.endm
+
+// === macro defination zone end ===
+
+
+
+#if !IS_ENABLED(CONFIG_PREEMPTION)
+.set resume_kernel, restore_all
+#endif
+
+ENTRY(handle_exception)
+	/*
+	 * If coming from userspace, preserve the user thread pointer and load
+	 * the kernel thread pointer.  If we came from the kernel, the scratch
+	 * register will contain 0, and we should continue on the current TP.
+	 */
+	sfence.vma
+	SAVE_ALL
 	/*
 	 * Set the scratch register to 0, so that if a recursive exception
 	 * occurs, the exception vector knows it came from the kernel
 	 */
 	csrw CSR_SCRATCH, x0
 
+load_gp:
 	/* Load the global pointer */
 .option push
 .option norelax
@@ -264,62 +493,8 @@ restore_all:
 	call __trace_hardirqs_off
 2:
 #endif
-	REG_L a0, PT_STATUS(sp)
-	/*
-	 * The current load reservation is effectively part of the processor's
-	 * state, in the sense that load reservations cannot be shared between
-	 * different hart contexts.  We can't actually save and restore a load
-	 * reservation, so instead here we clear any existing reservation --
-	 * it's always legal for implementations to clear load reservations at
-	 * any point (as long as the forward progress guarantee is kept, but
-	 * we'll ignore that here).
-	 *
-	 * Dangling load reservations can be the result of taking a trap in the
-	 * middle of an LR/SC sequence, but can also be the result of a taken
-	 * forward branch around an SC -- which is how we implement CAS.  As a
-	 * result we need to clear reservations between the last CAS and the
-	 * jump back to the new context.  While it is unlikely the store
-	 * completes, implementations are allowed to expand reservations to be
-	 * arbitrarily large.
-	 */
-	REG_L  a2, PT_EPC(sp)
-	REG_SC x0, a2, PT_EPC(sp)
 
-	csrw CSR_STATUS, a0
-	csrw CSR_EPC, a2
-
-	REG_L x1,  PT_RA(sp)
-	REG_L x3,  PT_GP(sp)
-	REG_L x4,  PT_TP(sp)
-	REG_L x5,  PT_T0(sp)
-	REG_L x6,  PT_T1(sp)
-	REG_L x7,  PT_T2(sp)
-	REG_L x8,  PT_S0(sp)
-	REG_L x9,  PT_S1(sp)
-	REG_L x10, PT_A0(sp)
-	REG_L x11, PT_A1(sp)
-	REG_L x12, PT_A2(sp)
-	REG_L x13, PT_A3(sp)
-	REG_L x14, PT_A4(sp)
-	REG_L x15, PT_A5(sp)
-	REG_L x16, PT_A6(sp)
-	REG_L x17, PT_A7(sp)
-	REG_L x18, PT_S2(sp)
-	REG_L x19, PT_S3(sp)
-	REG_L x20, PT_S4(sp)
-	REG_L x21, PT_S5(sp)
-	REG_L x22, PT_S6(sp)
-	REG_L x23, PT_S7(sp)
-	REG_L x24, PT_S8(sp)
-	REG_L x25, PT_S9(sp)
-	REG_L x26, PT_S10(sp)
-	REG_L x27, PT_S11(sp)
-	REG_L x28, PT_T3(sp)
-	REG_L x29, PT_T4(sp)
-	REG_L x30, PT_T5(sp)
-	REG_L x31, PT_T6(sp)
-
-	REG_L x2,  PT_SP(sp)
+	RESTORE_ALL
 
 #ifdef CONFIG_RISCV_M_MODE
 	mret
@@ -466,6 +641,17 @@ ENTRY(excp_vect_table)
 	RISCV_PTR do_page_fault   /* load page fault */
 	RISCV_PTR do_trap_unknown
 	RISCV_PTR do_page_fault   /* store page fault */
+	RISCV_PTR do_trap_unknown
+	RISCV_PTR do_trap_unknown
+	RISCV_PTR do_trap_unknown
+	RISCV_PTR do_trap_unknown
+	RISCV_PTR do_trap_unknown
+	RISCV_PTR do_trap_unknown
+	RISCV_PTR do_trap_unknown
+	RISCV_PTR do_trap_unknown	
+	RISCV_PTR do_trap_dasics  /* dasics ufetch fault */
+	RISCV_PTR do_trap_dasics  /* dasics uload fault */
+	RISCV_PTR do_trap_dasics  /* dasics ustore fault */
 excp_vect_table_end:
 END(excp_vect_table)
 

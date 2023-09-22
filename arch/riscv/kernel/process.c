@@ -70,6 +70,34 @@ void show_regs(struct pt_regs *regs)
 		regs->status, regs->badaddr, regs->cause);
 }
 
+void show_ext_regs(struct pt_regs *regs) 
+{	
+	int cnt;
+
+	/* Dasics supervisor regs */
+	pr_cont("DASICS User Main Registers: \n");
+	pr_cont("config: " REG_FMT " bound hi: " REG_FMT " bound lo: " REG_FMT "\n",
+		regs->dasicsUmainCfg, regs->dasicsUMainBoundHi, regs->dasicsUMainBoundLo);
+
+	/* Dasics user regs */
+	pr_cont("DASICS Lib Registers: \n");
+	pr_cont("config0: " REG_FMT "\n", regs->dasicsLibCfg0);
+
+	for (cnt = 0; cnt < 4; cnt++) {
+		pr_cont("(%d) mem bound lo: " REG_FMT " mem bound hi: " REG_FMT "\n",
+			cnt, regs->dasicsLibBounds[cnt][0], regs->dasicsLibBounds[cnt][1]);
+	}
+
+	for (cnt = 0; cnt < 1; cnt++) {
+		pr_cont("(%d) jump bound lo: " REG_FMT " jump bound hi: " REG_FMT "\n",
+			cnt, regs->dasicsJumpBounds[cnt][0], regs->dasicsJumpBounds[cnt][1]);
+	}
+
+	pr_cont("DASICS Other Registers: \n");
+	pr_cont("main call entry: " REG_FMT " return pc: " REG_FMT "\n",
+		regs->dasicsMaincall, regs->dasicsReturnPC);
+}
+
 void start_thread(struct pt_regs *regs, unsigned long pc,
 	unsigned long sp)
 {

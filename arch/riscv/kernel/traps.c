@@ -42,6 +42,10 @@ void die(struct pt_regs *regs, const char *str)
 	print_modules();
 	show_regs(regs);
 
+#ifdef CONFIG_DASICS
+	show_ext_regs(regs);
+#endif 
+
 	ret = notify_die(DIE_OOPS, str, regs, 0, regs->cause, SIGSEGV);
 
 	if (regs && kexec_should_crash(current))
@@ -71,6 +75,11 @@ void do_trap(struct pt_regs *regs, int signo, int code, unsigned long addr)
 		print_vma_addr(KERN_CONT " in ", instruction_pointer(regs));
 		pr_cont("\n");
 		show_regs(regs);
+		
+#ifdef CONFIG_DASICS
+		show_ext_regs(regs);
+#endif 
+
 	}
 
 	force_sig_fault(signo, code, (void __user *)addr);
@@ -177,6 +186,21 @@ int is_valid_bugaddr(unsigned long pc)
 		return ((insn & __COMPRESSED_INSN_MASK) == __BUG_INSN_16);
 }
 #endif /* CONFIG_GENERIC_BUG */
+
+/* This function may handle dasics exceptions in another way in future. */
+asmlinkage void do_trap_dasics(struct pt_regs *regs) 
+{
+	char *trap_name = regs->cause == 0x18 ? "fetch" :
+					  regs->cause == 0x19 ? "load"  : "store";
+
+	// show_regs(regs);
+	show_ext_regs(regs);
+	pr_info("[DASICS EXCEPTION]Info: dasics %s fault occurs, scause = 0x%lx spec = 0x%lx stval = 0x%lx\n",
+		                                trap_name, regs->cause, regs->epc, regs->badaddr);
+	// die(regs, "Kernel BUG");
+	// regs->epc += 4;
+	force_sig(SIGTERM);
+}
 
 /* stvec & scratch is already set from head.S */
 void trap_init(void)

@@ -106,6 +106,31 @@ void asm_offsets(void)
 	OFFSET(PT_BADADDR, pt_regs, badaddr);
 	OFFSET(PT_CAUSE, pt_regs, cause);
 
+#ifdef CONFIG_DASICS
+	/* dasics supervisor registers */
+	OFFSET(PT_DUMCFG, pt_regs, dasicsUmainCfg);
+	OFFSET(PT_DUMBOUNDLO, pt_regs, dasicsUMainBoundLo);
+	OFFSET(PT_DUMBOUNDHI, pt_regs, dasicsUMainBoundHi);
+
+	OFFSET(PT_DLCFG0, pt_regs, dasicsLibCfg0);
+	OFFSET(PT_DLBOUND0LO, pt_regs, dasicsLibBounds[0][0]);
+	OFFSET(PT_DLBOUND0HI, pt_regs, dasicsLibBounds[0][1]);
+	OFFSET(PT_DLBOUND1LO, pt_regs, dasicsLibBounds[1][0]);
+	OFFSET(PT_DLBOUND1HI, pt_regs, dasicsLibBounds[1][1]);
+	OFFSET(PT_DLBOUND2LO, pt_regs, dasicsLibBounds[2][0]);
+	OFFSET(PT_DLBOUND2HI, pt_regs, dasicsLibBounds[2][1]);
+	OFFSET(PT_DLBOUND3LO, pt_regs, dasicsLibBounds[3][0]);
+	OFFSET(PT_DLBOUND3HI, pt_regs, dasicsLibBounds[3][1]);
+
+	OFFSET(PT_DMAINCALL, pt_regs, dasicsMaincall);
+	OFFSET(PT_DRETURNPC, pt_regs, dasicsReturnPC);
+
+	OFFSET(PT_DJBOUND0LO, pt_regs, dasicsJumpBounds[0][0]);
+	OFFSET(PT_DJBOUND0HI, pt_regs, dasicsJumpBounds[0][1]);
+	OFFSET(PT_DJCFG, pt_regs, dasicsJumpCfg);
+
+#endif 
+
 	/*
 	 * THREAD_{F,X}* might be larger than a S-type offset can handle, but
 	 * these are used in performance-sensitive assembly so we can't resort

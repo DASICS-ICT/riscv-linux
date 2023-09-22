@@ -2066,7 +2066,9 @@ static __latent_entropy struct task_struct *copy_process(
 	p->softirqs_enabled		= 1;
 	p->softirq_context		= 0;
 #endif
-
+#ifdef CONFIG_DASICS
+	p->dasics_state = current->dasics_state;
+#endif
 	p->pagefault_disabled = 0;
 
 #ifdef CONFIG_LOCKDEP

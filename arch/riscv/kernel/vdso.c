@@ -12,6 +12,7 @@
 #include <linux/binfmts.h>
 #include <linux/err.h>
 #include <asm/page.h>
+#include <asm/kdasics.h>
 #ifdef CONFIG_GENERIC_TIME_VSYSCALL
 #include <vdso/datapage.h>
 #else
@@ -68,7 +69,19 @@ int arch_setup_additional_pages(struct linux_binprm *bprm,
 	if (mmap_write_lock_killable(mm))
 		return -EINTR;
 
+
+#ifdef CONFIG_DASICS
+	if (unlikely(current->dasics_state))
+	{
+		vdso_base = DASICS_VDSO_BASE;
+	} else 
+	{
+		vdso_base = get_unmapped_area(NULL, 0, vdso_len, 0, 0);
+	}	
+#else
 	vdso_base = get_unmapped_area(NULL, 0, vdso_len, 0, 0);
+#endif
+
 	if (IS_ERR_VALUE(vdso_base)) {
 		ret = vdso_base;
 		goto end;

@@ -50,6 +50,22 @@ struct pt_regs {
 	unsigned long cause;
 	/* a0 value before the syscall */
 	unsigned long orig_a0;
+
+#ifdef CONFIG_DASICS
+	/* dasics supervisor registers */
+	unsigned long dasicsUmainCfg;  		/* initialize should be zero */
+	unsigned long dasicsUMainBoundLo;
+	unsigned long dasicsUMainBoundHi;
+
+    /* Saved DASICS user registers */
+    unsigned long dasicsLibCfg0;
+    unsigned long dasicsLibBounds[4][2];
+    unsigned long dasicsMaincall;
+    unsigned long dasicsReturnPC;
+    unsigned long dasicsJumpBounds[1][2];
+    unsigned long dasicsJumpCfg;
+#endif 	
+
 };
 
 #ifdef CONFIG_64BIT
@@ -60,6 +76,10 @@ struct pt_regs {
 
 #define user_mode(regs) (((regs)->status & SR_PP) == 0)
 
+#ifdef CONFIG_DASICS
+#define dasics_uena(regs) (((regs)->dasicsUmainCfg & DASICS_UCFG_ENA) != 0)
+#define dasics_uopen(regs) (user_mode(regs) && dasics_uena(regs))
+#endif
 
 /* Helpers for working with the instruction pointer */
 static inline unsigned long instruction_pointer(struct pt_regs *regs)

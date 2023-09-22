@@ -77,6 +77,24 @@ union __riscv_fp_state {
 	struct __riscv_q_ext_state q;
 };
 
+#ifdef CONFIG_DASICS
+struct user_ext_regs_struct {
+	/* dasics supervisor registers */
+	unsigned long dasicsUmainCfg;  		/* initialize should be zero */
+	unsigned long dasicsUMainBoundLo;
+	unsigned long dasicsUMainBoundHi;
+
+    /* Saved DASICS user registers */
+    unsigned long dasicsLibCfg0;
+    unsigned long dasicsLibBounds[4][2];
+    unsigned long dasicsMaincall;
+    unsigned long dasicsReturnPC;
+    unsigned long dasicsJumpBounds[1][2];
+    unsigned long dasicsJumpCfg;
+};
+#endif 
+
+
 #endif /* __ASSEMBLY__ */
 
 #endif /* _UAPI_ASM_RISCV_PTRACE_H */
