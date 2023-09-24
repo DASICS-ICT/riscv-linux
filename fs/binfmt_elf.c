@@ -1444,13 +1444,13 @@ out_free_interp:
 	regs->dasicsLibCfg1 = 0;
 
 	/* TODO: if .ulibtext exists, set dasics user main boundary registers. */
-	elf_shdata = load_elf_shdrs(&loc->elf_ex, bprm->file);
+	elf_shdata = load_elf_shdrs(elf_ex, bprm->file);
 	if (!elf_shdata)
 		goto final_exec;
-	secstrs = load_secstrs(&loc->elf_ex, bprm->file, elf_shdata);
+	secstrs = load_secstrs(elf_ex, bprm->file, elf_shdata);
 	if (!secstrs)
 		goto out_free_shdata;
-	elf_shtmp = find_sec(secstrs, &loc->elf_ex, elf_shdata, ".ulibtext");
+	elf_shtmp = find_sec(secstrs, elf_ex, elf_shdata, ".ulibtext");
 	if (!elf_shtmp)
 		goto out_free_secstrs;
 
@@ -1511,7 +1511,7 @@ out_free_interp:
 						  ((DASICS_LIBCFG_V | DASICS_LIBCFG_R));
 
 /* set free zone*/ 
-    elf_shtmp = find_sec(secstrs, &loc->elf_ex, elf_shdata, ".ufreezonetext");
+    elf_shtmp = find_sec(secstrs, elf_ex, elf_shdata, ".ufreezonetext");
 
 	if(elf_shtmp){
 		hi = elf_shtmp->sh_addr + elf_shtmp->sh_size + load_bias;
@@ -1526,7 +1526,7 @@ out_free_interp:
 	}
 
 	/* get main text */
-    elf_shtmp = find_sec(secstrs, &loc->elf_ex, elf_shdata, ".text");
+    elf_shtmp = find_sec(secstrs, elf_ex, elf_shdata, ".text");
 	hi = elf_shtmp->sh_addr + elf_shtmp->sh_size + load_bias;
 	lo = elf_shtmp->sh_addr + load_bias;
 #ifdef CONFIG_DASICS_DEBUG
@@ -1571,7 +1571,7 @@ out_free_interp:
 
 	pr_info("kernel tp: 0x%lx, user tp: 0x%lx\n", (unsigned long)current, regs->tp);
 	pr_info("sstatus: " REG_FMT " sbadaddr: " REG_FMT " scause: " REG_FMT "\n",
-		regs->sstatus, regs->sbadaddr, regs->scause);
+		regs->status, regs->badaddr, regs->cause);
 	pr_info("ustatus: " REG_FMT " ubadaddr: " REG_FMT " ucause: " REG_FMT "\n",
 		regs->ustatus, regs->ubadaddr, regs->ucause);
 	pr_info("maincall entry: " REG_FMT " return pc: " REG_FMT " freezone return pc: " REG_FMT "\n",
