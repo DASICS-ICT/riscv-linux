@@ -66,6 +66,10 @@
 #define EXC_LOAD_PAGE_FAULT     13
 #define EXC_STORE_PAGE_FAULT    15
 
+#ifdef CONFIG_RISCV_MEMORY_PROTECTION_KEYS
+#define SPKCTL_PKE 0x1ul
+#endif  /* CONFIG_RISCV_MEMORY_PROTECTION_KEYS */
+
 #ifndef __ASSEMBLY__
 
 #define csr_swap(csr, val)					\

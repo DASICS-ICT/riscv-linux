@@ -115,7 +115,9 @@ void asm_offsets(void)
 	OFFSET(PT_SSTATUS, pt_regs, sstatus);
 	OFFSET(PT_SBADADDR, pt_regs, sbadaddr);
 	OFFSET(PT_SCAUSE, pt_regs, scause);
-
+#ifdef CONFIG_RISCV_MEMORY_PROTECTION_KEYS
+	OFFSET(PT_UPKRU, pt_regs, upkru);
+#endif /* CONFIG_RISCV_MEMORY_PROTECTION_KEYS */
 	/*
 	 * THREAD_{F,X}* might be larger than a S-type offset can handle, but
 	 * these are used in performance-sensitive assembly so we can't resort

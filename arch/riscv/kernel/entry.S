@@ -98,6 +98,10 @@ _save_context:
 	REG_S s3, PT_SBADADDR(sp)
 	REG_S s4, PT_SCAUSE(sp)
 	REG_S s5, PT_TP(sp)
+#ifdef CONFIG_RISCV_MEMORY_PROTECTION_KEYS
+	csrr s6, 0x800 /* upkru */
+	REG_S s6, PT_UPKRU(sp)
+#endif  /* CONFIG_RISCV_MEMORY_PROTECTION_KEYS */
 	.endm
 
 /*
@@ -109,6 +113,10 @@ _save_context:
 	REG_L a2, PT_SEPC(sp)
 	csrw sstatus, a0
 	csrw sepc, a2
+#ifdef CONFIG_RISCV_MEMORY_PROTECTION_KEYS
+	REG_L a3, PT_UPKRU(sp)
+	csrw 0x800, a3 /* upkru */
+#endif  /* CONFIG_RISCV_MEMORY_PROTECTION_KEYS */
 
 	REG_L x1,  PT_RA(sp)
 	REG_L x3,  PT_GP(sp)
@@ -464,5 +472,9 @@ ENTRY(excp_vect_table)
 	RISCV_PTR do_page_fault   /* load page fault */
 	RISCV_PTR do_trap_unknown
 	RISCV_PTR do_page_fault   /* store page fault */
+	RISCV_PTR do_mpk_page_fault
+	RISCV_PTR do_mpk_page_fault
+	RISCV_PTR do_mpk_page_fault
+	RISCV_PTR do_mpk_page_fault
 excp_vect_table_end:
 END(excp_vect_table)

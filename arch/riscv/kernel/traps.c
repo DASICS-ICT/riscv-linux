@@ -117,6 +117,8 @@ DO_ERROR_INFO(do_trap_ecall_s,
 	SIGILL, ILL_ILLTRP, "environment call from S-mode");
 DO_ERROR_INFO(do_trap_ecall_m,
 	SIGILL, ILL_ILLTRP, "environment call from M-mode");
+DO_ERROR_INFO(do_mpk_page_fault,
+	SIGSEGV, SEGV_PKUERR, "memory protection key page fault");
 
 asmlinkage void do_trap_break(struct pt_regs *regs)
 {
