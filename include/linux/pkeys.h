@@ -12,6 +12,7 @@
 #define arch_override_mprotect_pkey(vma, prot, pkey) (0)
 #define PKEY_DEDICATED_EXECUTE_ONLY 0
 #define ARCH_VM_PKEY_FLAGS 0
+#define ARCH_DEFAULT_PKEY 0
 
 static inline int vma_pkey(struct vm_area_struct *vma)
 {

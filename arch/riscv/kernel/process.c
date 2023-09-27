@@ -29,6 +29,7 @@ register unsigned long gp_in_global __asm__("gp");
 unsigned long __stack_chk_guard __read_mostly;
 EXPORT_SYMBOL(__stack_chk_guard);
 #endif
+#include <asm/pkru.h>
 
 extern asmlinkage void ret_from_fork(void);
 extern asmlinkage void ret_from_kernel_thread(void);
@@ -106,6 +107,10 @@ void show_ext_regs(struct pt_regs *regs)
 	pr_cont("DASICS Other Registers: \n");
 	pr_cont("main call entry: " REG_FMT " return pc: " REG_FMT " free zone return pc: " REG_FMT " fault reason: " REG_FMT "\n",
 		regs->dasicsMaincall, regs->dasicsReturnPC, regs->dasicsFreezoneRet, regs->dasicsFaultReason);
+#ifdef CONFIG_RISCV_MEMORY_PROTECTION_KEYS
+	pr_cont("upkru: " REG_FMT " spkctl: " REG_FMT "\n",
+		regs->upkru, csr_read(0x9d0));
+#endif  /* CONFIG_RISCV_MEMORY_PROTECTION_KEYS */
 }
 
 void start_thread(struct pt_regs *regs, unsigned long pc,
@@ -127,6 +132,9 @@ void start_thread(struct pt_regs *regs, unsigned long pc,
 	regs->utvec = 0;
 #endif
 
+#ifdef CONFIG_RISCV_MEMORY_PROTECTION_KEYS
+	regs->upkru = pkru_init_val();
+#endif  /* CONFIG_RISCV_MEMORY_PROTECTION_KEYS */
 }
 
 void flush_thread(void)

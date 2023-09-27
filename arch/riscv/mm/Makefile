@@ -30,3 +30,4 @@ endif
 endif
 
 obj-$(CONFIG_DEBUG_VIRTUAL) += physaddr.o
+obj-y += pkeys.o
