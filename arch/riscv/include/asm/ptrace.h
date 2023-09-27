@@ -44,6 +44,7 @@ struct pt_regs {
 	unsigned long t4;
 	unsigned long t5;
 	unsigned long t6;
+
 	/* Supervisor/Machine CSRs */
 	unsigned long status;
 	unsigned long badaddr;
@@ -80,6 +81,10 @@ struct pt_regs {
     unsigned long dasicsJumpCfg;
 #endif 	
 
+#ifdef CONFIG_RISCV_MEMORY_PROTECTION_KEYS
+	/* Memory Protection Keys CSR */
+	unsigned long upkru;
+#endif /* CONFIG_RISCV_MEMORY_PROTECTION_KEYS */
 };
 
 #ifdef CONFIG_64BIT

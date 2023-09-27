@@ -239,7 +239,10 @@ _save_context:
 	REG_S s3, PT_BADADDR(sp)
 	REG_S s4, PT_CAUSE(sp)
 	REG_S s5, PT_TP(sp)
-
+#ifdef CONFIG_RISCV_MEMORY_PROTECTION_KEYS
+	csrr s6, 0x800 /* upkru */
+	REG_S s6, PT_UPKRU(sp)
+#endif  /* CONFIG_RISCV_MEMORY_PROTECTION_KEYS */
 _check_kernel:
 	/* if exception comes from kernel, sscratch contains 0 */
 	# bnez s5, _check_dasics
@@ -448,6 +451,10 @@ _restore_dasics:
 	RESTORE_UCSR
 _restore_general:
 	/* restore general regs */
+#ifdef CONFIG_RISCV_MEMORY_PROTECTION_KEYS
+	REG_L a3, PT_UPKRU(sp)
+	csrw 0x800, a3 /* upkru */
+#endif  /* CONFIG_RISCV_MEMORY_PROTECTION_KEYS */
 
 	REG_L x1,  PT_RA(sp)
 	REG_L x3,  PT_GP(sp)
