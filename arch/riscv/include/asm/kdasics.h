@@ -5,6 +5,19 @@
 #include <asm/kattr.h>
 #include <asm/csr.h>
 
+// dasics elf type
+#define NO_DASICS 0
+#define DASICS_STATIC 1
+#define DASICS_DYNAMIC 2
+
+// judge the dasics option
+#define DASICS_COMMAND "-dasics"
+#define DASICS_LENGTH 8
+
+// dasics dynamic elf base
+#define DASICS_LINKER_BASE 0x1000 
+#define COPY_LINKER_BASE 0x30000
+#define TRUST_LIB_BASE 0x800000
 // TODO: Add Smaincall types
 typedef enum {
     Smaincall_UNKNOWN

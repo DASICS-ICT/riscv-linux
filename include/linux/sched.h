@@ -658,6 +658,11 @@ struct task_struct {
 	 */
 	randomized_struct_fields_start
 
+#ifdef CONFIG_DASICS
+	/* 0 normal, 1 dasics statis, 2 dasics dynamic */
+	volatile long 			dasics_state;
+#endif
+
 	void				*stack;
 	refcount_t			usage;
 	/* Per task flags (PF_*), defined further below: */

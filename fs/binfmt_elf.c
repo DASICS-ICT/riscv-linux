@@ -178,7 +178,11 @@ static int padzero(unsigned long elf_bss)
 static int
 create_elf_tables(struct linux_binprm *bprm, const struct elfhdr *exec,
 		unsigned long interp_load_addr,
-		unsigned long e_entry, unsigned long phdr_addr)
+		unsigned long e_entry, unsigned long phdr_addr
+	#ifdef CONFIG_DASICS
+		, unsigned long interp_entry, unsigned long copy_interp_entry
+	#endif			
+)
 {
 	struct mm_struct *mm = current->mm;
 	unsigned long p = bprm->p;
@@ -275,6 +279,18 @@ create_elf_tables(struct linux_binprm *bprm, const struct elfhdr *exec,
 	NEW_AUX_ENT(AT_EGID, from_kgid_munged(cred->user_ns, cred->egid));
 	NEW_AUX_ENT(AT_SECURE, bprm->secureexec);
 	NEW_AUX_ENT(AT_RANDOM, (elf_addr_t)(unsigned long)u_rand_bytes);
+
+#ifdef CONFIG_DASICS
+	NEW_AUX_ENT(AT_LINKER, interp_entry);
+	NEW_AUX_ENT(AT_FIXUP, 0);
+	if (current->dasics_state)
+		NEW_AUX_ENT(AT_DASICS, 1);
+	else 
+		NEW_AUX_ENT(AT_DASICS, 0);
+	NEW_AUX_ENT(AT_LINKER_COPY, copy_interp_entry);
+	NEW_AUX_ENT(AT_TRUST_BASE, TRUST_LIB_BASE);
+#endif
+
 #ifdef ELF_HWCAP2
 	NEW_AUX_ENT(AT_HWCAP2, ELF_HWCAP2);
 #endif
@@ -699,7 +715,11 @@ static inline int make_prot(u32 p_flags, struct arch_elf_state *arch_state,
 static unsigned long load_elf_interp(struct elfhdr *interp_elf_ex,
 		struct file *interpreter,
 		unsigned long no_base, struct elf_phdr *interp_elf_phdata,
-		struct arch_elf_state *arch_state)
+		struct arch_elf_state *arch_state
+		#ifdef CONFIG_DASICS
+		,unsigned long point_base
+		#endif		
+)
 {
 	struct elf_phdr *eppnt;
 	unsigned long load_addr = 0;
@@ -709,6 +729,12 @@ static unsigned long load_elf_interp(struct elfhdr *interp_elf_ex,
 	unsigned long error = ~0UL;
 	unsigned long total_size;
 	int i;
+
+#ifdef CONFIG_DASICS
+	// map linker to low address
+	if (unlikely(current->dasics_state == DASICS_DYNAMIC))
+		load_addr = point_base;
+#endif
 
 	/* First of all, some simple consistency checks */
 	if (interp_elf_ex->e_type != ET_EXEC &&
@@ -737,10 +763,26 @@ static unsigned long load_elf_interp(struct elfhdr *interp_elf_ex,
 			unsigned long k, map_addr;
 
 			vaddr = eppnt->p_vaddr;
+
+		#ifdef CONFIG_DASICS
+			if (unlikely(current->dasics_state == DASICS_DYNAMIC) && !load_addr_set)
+			{
+				elf_type |= MAP_FIXED;
+			}
+		#endif
 			if (interp_elf_ex->e_type == ET_EXEC || load_addr_set)
 				elf_type |= MAP_FIXED;
 			else if (no_base && interp_elf_ex->e_type == ET_DYN)
-				load_addr = -vaddr;
+			{
+			#ifdef CONFIG_DASICS
+				// fix load dl-linker to low address
+				if (unlikely(current->dasics_state == DASICS_DYNAMIC))
+					elf_type |= MAP_FIXED;
+				else
+			#endif				
+				load_addr = -vaddr;				
+			}
+
 
 			map_addr = elf_map(interpreter, load_addr + vaddr,
 					eppnt, elf_prot, elf_type, total_size);
@@ -940,6 +982,7 @@ static int load_elf_binary(struct linux_binprm *bprm)
 	int bss_prot = 0;
 	int retval, i;
 	unsigned long elf_entry;
+
 	unsigned long e_entry;
 	unsigned long interp_load_addr = 0;
 	unsigned long start_code, end_code, start_data, end_data;
@@ -956,6 +999,10 @@ static int load_elf_binary(struct linux_binprm *bprm)
 	char *secstrs = NULL;
 	unsigned long hi = 0, lo = 0;
 	struct vm_area_struct *vmaptr;
+	int dasics_libidx = 0;
+	int dasics_jumpidx = 0;                 
+	unsigned long interp_entry;
+	unsigned long copy_interp_entry;
 #endif /* CONFIG_DASICS */
 
 	retval = -ENOEXEC;
@@ -1076,6 +1123,11 @@ out_free_interp:
 						   interpreter);
 		if (!interp_elf_phdata)
 			goto out_free_dentry;
+	#ifdef CONFIG_DASICS
+		/* if dasics static has been confirmed, it will be judged as dynamic */
+		if (unlikely(current->dasics_state == DASICS_STATIC))
+			current->dasics_state = DASICS_DYNAMIC;
+	#endif
 
 		/* Pass PT_LOPROC..PT_HIPROC headers to arch code */
 		elf_property_phdata = NULL;
@@ -1342,7 +1394,13 @@ out_free_interp:
 		elf_entry = load_elf_interp(interp_elf_ex,
 					    interpreter,
 					    load_bias, interp_elf_phdata,
-					    &arch_state);
+					    &arch_state
+					#ifdef CONFIG_DASICS	
+						,DASICS_LINKER_BASE
+					#endif
+						);
+		interp_entry = elf_entry;
+
 		if (!IS_ERR((void *)elf_entry)) {
 			/*
 			 * load_elf_interp() returns relocation
@@ -1350,12 +1408,40 @@ out_free_interp:
 			 */
 			interp_load_addr = elf_entry;
 			elf_entry += interp_elf_ex->e_entry;
+		#ifdef CONFIG_DASICS
+			interp_entry += interp_elf_ex->e_entry;
+		#endif
 		}
 		if (BAD_ADDR(elf_entry)) {
 			retval = IS_ERR((void *)elf_entry) ?
 					(int)elf_entry : -EINVAL;
 			goto out_free_dentry;
 		}
+
+	#ifdef CONFIG_DASICS
+		if (unlikely(current->dasics_state == DASICS_DYNAMIC))
+		{
+			copy_interp_entry = load_elf_interp(interp_elf_ex,
+							interpreter,
+							load_bias, interp_elf_phdata,
+							&arch_state
+							,COPY_LINKER_BASE
+							);		
+
+			if (!IS_ERR((void *)copy_interp_entry)) {
+				copy_interp_entry += interp_elf_ex->e_entry;
+			}
+
+			if (BAD_ADDR(copy_interp_entry)) {
+				retval = IS_ERR((void *)copy_interp_entry) ?
+						(int)copy_interp_entry : -EINVAL;
+				goto out_free_dentry;
+			}				
+		}
+		else 
+			copy_interp_entry = 0;
+
+	#endif
 		reloc_func_desc = interp_load_addr;
 
 		allow_write_access(interpreter);
@@ -1382,7 +1468,12 @@ out_free_interp:
 #endif /* ARCH_HAS_SETUP_ADDITIONAL_PAGES */
 
 	retval = create_elf_tables(bprm, elf_ex, interp_load_addr,
-				   e_entry, phdr_addr);
+				   e_entry, phdr_addr
+			#ifdef CONFIG_DASICS
+			  , interp_entry, 
+			  copy_interp_entry
+			#endif
+			  );	
 	if (retval < 0)
 		goto out;
 
@@ -1443,6 +1534,8 @@ out_free_interp:
 	regs->dasicsLibCfg0 = 0;
 	regs->dasicsLibCfg1 = 0;
 
+	if (current->dasics_state == NO_DASICS) goto final_exec;
+
 	/* TODO: if .ulibtext exists, set dasics user main boundary registers. */
 	elf_shdata = load_elf_shdrs(elf_ex, bprm->file);
 	if (!elf_shdata)
@@ -1451,7 +1544,11 @@ out_free_interp:
 	if (!secstrs)
 		goto out_free_shdata;
 	elf_shtmp = find_sec(secstrs, elf_ex, elf_shdata, ".ulibtext");
-	if (!elf_shtmp)
+	// if no command line "-dasics" but ".ulibtext" section exits, set to DASICS_STATIC
+	if (elf_shtmp && current->dasics_state == NO_DASICS)
+		current->dasics_state = DASICS_STATIC;
+	// if no command line "-dasics" and ".ulibtext" section does'n exit jump out
+	if (!elf_shtmp && likely(current->dasics_state == NO_DASICS))
 		goto out_free_secstrs;
 
 #ifdef CONFIG_DASICS_DEBUG
@@ -1466,28 +1563,39 @@ out_free_interp:
 	pr_info("kernel stack pointer: 0x%lx\n", (unsigned long)current->stack);
 #endif 
 
-	hi = elf_shtmp->sh_addr + elf_shtmp->sh_size + load_bias;
-	lo = elf_shtmp->sh_addr + load_bias;
-#ifdef CONFIG_DASICS_DEBUG
-	pr_info("ulibtext start: 0x%lx, end: 0x%lx\n", lo, hi);
-#endif 
+#define align8up(addr) 		 (addr & ~(0x7)) + 0x8	
+#define align8down(addr) 	 (addr & ~(0x7)) - 0x8	
+
+	if (elf_shtmp)
+	{
+		hi = elf_shtmp->sh_addr + elf_shtmp->sh_size + load_bias;
+		lo = elf_shtmp->sh_addr + load_bias;
+		
+		#ifdef CONFIG_DASICS_DEBUG
+			pr_info("ulibtext start: 0x%lx, end: 0x%lx\n", lo, hi);
+		#endif 
+
+		/* lib function text */
+		// regs->dasicsJumpBounds[dasics_jumpidx][0] = align8down(lo);
+		// regs->dasicsJumpBounds[dasics_jumpidx++][1] = align8up(hi);  	
+
+		/* get read-only datas. */
+		/* This area contains some other codes, however, lib text should not execute them. */
+		regs->dasicsLibBounds[dasics_libidx][0] = align8down(hi);
+		regs->dasicsLibBounds[dasics_libidx++][1] = align8up(start_data);
+		regs->dasicsLibCfg0 |= ((DASICS_LIBCFG_V | DASICS_LIBCFG_R) << (dasics_libidx - 1) * 4) ;
+
+		regs->dasicsJumpBounds[dasics_jumpidx][0] = align8down(lo);
+		regs->dasicsJumpBounds[dasics_jumpidx++][1] = align8up(hi);
+		regs->dasicsJumpCfg |=  ((DASICS_JUMPCFG_V) << (dasics_jumpidx - 1) * 16);
+	}
 	/* set dasics lib config, need to update dynamic allocation */
 
 	/* kernel stack. This is used in S-state dasics protection. */
 	//regs->dasicsLibBounds[0] = (unsigned long)current->stack + THREAD_SIZE;
 	//regs->dasicsLibBounds[1] = (unsigned long)current->stack;
 
-#define align8up(addr) 		 (addr & ~(0x7)) + 0x8	
-#define align8down(addr) 	 (addr & ~(0x7)) - 0x8	
 
-	/* lib function text */
-	regs->dasicsJumpBounds[0][0] = align8down(lo);
-	regs->dasicsJumpBounds[0][1] = align8up(hi);  
-
-	/* get read-only datas. */
-	/* This area contains some other codes, however, lib text should not execute them. */
-	regs->dasicsLibBounds[0][0] = align8down(hi);
-	regs->dasicsLibBounds[0][1] = align8up(start_data);
 
 	/* Following mapping is related to vm_mmap blocks. */
 	/* This should be updated in future.*/
@@ -1500,15 +1608,13 @@ out_free_interp:
 
 	/* protect data */
 	/* currently protact heap\mmap\stack together */	
-	regs->dasicsLibBounds[1][0] = align8down(current->mm->start_brk);
-	regs->dasicsLibBounds[1][1] = align8up(current->mm->start_stack);
+	regs->dasicsLibBounds[dasics_libidx][0] = align8down(current->mm->start_brk);
+	regs->dasicsLibBounds[dasics_libidx++][1] = align8up(current->mm->start_stack);
 
 	//jbound0: lib code jump enable     
 	//mbound0: v  | r  | hi -- start_data - 0x2UL
 	//mbound1: v  | rw | start_data -- TASK_SIZE
-	regs->dasicsJumpCfg =   DASICS_JUMPCFG_V;
-	regs->dasicsLibCfg0 = ((DASICS_LIBCFG_V | DASICS_LIBCFG_R | DASICS_LIBCFG_W) << 4 * 1) | 
-						  ((DASICS_LIBCFG_V | DASICS_LIBCFG_R));
+	regs->dasicsLibCfg0 |= ((DASICS_LIBCFG_V | DASICS_LIBCFG_R | DASICS_LIBCFG_W) << 4 * (dasics_libidx - 1));
 
 /* set free zone*/ 
     elf_shtmp = find_sec(secstrs, elf_ex, elf_shdata, ".ufreezonetext");
@@ -1518,9 +1624,9 @@ out_free_interp:
 		lo = elf_shtmp->sh_addr + load_bias;
 
 		//jbound1: lib freezone jump enable 
-		regs->dasicsJumpBounds[1][0] = align8down(lo);
-		regs->dasicsJumpBounds[1][1] = align8up(hi);  
-		regs->dasicsJumpCfg =   (DASICS_JUMPCFG_V << 1*16) | regs->dasicsJumpCfg;
+		regs->dasicsJumpBounds[dasics_jumpidx][0] = align8down(lo);
+		regs->dasicsJumpBounds[dasics_jumpidx++][1] = align8up(hi);  
+		regs->dasicsJumpCfg |= (DASICS_JUMPCFG_V << (dasics_jumpidx - 1) * 16);
 
 	    pr_info("free zone text start: 0x%lx, end: 0x%lx\n", lo, hi);
 	}
@@ -1532,6 +1638,14 @@ out_free_interp:
 #ifdef CONFIG_DASICS_DEBUG
     	pr_info("text start: 0x%lx, end: 0x%lx\n", lo, hi);
 #endif
+
+
+	if (likely(current->dasics_state == DASICS_DYNAMIC))
+	{
+		lo = DASICS_LINKER_BASE;
+		// the dasics will always go to the elf entry but not the dynamic linker
+		elf_entry = e_entry;
+	}
 
 	regs->dasicsUmainCfg = DASICS_UCFG_ENA; 
 	regs->dasicsUMainBoundLo = align8down(lo);
