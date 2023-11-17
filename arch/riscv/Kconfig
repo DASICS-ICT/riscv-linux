@@ -204,17 +204,17 @@ source "arch/riscv/Kconfig.socs"
 
 # TODO: Add CONFIG_DASICS
 # config DASICS is used for opening dasics protection
-config DASICS  
+config DASICS
 	def_bool y
 
 # config DASICS_DEBUG is used for opening debug functions for onboard test
 config DASICS_DEBUG
-	def_bool y
+	def_bool n
 
 # config ZYNQ_ONBOARD is used for opening zynq spercific functions.
 # when using QEMU for test, this config should be changed to n.
 config ZYNQ_ONBOARD
-	def_bool n	
+	def_bool n
 
 menu "Platform type"
 
