@@ -955,7 +955,6 @@ static int load_elf_binary(struct linux_binprm *bprm)
 	struct elf_shdr *elf_shdata, *elf_shtmp;
 	char *secstrs = NULL;
 	unsigned long hi = 0, lo = 0;
-	struct vm_area_struct *vmaptr;
 #endif /* CONFIG_DASICS */
 
 	retval = -ENOEXEC;
@@ -1492,6 +1491,7 @@ out_free_interp:
 	/* Following mapping is related to vm_mmap blocks. */
 	/* This should be updated in future.*/
 #ifdef CONFIG_DASICS_DEBUG
+	struct vm_area_struct *vmaptr;
 	for (vmaptr = current->mm->mmap; vmaptr != NULL; vmaptr = vmaptr->vm_next) {
 		pr_info("vm start: 0x%lx, vm end: 0x%lx, vm flag: 0x%lx\n", 
 				vmaptr->vm_start, vmaptr->vm_end, vmaptr->vm_flags);
@@ -1522,7 +1522,9 @@ out_free_interp:
 		regs->dasicsJumpBounds[1][1] = align8up(hi);  
 		regs->dasicsJumpCfg =   (DASICS_JUMPCFG_V << 1*16) | regs->dasicsJumpCfg;
 
+#ifdef CONFIG_DASICS_DEBUG
 	    pr_info("free zone text start: 0x%lx, end: 0x%lx\n", lo, hi);
+#endif
 	}
 
 	/* get main text */
@@ -1530,7 +1532,7 @@ out_free_interp:
 	hi = elf_shtmp->sh_addr + elf_shtmp->sh_size + load_bias;
 	lo = elf_shtmp->sh_addr + load_bias;
 #ifdef CONFIG_DASICS_DEBUG
-    	pr_info("text start: 0x%lx, end: 0x%lx\n", lo, hi);
+	pr_info("text start: 0x%lx, end: 0x%lx\n", lo, hi);
 #endif
 
 	regs->dasicsUmainCfg = DASICS_UCFG_ENA; 
@@ -1576,9 +1578,8 @@ out_free_interp:
 		regs->ustatus, regs->ubadaddr, regs->ucause);
 	pr_info("maincall entry: " REG_FMT " return pc: " REG_FMT " freezone return pc: " REG_FMT "\n",
 		regs->dasicsMaincall, regs->dasicsReturnPC, regs->dasicsFreezoneRet);
-#endif 
-
 	pr_info("finish dasics initialization.\n");
+#endif
 
 out_free_secstrs:
 	kfree(secstrs);
