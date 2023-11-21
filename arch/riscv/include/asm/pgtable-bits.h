@@ -31,17 +31,6 @@
 
 #define _PAGE_PFN_SHIFT 10
 
-#ifdef CONFIG_RISCV_MEMORY_PROTECTION_KEYS
-#define _PAGE_PKEY_BIT0 (1UL << 54)
-#define _PAGE_PKEY_BIT1 (1UL << 55)
-#define _PAGE_PKEY_BIT2 (1UL << 56)
-#define _PAGE_PKEY_BIT3 (1UL << 57)
-#define _PAGE_PKEY_BIT4 (1UL << 58)
-#define _PAGE_PKEY_MASK (_PAGE_PKEY_BIT0 | _PAGE_PKEY_BIT1 | \
-						 _PAGE_PKEY_BIT2 | _PAGE_PKEY_BIT3 | \
-						 _PAGE_PKEY_BIT4)
-#endif /* CONFIG_RISCV_MEMORY_PROTECTION_KEYS */
-
 /* Set of bits to preserve across pte_modify() */
 #define _PAGE_CHG_MASK  (~(unsigned long)(_PAGE_PRESENT | _PAGE_READ |	\
 					  _PAGE_WRITE | _PAGE_EXEC |	\
