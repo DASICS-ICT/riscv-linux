@@ -11,20 +11,20 @@
 #ifdef CONFIG_RISCV_MEMORY_PROTECTION_KEYS
 static inline bool is_pkru_enabled(void)
 {
-    u64 spkctl = csr_read(0x9c0);
+    u64 spkctl = csr_read(0x9d0);
     return spkctl & SPKCTL_PKE;
 }
 
 static inline void enable_pkru(void)
 {
-    u64 spkctl = csr_read(0x9c0);
-    csr_write(0x9c0, spkctl | SPKCTL_PKE);
+    u64 spkctl = csr_read(0x9d0);
+    csr_write(0x9d0, spkctl | SPKCTL_PKE);
 }
 
 static inline void disable_pkru(void)
 {
-    u64 spkctl = csr_read(0x9c0);
-    csr_write(0x9c0, spkctl & (~SPKCTL_PKE));
+    u64 spkctl = csr_read(0x9d0);
+    csr_write(0x9d0, spkctl & (~SPKCTL_PKE));
 }
 
 static inline u64 read_pkru(void)

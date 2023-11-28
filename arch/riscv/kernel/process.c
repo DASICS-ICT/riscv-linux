@@ -74,7 +74,7 @@ void show_regs(struct pt_regs *regs)
 		regs->sstatus, regs->sbadaddr, regs->scause);
 #ifdef CONFIG_RISCV_MEMORY_PROTECTION_KEYS
 	pr_cont("upkru: " REG_FMT " spkctl: " REG_FMT "\n",
-		regs->upkru, csr_read(0x9c0));
+		regs->upkru, csr_read(0x9d0));
 #endif  /* CONFIG_RISCV_MEMORY_PROTECTION_KEYS */
 }
 

@@ -2,7 +2,7 @@
  * RISC-V Memory Protection Keys management
  *
  * Note:
- *  1. MPK for RV64 is based on three customized CSRs: UPKRU(0x800), SPKRS(0x9c1) and SPKCTL(0x9c0).
+ *  1. MPK for RV64 is based on three customized CSRs: UPKRU(0x800), SPKRS(0x9d1) and SPKCTL(0x9d0).
  *  2. The wd/ad layout of UPKRU/SPKRS is the same as PKRU/IA32_PKRS of x86_64 MPK design,
  *  but the high 32 bits of UPKRU/SPKRS are available, thus we can support up to 32 different pkeys.
  *  3. SPKCTL.PKE(bit 0)/SPKCTL.PKS(bit 1) is used to enable MPK mechanism for user mode or supervisor mode,
