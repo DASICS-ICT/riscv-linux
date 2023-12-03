@@ -20,6 +20,7 @@
 
 #include <linux/mm.h>
 #include <linux/sched.h>
+#include <linux/pkeys.h>
 #include <asm/tlbflush.h>
 #include <asm/cacheflush.h>
 
@@ -32,6 +33,14 @@ static inline void enter_lazy_tlb(struct mm_struct *mm,
 static inline int init_new_context(struct task_struct *task,
 	struct mm_struct *mm)
 {
+#ifdef CONFIG_RISCV_MEMORY_PROTECTION_KEYS
+	if (arch_pkeys_enabled()) {
+		/* pkey 0 is the default and allocated implicitly */
+		mm->context.pkey_allocation_map = 0x1;
+		/* -1 means unallocated or invalid */
+		mm->context.execute_only_pkey = -1;
+	}
+#endif
 	return 0;
 }
 

@@ -23,6 +23,14 @@ typedef struct {
 	/* A local icache flush is needed before user execution can resume. */
 	cpumask_t icache_stale_mask;
 #endif
+#ifdef CONFIG_RISCV_MEMORY_PROTECTION_KEYS
+	/*
+	 * One bit per protection key says whether userspace can
+	 * use it or not.  protected by mmap_sem.
+	 */
+	u32 pkey_allocation_map;
+	s32 execute_only_pkey;
+#endif  /* CONFIG_RISCV_MEMORY_PROTECTION_KEYS */
 } mm_context_t;
 
 #endif /* __ASSEMBLY__ */
