@@ -4,6 +4,7 @@
 #include <linux/printk.h>
 #include <asm/pkru.h>
 
+#ifdef CONFIG_RISCV_MEMORY_PROTECTION_KEYS
 int pkey_initialize(void)
 {
     enable_pkru();
@@ -146,3 +147,4 @@ int __arch_override_mprotect_pkey(struct vm_area_struct *vma, int prot, int pkey
      */
     return vma_pkey(vma);
 }
+#endif  // CONFIG_RISCV_MEMORY_PROTECTION_KEYS
