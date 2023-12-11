@@ -98,8 +98,8 @@ void show_ext_regs(struct pt_regs *regs)
 
 	/* Dasics user regs */
 	pr_cont("DASICS Lib Registers: \n");
-	pr_cont("config0: " REG_FMT " config1: " REG_FMT "\n",
-		regs->dasicsLibCfg0, regs->dasicsLibCfg1);
+	pr_cont("config0: " REG_FMT " aging0: " REG_FMT " aging1: " REG_FMT "\n",
+		regs->dasicsLibCfg0, regs->dasicsLibAging0, regs->dasicsLibAging1);
 
 	for (cnt = 0; cnt < 16; cnt++) {
 		pr_cont("(%d) mem bound lo: " REG_FMT " mem bound hi: " REG_FMT "\n",

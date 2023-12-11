@@ -1288,7 +1288,8 @@ static int load_elf_binary(struct linux_binprm *bprm)
 	/* clear dasics csrs */
     regs->dasicsUmainCfg = 0;
 	regs->dasicsLibCfg0 = 0;
-	regs->dasicsLibCfg1 = 0;
+	regs->dasicsLibAging0 = 0;
+	regs->dasicsLibAging1 = 0;
 
 	/* TODO: if .ulibtext exists, set dasics user main boundary registers. */
 	elf_shdata = load_elf_shdrs(&loc->elf_ex, bprm->file);
@@ -1402,8 +1403,8 @@ static int load_elf_binary(struct linux_binprm *bprm)
 
 	/* Dasics user regs */
 	pr_info("DASICS Lib Registers: \n");
-	pr_info("config0: " REG_FMT " config1: " REG_FMT "\n",
-		regs->dasicsLibCfg0, regs->dasicsLibCfg1);
+	pr_info("config0: " REG_FMT " aging0: " REG_FMT " aging1: " REG_FMT "\n",
+		regs->dasicsLibCfg0, regs->dasicsLibAging0, regs->dasicsLibAging1);
 
 	int cnt;
 	for (cnt = 0; cnt < 16; cnt++) {

@@ -133,7 +133,8 @@ void asm_offsets(void)
 	OFFSET(PT_DUMBOUNDHI, pt_regs, dasicsUMainBoundHi);
 
 	OFFSET(PT_DLCFG0, pt_regs, dasicsLibCfg0);
-	OFFSET(PT_DLCFG1, pt_regs, dasicsLibCfg1);
+	OFFSET(PT_DLAGING0, pt_regs, dasicsLibAging0);
+	OFFSET(PT_DLAGING1, pt_regs, dasicsLibAging1);
 	OFFSET(PT_DLBOUND0LO, pt_regs, dasicsLibBounds[0][0]);
 	OFFSET(PT_DLBOUND0HI, pt_regs, dasicsLibBounds[0][1]);
 	OFFSET(PT_DLBOUND1LO, pt_regs, dasicsLibBounds[1][0]);

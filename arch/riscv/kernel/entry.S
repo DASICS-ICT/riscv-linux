@@ -41,9 +41,11 @@
 
 
 	csrr t0, CSR_DLCFG0
-	#csrr t1, CSR_DLCFG1
 	REG_S t0, PT_DLCFG0(sp)
-	#REG_S t1, PT_DLCFG1(sp)
+	csrr t0, CSR_DLAGING0
+	REG_S t0, PT_DLAGING0(sp)
+	csrr t0, CSR_DLAGING1
+	REG_S t0, PT_DLAGING1(sp)
 
 	csrr t0, CSR_DLBOUND0LO
 	csrr t1, CSR_DLBOUND0HI
@@ -277,9 +279,11 @@ _save_end:
 
 
 	REG_L t0, PT_DLCFG0(sp)
-	# REG_L t1, PT_DLCFG1(sp)
 	csrw CSR_DLCFG0, t0
-	# csrw CSR_DLCFG1, t1
+	REG_L t0, PT_DLAGING0(sp)
+	csrw CSR_DLAGING0, t0
+	REG_L t0, PT_DLAGING1(sp)
+	csrw CSR_DLAGING1, t0
 
 	REG_L t0, PT_DLBOUND0LO(sp)
 	REG_L t1, PT_DLBOUND0HI(sp)

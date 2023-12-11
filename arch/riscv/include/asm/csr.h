@@ -123,6 +123,8 @@
 #define DASICS_SCFG_ENA     0x1UL
 
 #define CSR_DLCFG0          0x880
+#define CSR_DLAGING0        0x881
+#define CSR_DLAGING1        0x882
 
 #define CSR_DLBOUND0LO      0x890
 #define CSR_DLBOUND0HI      0x891
