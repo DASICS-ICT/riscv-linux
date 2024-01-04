@@ -1325,7 +1325,7 @@ static int load_elf_binary(struct linux_binprm *bprm)
 	//regs->dasicsLibBounds[1] = (unsigned long)current->stack;
 
 #define align8up(addr) 		 (addr & ~(0x7)) + 0x8	
-#define align8down(addr) 	 (addr & ~(0x7)) - 0x8	
+#define align8down(addr) 	 (addr & ~(0x7))
 
 	/* lib function text */
 	regs->dasicsJumpBounds[0][0] = align8down(lo);
