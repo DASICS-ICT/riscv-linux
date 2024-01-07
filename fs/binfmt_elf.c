@@ -1476,8 +1476,8 @@ out_free_interp:
 	//regs->dasicsLibBounds[0] = (unsigned long)current->stack + THREAD_SIZE;
 	//regs->dasicsLibBounds[1] = (unsigned long)current->stack;
 
-#define align8up(addr) 		 (addr & ~(0x7)) + 0x8	
-#define align8down(addr) 	 (addr & ~(0x7)) - 0x8	
+#define align8up(addr) 		 ((addr+0x7) & ~(0x7)) 
+#define align8down(addr) 	 (addr & ~(0x7))
 
 	/* lib function text */
 	regs->dasicsJumpBounds[0][0] = align8down(lo);
