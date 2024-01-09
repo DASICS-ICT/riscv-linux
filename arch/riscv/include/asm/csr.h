@@ -183,6 +183,10 @@
 #define DASICS_JUMPCFG_V    	0x1UL
 #endif /* CONFIG_DASICS */
 
+#ifdef CONFIG_RISCV_MEMORY_PROTECTION_KEYS
+#define SPKCTL_PKE 0x1ul
+#endif  /* CONFIG_RISCV_MEMORY_PROTECTION_KEYS */
+
 #ifndef __ASSEMBLY__
 
 #define csr_swap(csr, val)					\
