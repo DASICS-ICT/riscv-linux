@@ -17,6 +17,7 @@
 // dasics dynamic elf base
 #define DASICS_LINKER_BASE 0x1000 
 #define COPY_LINKER_BASE 0x30000
+#define DASICS_VDSO_BASE 0x60000
 #define TRUST_LIB_BASE 0x800000
 
 // TODO: Add Smaincall types
