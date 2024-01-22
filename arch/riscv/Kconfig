@@ -101,11 +101,11 @@ config DASICS
 config DASICS_DEBUG
 	def_bool y
 
-# config ZYNQ_ONBOARD is used for opening zynq spercific functions.
+# config ARCH_ZYNQ is used for opening zynq spercific functions.
 # when using QEMU for test, this config should be changed to n.
-config ZYNQ_ONBOARD
-	def_bool y	
-
+config ARCH_ZYNQ
+	def_bool y
+	
 menu "Platform type"
 
 choice
