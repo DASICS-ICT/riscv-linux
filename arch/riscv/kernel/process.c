@@ -120,9 +120,9 @@ void start_thread(struct pt_regs *regs, unsigned long pc,
 	unsigned long sp)
 {
 	regs->sstatus = SR_SPIE /* User mode, irqs on */;
-#ifdef CONFIG_FPU
+// #ifdef CONFIG_FPU
 	regs->sstatus |= SR_FS_INITIAL;
-#endif
+// #endif
 	regs->sepc = pc;
 	regs->sp = sp;
 
