@@ -32,6 +32,7 @@
 #include <asm/csr.h>
 #include <asm/string.h>
 #include <asm/switch_to.h>
+#include <asm/pkru.h>
 
 extern asmlinkage void ret_from_fork(void);
 extern asmlinkage void ret_from_kernel_thread(void);
@@ -71,6 +72,10 @@ void show_regs(struct pt_regs *regs)
 
 	pr_cont("sstatus: " REG_FMT " sbadaddr: " REG_FMT " scause: " REG_FMT "\n",
 		regs->sstatus, regs->sbadaddr, regs->scause);
+#ifdef CONFIG_RISCV_MEMORY_PROTECTION_KEYS
+	pr_cont("upkru: " REG_FMT " spkctl: " REG_FMT "\n",
+		regs->upkru, csr_read(0x9d0));
+#endif  /* CONFIG_RISCV_MEMORY_PROTECTION_KEYS */
 }
 
 void show_ext_regs(struct pt_regs *regs) 
@@ -114,13 +119,20 @@ void show_ext_regs(struct pt_regs *regs)
 void start_thread(struct pt_regs *regs, unsigned long pc,
 	unsigned long sp)
 {
-	regs->sstatus = SR_SPIE /* User mode, irqs on */ | SR_FS_INITIAL;
+	regs->sstatus = SR_SPIE /* User mode, irqs on */;
+#ifdef CONFIG_FPU
+	regs->sstatus |= SR_FS_INITIAL;
+#endif
 	regs->sepc = pc;
 	regs->sp = sp;
 
 #ifdef CONFIG_DASICS 
 	regs->utvec = 0;
 #endif 
+
+#ifdef CONFIG_RISCV_MEMORY_PROTECTION_KEYS
+	regs->upkru = pkru_init_val();
+#endif  /* CONFIG_RISCV_MEMORY_PROTECTION_KEYS */
 
 	set_fs(USER_DS);
 }

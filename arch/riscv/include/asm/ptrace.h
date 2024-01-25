@@ -84,7 +84,12 @@ struct pt_regs {
     unsigned long dasicsFreezoneRet;
     unsigned long dasicsJumpBounds[4][2];
     unsigned long dasicsJumpCfg;
-#endif 	
+#endif
+
+#ifdef CONFIG_RISCV_MEMORY_PROTECTION_KEYS
+	/* Memory Protection Keys CSR */
+	unsigned long upkru;
+#endif /* CONFIG_RISCV_MEMORY_PROTECTION_KEYS */
 };
 
 #ifdef CONFIG_64BIT

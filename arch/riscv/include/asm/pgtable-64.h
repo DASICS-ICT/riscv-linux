@@ -14,6 +14,7 @@
 #ifndef _ASM_RISCV_PGTABLE_64_H
 #define _ASM_RISCV_PGTABLE_64_H
 
+#include <linux/bitops.h>
 #include <linux/const.h>
 
 #define PGDIR_SHIFT     30
@@ -35,6 +36,24 @@ typedef struct {
 #define __pmd(x)        ((pmd_t) { (x) })
 
 #define PTRS_PER_PMD    (PAGE_SIZE / sizeof(pmd_t))
+
+/*
+ * rv64 PTE format:
+ * | 63 | 62 61 | 60 59 | 58 54 | 53  10 | 9             8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0
+ *   N      MT     RSV     PKEY     PFN    reserved for SW   D   A   G   U   X   W   R   V
+ */
+#define _PAGE_PFN_MASK  GENMASK(53, 10)
+
+#ifdef CONFIG_RISCV_MEMORY_PROTECTION_KEYS
+#define _PAGE_PKEY_BIT0 (1UL << 54)
+#define _PAGE_PKEY_BIT1 (1UL << 55)
+#define _PAGE_PKEY_BIT2 (1UL << 56)
+#define _PAGE_PKEY_BIT3 (1UL << 57)
+#define _PAGE_PKEY_BIT4 (1UL << 58)
+#define _PAGE_PKEY_MASK (_PAGE_PKEY_BIT0 | _PAGE_PKEY_BIT1 | \
+						 _PAGE_PKEY_BIT2 | _PAGE_PKEY_BIT3 | \
+						 _PAGE_PKEY_BIT4)
+#endif /* CONFIG_RISCV_MEMORY_PROTECTION_KEYS */
 
 static inline int pud_present(pud_t pud)
 {
@@ -64,7 +83,7 @@ static inline void pud_clear(pud_t *pudp)
 
 static inline unsigned long pud_page_vaddr(pud_t pud)
 {
-	return (unsigned long)pfn_to_virt(pud_val(pud) >> _PAGE_PFN_SHIFT);
+	return (unsigned long)pfn_to_virt(__page_val_to_pfn(pud_val(pud)));
 }
 
 #define pmd_index(addr) (((addr) >> PMD_SHIFT) & (PTRS_PER_PMD - 1))
