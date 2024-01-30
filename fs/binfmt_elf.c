@@ -1515,7 +1515,7 @@ static int load_elf_binary(struct linux_binprm *bprm)
 	regs->dasicsUMainBoundLo = align8down(lo);
 	regs->dasicsUMainBoundHi = align8up(hi);
 
-//#ifdef CONFIG_DASICS_DEBUG
+#ifdef CONFIG_DASICS_DEBUG
 	/* NOTE: current tp is kernel tp, and regs->tp is user tp, might be different */
 	/* For kernel init thread, prev_tp == NULL */
 	/* N Extension user regs */
@@ -1554,7 +1554,7 @@ static int load_elf_binary(struct linux_binprm *bprm)
 		regs->ustatus, regs->ubadaddr, regs->ucause);
 	pr_info("maincall entry: " REG_FMT " return pc: " REG_FMT " freezone return pc: " REG_FMT "\n",
 		regs->dasicsMaincall, regs->dasicsReturnPC, regs->dasicsFreezoneRet);
-//#endif 
+#endif 
 
 	pr_info("finish dasics initialization.\n");
 

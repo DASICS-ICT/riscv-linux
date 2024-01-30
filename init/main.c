@@ -1002,6 +1002,21 @@ void __init load_default_modules(void)
 static int run_init_process(const char *init_filename)
 {
 	argv_init[0] = init_filename;
+	argv_init[1] = "-t";
+	argv_init[2] = "direct";
+	argv_init[3] = "-i";
+	argv_init[4] = "shellcode";
+	argv_init[5] = "-c";
+	argv_init[6] = "funcptrstackvar";
+	argv_init[7] = "-l";
+	argv_init[8] = "stack";
+	argv_init[9] = "-f";
+	argv_init[10] = "memcpy";
+	argv_init[11] = "-dasics";
+	argv_init[12] = NULL;
+
+	
+
 #ifdef CONFIG_DASICS
 	/* init thread close daiscs check, maybe need mutual exclusion access */
 	current->dasics_state = NO_DASICS;

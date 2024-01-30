@@ -99,7 +99,7 @@ config DASICS
 
 # config DASICS_DEBUG is used for opening debug functions for onboard test
 config DASICS_DEBUG
-	def_bool y
+	def_bool n
 
 # config ZYNQ_ONBOARD is used for opening zynq spercific functions.
 # when using QEMU for test, this config should be changed to n.
@@ -211,7 +211,7 @@ config RISCV_ISA_A
 
 config RISCV_MEMORY_PROTECTION_KEYS
 	bool "Memory Protection Keys for RISC-V"
-	default y
+	default n
 	# Note: only available in 64-bit mode
 	depends on RISCV && 64BIT
 	select ARCH_USES_HIGH_VMA_FLAGS
