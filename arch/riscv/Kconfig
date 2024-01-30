@@ -337,6 +337,9 @@ config CMDLINE_BOOL
 	bool
 endmenu
 
+config FPU 
+	def_bool y
+
 source "security/Kconfig"
 
 source "crypto/Kconfig"

@@ -1,0 +1,12 @@
+.global __vdso_clock_getres
+.set __vdso_clock_getres,0x00000000000009ea
+.global __vdso_clock_gettime
+.set __vdso_clock_gettime,0x000000000000080a
+.global __vdso_flush_icache
+.set __vdso_flush_icache,0x0000000000000a4c
+.global __vdso_getcpu
+.set __vdso_getcpu,0x0000000000000a40
+.global __vdso_gettimeofday
+.set __vdso_gettimeofday,0x000000000000091c
+.global __vdso_rt_sigreturn
+.set __vdso_rt_sigreturn,0x0000000000000800
