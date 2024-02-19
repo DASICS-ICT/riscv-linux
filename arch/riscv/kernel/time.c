@@ -16,7 +16,8 @@
 #include <linux/delay.h>
 #include <asm/sbi.h>
 #include <asm/timer.h>
-
+#include <linux/clk-provider.h>
+#include <linux/clk/zynq.h>
 unsigned long riscv_timebase;
 
 void __init time_init(void)
@@ -28,7 +29,10 @@ void __init time_init(void)
 	if (!cpu || of_property_read_u32(cpu, "timebase-frequency", &prop))
 		panic(KERN_WARNING "RISC-V system with no 'timebase-frequency' in DTS\n");
 	riscv_timebase = prop;
-
+#ifdef CONFIG_ARCH_ZYNQ
+  	zynq_clock_init();
+  	of_clk_init(NULL);
+#endif 
 	lpj_fine = riscv_timebase / HZ;
 	timer_probe();
 }

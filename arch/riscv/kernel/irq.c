@@ -55,7 +55,14 @@ asmlinkage void __irq_entry do_IRQ(struct pt_regs *regs, unsigned long cause)
 	set_irq_regs(old_regs);
 }
 
+#ifdef CONFIG_ARCH_ZYNQ
+extern int zynq_early_slcr_init(void);
+#endif 
+
 void __init init_IRQ(void)
 {
+#ifdef CONFIG_ARCH_ZYNQ
+	zynq_early_slcr_init();
+#endif 
 	irqchip_init();
 }

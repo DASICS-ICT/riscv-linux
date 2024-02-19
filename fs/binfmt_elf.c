@@ -1333,7 +1333,7 @@ static int load_elf_binary(struct linux_binprm *bprm)
 
 	/* get read-only datas. */
 	/* This area contains some other codes, however, lib text should not execute them. */
-	regs->dasicsLibBounds[0][0] = align8down(hi);
+	regs->dasicsLibBounds[0][0] = align8up(hi);
 	regs->dasicsLibBounds[0][1] = align8up(start_data);
 
 	/* Following mapping is related to vm_mmap blocks. */
