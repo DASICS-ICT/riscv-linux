@@ -251,8 +251,10 @@ _check_dasics:
 	 * if this thread doesn't open dasics, 
 	 * its umaincfg should be set to 0 
 	 * before starting thread. */
-	REG_L t0, PT_DUMCFG(sp)
+	//REG_L t0, PT_DUMCFG(sp)
+	csrr t0, CSR_DUMCFG
 	bnez t0, _save_dasics
+	REG_S zero, PT_DUMCFG(sp)
 	j _save_end
 _save_dasics:
 	SAVE_UCSR
