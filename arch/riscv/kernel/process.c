@@ -101,19 +101,19 @@ void show_ext_regs(struct pt_regs *regs)
 	pr_cont("config0: " REG_FMT " config1: " REG_FMT "\n",
 		regs->dasicsLibCfg0, regs->dasicsLibCfg1);
 
-	for (cnt = 0; cnt < 16; cnt++) {
+	for (cnt = 0; cnt < 4; cnt++) {
 		pr_cont("(%d) mem bound lo: " REG_FMT " mem bound hi: " REG_FMT "\n",
 			cnt, regs->dasicsLibBounds[cnt][0], regs->dasicsLibBounds[cnt][1]);
 	}
 
-	for (cnt = 0; cnt < 4; cnt++) {
+	for (cnt = 0; cnt < 1; cnt++) {
 		pr_cont("(%d) jump bound lo: " REG_FMT " jump bound hi: " REG_FMT "\n",
 			cnt, regs->dasicsJumpBounds[cnt][0], regs->dasicsJumpBounds[cnt][1]);
 	}
 
 	pr_cont("DASICS Other Registers: \n");
-	pr_cont("main call entry: " REG_FMT " return pc: " REG_FMT " free zone return pc: " REG_FMT "\n",
-		regs->dasicsMaincall, regs->dasicsReturnPC, regs->dasicsFreezoneRet);
+	pr_cont("main call entry: " REG_FMT " return pc: " REG_FMT  "\n",
+		regs->dasicsMaincall, regs->dasicsReturnPC);
 }
 
 void start_thread(struct pt_regs *regs, unsigned long pc,

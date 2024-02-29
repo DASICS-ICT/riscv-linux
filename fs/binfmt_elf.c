@@ -1328,8 +1328,8 @@ static int load_elf_binary(struct linux_binprm *bprm)
 #define align8down(addr) 	 (addr & ~(0x7))
 
 	/* lib function text */
-	regs->dasicsJumpBounds[0][0] = align8down(lo);
-	regs->dasicsJumpBounds[0][1] = align8up(hi);  
+	// regs->dasicsJumpBounds[0][0] = align8down(lo);
+	// regs->dasicsJumpBounds[0][1] = align8up(hi);  
 
 	/* get read-only datas. */
 	/* This area contains some other codes, however, lib text should not execute them. */
@@ -1353,7 +1353,6 @@ static int load_elf_binary(struct linux_binprm *bprm)
 	//jbound0: lib code jump enable     
 	//mbound0: v  | r  | hi -- start_data - 0x2UL
 	//mbound1: v  | rw | start_data -- TASK_SIZE
-	regs->dasicsJumpCfg =   DASICS_JUMPCFG_V;
 	regs->dasicsLibCfg0 = ((DASICS_LIBCFG_V | DASICS_LIBCFG_R | DASICS_LIBCFG_W) << 4 * 1) | 
 						  ((DASICS_LIBCFG_V | DASICS_LIBCFG_R));
 
@@ -1365,9 +1364,9 @@ static int load_elf_binary(struct linux_binprm *bprm)
 		lo = elf_shtmp->sh_addr + load_bias;
 
 		//jbound1: lib freezone jump enable 
-		regs->dasicsJumpBounds[1][0] = align8down(lo);
-		regs->dasicsJumpBounds[1][1] = align8up(hi);  
-		regs->dasicsJumpCfg =   (DASICS_JUMPCFG_V << 1*16) | regs->dasicsJumpCfg;
+		regs->dasicsJumpBounds[0][0] = align8down(lo);
+		regs->dasicsJumpBounds[0][1] = align8up(hi);  
+		regs->dasicsJumpCfg =   DASICS_JUMPCFG_V;
 
 	    pr_info("free zone text start: 0x%lx, end: 0x%lx\n", lo, hi);
 	}
@@ -1388,12 +1387,12 @@ static int load_elf_binary(struct linux_binprm *bprm)
 	/* NOTE: current tp is kernel tp, and regs->tp is user tp, might be different */
 	/* For kernel init thread, prev_tp == NULL */
 	/* N Extension user regs */
-	pr_info("ustatus: " REG_FMT " uepc: " REG_FMT " ubadaddr: " REG_FMT "\n",
-		regs->ustatus, regs->uepc, regs->ubadaddr);
-	pr_info("ucause: " REG_FMT " utvec: " REG_FMT " uie: " REG_FMT "\n",
-		regs->ucause, regs->utvec, regs->uie);
-	pr_info("uip: " REG_FMT " uscratch: " REG_FMT "\n",
-		regs->uip, regs->uscratch);	
+	// pr_info("ustatus: " REG_FMT " uepc: " REG_FMT " ubadaddr: " REG_FMT "\n",
+	// 	regs->ustatus, regs->uepc, regs->ubadaddr);
+	// pr_info("ucause: " REG_FMT " utvec: " REG_FMT " uie: " REG_FMT "\n",
+	// 	regs->ucause, regs->utvec, regs->uie);
+	// pr_info("uip: " REG_FMT " uscratch: " REG_FMT "\n",
+	// 	regs->uip, regs->uscratch);	
 
 	/* Dasics supervisor regs */
 	pr_info("DASICS User Main Registers: \n");
@@ -1406,12 +1405,12 @@ static int load_elf_binary(struct linux_binprm *bprm)
 		regs->dasicsLibCfg0, regs->dasicsLibCfg1);
 
 	int cnt;
-	for (cnt = 0; cnt < 16; cnt++) {
+	for (cnt = 0; cnt < 4; cnt++) {
 		pr_info("(%d) mem bound lo: " REG_FMT " mem bound hi: " REG_FMT "\n",
 			cnt, regs->dasicsLibBounds[cnt][0], regs->dasicsLibBounds[cnt][1]);
 	}
 
-	for (cnt = 0; cnt < 4; cnt++) {
+	for (cnt = 0; cnt < 1; cnt++) {
 		pr_info("(%d) jump bound lo: " REG_FMT " jump bound hi: " REG_FMT "\n",
 			cnt, regs->dasicsJumpBounds[cnt][0], regs->dasicsJumpBounds[cnt][1]);
 	}
@@ -1421,8 +1420,8 @@ static int load_elf_binary(struct linux_binprm *bprm)
 		regs->sstatus, regs->sbadaddr, regs->scause);
 	pr_info("ustatus: " REG_FMT " ubadaddr: " REG_FMT " ucause: " REG_FMT "\n",
 		regs->ustatus, regs->ubadaddr, regs->ucause);
-	pr_info("maincall entry: " REG_FMT " return pc: " REG_FMT " freezone return pc: " REG_FMT "\n",
-		regs->dasicsMaincall, regs->dasicsReturnPC, regs->dasicsFreezoneRet);
+	pr_info("maincall entry: " REG_FMT " return pc: " REG_FMT "\n",
+		regs->dasicsMaincall, regs->dasicsReturnPC);
 //#endif 
 
 	pr_info("finish dasics initialization.\n");

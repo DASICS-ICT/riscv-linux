@@ -164,12 +164,16 @@ int is_valid_bugaddr(unsigned long pc)
 /* This function may handle dasics exceptions in another way in future. */
 asmlinkage void do_trap_dasics(struct pt_regs *regs) 
 {
-	pr_info("Raised a dasics %ld exception.", regs->scause);
+	// pr_info("Raised a dasics %ld exception.", regs->scause);
 
-	show_regs(regs);
-	show_ext_regs(regs);
-	pr_info("ra: 0x" REG_FMT " sbadaddr: 0x" REG_FMT " scause: 0x" REG_FMT,
-		                                regs->ra, regs->sbadaddr, regs->scause);
+	char * trap_name = regs->scause == 0x18 ? "fetch" :
+							regs->scause == 0x19 ? "load" :
+								"store";
+
+	// show_regs(regs);
+	// show_ext_regs(regs);
+	printk("[DASICS EXCEPTION]Info: dasics %s fault occurs, scause = 0x%lx spec = 0x%lx stval = 0x%lx\n",
+		                                trap_name, regs->scause, regs->sepc, regs->sbadaddr);
 
 	// currently just skip error pc.
 	   regs->sepc += 4;
