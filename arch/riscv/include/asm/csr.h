@@ -228,7 +228,11 @@
 #define CSR_DLBOUND15HI     0x8af
 
 #define CSR_DMAINCALL       0x8b0
-#define CSR_DRETURNPC       0x8b1
+#define CSR_DRETURNPC0       0x8b4
+#define CSR_DRETURNPC1       0x8b5
+#define CSR_DRETURNPC2       0x8b6
+#define CSR_DRETURNPC3       0x8b7
+
 #define CSR_DFZRETURN       0x8b2
 
 #define CSR_DJBOUND0LO      0x8c0
@@ -240,6 +244,14 @@
 #define CSR_DJBOUND3LO      0x8c6
 #define CSR_DJBOUND3HI      0x8c7
 #define CSR_DJCFG           0x8c8
+
+#define CSR_DSCRATCHCFG		0x8d0
+#define CSR_DSCRATCHLO		0x8d2
+#define CSR_DSCRATCHHI		0x8d3
+
+#define CSR_DSCRATCHMLEVEL  0x8cc
+#define CSR_DSCRATCHJLEVEL  0x8cd
+
 
 /* DASICS Lib cfg */
 #define DASICS_LIBCFG_WIDTH 16

@@ -1530,7 +1530,18 @@ out_free_interp:
 #ifdef CONFIG_DASICS
 
 	/* clear dasics csrs */
-    regs->dasicsUmainCfg = 0;
+	regs->dasicsUmainCfg = 0;
+    regs->dasicsReturnPC[0] = 0;
+    regs->dasicsReturnPC[1] = 0;
+    regs->dasicsReturnPC[2] = 0;
+    regs->dasicsReturnPC[3] = 0;
+	regs->dasicsScratchCfg = 0;
+	regs->dasicsScratchBoundLo = 0;
+	regs->dasicsScratchBoundHi = 0;
+
+	regs->dasicsMemLevel = 0;
+	regs->dasicsJmpLevel = 0;
+
 	regs->dasicsLibCfg0 = 0;
 	regs->dasicsLibCfg1 = 0;
 

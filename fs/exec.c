@@ -1923,7 +1923,22 @@ static int do_execveat_common(int fd, struct filename *filename,
 	
 	if (likely(bprm->argc < 2)) 
 		goto no_need_dasics;
-	
+
+	const char __user *name_str = get_user_arg_ptr(argv, 0);
+
+	int name_length = strnlen_user(name_str, MAX_ARG_STRLEN);
+
+	char *name_buffer = kmalloc(name_length, GFP_KERNEL);	
+
+	copy_from_user(name_buffer, name_str, name_length);	
+
+	if (!strcmp(name_buffer, "time") || !strcmp(name_buffer, "strace")  || !strcmp(name_buffer, "sudo"))
+	{
+		kfree(name_buffer);
+		goto no_need_dasics;
+	}
+	kfree(name_buffer);
+
 	int length = DASICS_LENGTH;
 	const char __user *str = get_user_arg_ptr(argv, bprm->argc - 1);
 

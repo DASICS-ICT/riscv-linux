@@ -72,11 +72,17 @@ struct pt_regs {
     unsigned long dasicsLibCfg1;    // reserved
     unsigned long dasicsLibBounds[16][2];
     unsigned long dasicsMaincall;
-    unsigned long dasicsReturnPC;
+    unsigned long dasicsReturnPC[4];
     unsigned long dasicsFreezoneRet;
     unsigned long dasicsJumpBounds[4][2];
     unsigned long dasicsJumpCfg;
-#endif 	
+	unsigned long dasicsScratchCfg;
+	unsigned long dasicsScratchBoundLo;
+	unsigned long dasicsScratchBoundHi;
+	unsigned long dasicsMemLevel;
+	unsigned long dasicsJmpLevel;
+
+#endif
 
 };
 

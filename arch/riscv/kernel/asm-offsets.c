@@ -159,7 +159,11 @@ void asm_offsets(void)
 
 
 	OFFSET(PT_DMAINCALL, pt_regs, dasicsMaincall);
-	OFFSET(PT_DRETURNPC, pt_regs, dasicsReturnPC);
+	OFFSET(PT_DRETURNPC0, pt_regs, dasicsReturnPC[0]);
+	OFFSET(PT_DRETURNPC1, pt_regs, dasicsReturnPC[1]);
+	OFFSET(PT_DRETURNPC2, pt_regs, dasicsReturnPC[2]);
+	OFFSET(PT_DRETURNPC3, pt_regs, dasicsReturnPC[3]);
+
 	OFFSET(PT_DFZRETURN, pt_regs, dasicsFreezoneRet);
 
 	OFFSET(PT_DJBOUND0LO, pt_regs, dasicsJumpBounds[0][0]);
@@ -172,6 +176,17 @@ void asm_offsets(void)
 	OFFSET(PT_DJBOUND3HI, pt_regs, dasicsJumpBounds[3][1]);
 
 	OFFSET(PT_DJCFG, pt_regs, dasicsJumpCfg);
+	OFFSET(PT_DSCRATCHCFG, pt_regs, dasicsScratchCfg);
+
+	OFFSET(PT_DSCRATCHLO, pt_regs, dasicsScratchBoundLo);
+	OFFSET(PT_DSCRATCHHI, pt_regs, dasicsScratchBoundHi);
+	OFFSET(PT_DSCRATCHMLEVEL, pt_regs, dasicsMemLevel);
+	OFFSET(PT_DSCRATCHJLEVEL, pt_regs, dasicsJmpLevel);
+
+
+
+
+
 
 #endif 
 
