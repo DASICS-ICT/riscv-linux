@@ -34,11 +34,8 @@
 	csrr t0, CSR_DUMBOUNDHI
 	REG_S t0, PT_DUMBOUNDHI(sp)
 
-
 	csrr t0, CSR_DLCFG0
-	#csrr t1, CSR_DLCFG1
 	REG_S t0, PT_DLCFG0(sp)
-	#REG_S t1, PT_DLCFG1(sp)
 
 	csrr t0, CSR_DLBOUND0LO
 	csrr t1, CSR_DLBOUND0HI
@@ -56,106 +53,21 @@
 	csrr t1, CSR_DLBOUND3HI
 	REG_S t0, PT_DLBOUND3LO(sp)
 	REG_S t1, PT_DLBOUND3HI(sp)
-	csrr t0, CSR_DLBOUND4LO
-	csrr t1, CSR_DLBOUND4HI
-	REG_S t0, PT_DLBOUND4LO(sp)
-	REG_S t1, PT_DLBOUND4HI(sp)
-	csrr t0, CSR_DLBOUND5LO
-	csrr t1, CSR_DLBOUND5HI
-	REG_S t0, PT_DLBOUND5LO(sp)
-	REG_S t1, PT_DLBOUND5HI(sp)
-	csrr t0, CSR_DLBOUND6LO
-	csrr t1, CSR_DLBOUND6HI
-	REG_S t0, PT_DLBOUND6LO(sp)
-	REG_S t1, PT_DLBOUND6HI(sp)
-	csrr t0, CSR_DLBOUND7LO
-	csrr t1, CSR_DLBOUND7HI
-	REG_S t0, PT_DLBOUND7LO(sp)
-	REG_S t1, PT_DLBOUND7HI(sp)
-
-	csrr t0, CSR_DLBOUND8LO
-	csrr t1, CSR_DLBOUND8HI
-	REG_S t0, PT_DLBOUND8LO(sp)
-	REG_S t1, PT_DLBOUND8HI(sp)
-	csrr t0, CSR_DLBOUND9LO
-	csrr t1, CSR_DLBOUND9HI
-	REG_S t0, PT_DLBOUND9LO(sp)
-	REG_S t1, PT_DLBOUND9HI(sp)
-	csrr t0, CSR_DLBOUND10LO
-	csrr t1, CSR_DLBOUND10HI
-	REG_S t0, PT_DLBOUND10LO(sp)
-	REG_S t1, PT_DLBOUND10HI(sp)
-	csrr t0, CSR_DLBOUND11LO
-	csrr t1, CSR_DLBOUND11HI
-	REG_S t0, PT_DLBOUND11LO(sp)
-	REG_S t1, PT_DLBOUND11HI(sp)
-	csrr t0, CSR_DLBOUND12LO
-	csrr t1, CSR_DLBOUND12HI
-	REG_S t0, PT_DLBOUND12LO(sp)
-	REG_S t1, PT_DLBOUND12HI(sp)
-	csrr t0, CSR_DLBOUND13LO
-	csrr t1, CSR_DLBOUND13HI
-	REG_S t0, PT_DLBOUND13LO(sp)
-	REG_S t1, PT_DLBOUND13HI(sp)
-	csrr t0, CSR_DLBOUND14LO
-	csrr t1, CSR_DLBOUND14HI
-	REG_S t0, PT_DLBOUND14LO(sp)
-	REG_S t1, PT_DLBOUND14HI(sp)
-	csrr t0, CSR_DLBOUND15LO
-	csrr t1, CSR_DLBOUND15HI
-	REG_S t0, PT_DLBOUND15LO(sp)
-	REG_S t1, PT_DLBOUND15HI(sp)
 
 	csrr t0, CSR_DMAINCALL
 	REG_S t0, PT_DMAINCALL(sp)
 	csrr t1, CSR_DRETURNPC
 	REG_S t1, PT_DRETURNPC(sp)
-	csrr t0, CSR_DFZRETURN
-	REG_S t0, PT_DFZRETURN(sp)
 
 	csrr t0, CSR_DJBOUND0LO
 	csrr t1, CSR_DJBOUND0HI
 	REG_S t0, PT_DJBOUND0LO(sp)
 	REG_S t1, PT_DJBOUND0HI(sp)
-	csrr t0, CSR_DJBOUND1LO
-	csrr t1, CSR_DJBOUND1HI
-	REG_S t0, PT_DJBOUND1LO(sp)
-	REG_S t1, PT_DJBOUND1HI(sp)
-	csrr t0, CSR_DJBOUND2LO
-	csrr t1, CSR_DJBOUND2HI
-	REG_S t0, PT_DJBOUND2LO(sp)
-	REG_S t1, PT_DJBOUND2HI(sp)
-	csrr t0, CSR_DJBOUND3LO
-	csrr t1, CSR_DJBOUND3HI
-	REG_S t0, PT_DJBOUND3LO(sp)
-	REG_S t1, PT_DJBOUND3HI(sp)
 
 	csrr t0, CSR_DJCFG
 	REG_S t0, PT_DJCFG(sp)
 
 	.endm
-
-	.macro SAVE_UCSR
-
-	/* save N Extension registers. */
-  	csrr t0, CSR_USTATUS
-  	REG_S t0, PT_USTATUS(sp)
- 	csrr t1, CSR_UEPC
-  	REG_S t1, PT_UEPC(sp) 
-  	csrr t0, CSR_UTVAL
-  	REG_S t0, PT_UBADADDR(sp) 
-  	csrr t1, CSR_UCAUSE
-  	REG_S t1, PT_UCAUSE(sp)
-	csrr t0, CSR_UTVEC
-  	REG_S t0, PT_UTVEC(sp)
-  	csrr t1, CSR_UIE  	
-  	REG_S t1, PT_UIE(sp)	  
-	csrr t0, CSR_UIP
-  	REG_S t0, PT_UIP(sp)
-	csrr t1, CSR_USCRATCH
- 	REG_S t1, PT_USCRATCH(sp)
-
-	.endm 
 
 /*
  * Prepares to enter a system call or exception by saving all registers to the
@@ -252,7 +164,6 @@ _check_dasics:
 	bnez t0, _save_dasics
 	j _save_end
 _save_dasics:
-	SAVE_UCSR
 	SAVE_DASICS
 _save_end:	
 	.endm
@@ -270,9 +181,7 @@ _save_end:
 
 
 	REG_L t0, PT_DLCFG0(sp)
-	# REG_L t1, PT_DLCFG1(sp)
 	csrw CSR_DLCFG0, t0
-	# csrw CSR_DLCFG1, t1
 
 	REG_L t0, PT_DLBOUND0LO(sp)
 	REG_L t1, PT_DLBOUND0HI(sp)
@@ -290,104 +199,20 @@ _save_end:
 	REG_L t1, PT_DLBOUND3HI(sp)
 	csrw 	 CSR_DLBOUND3LO, t0
 	csrw 	 CSR_DLBOUND3HI, t1
-	REG_L t0, PT_DLBOUND4LO(sp)
-	REG_L t1, PT_DLBOUND4HI(sp)
-	csrw 	 CSR_DLBOUND4LO, t0
-	csrw 	 CSR_DLBOUND4HI, t1
-	REG_L t0, PT_DLBOUND5LO(sp)
-	REG_L t1, PT_DLBOUND5HI(sp)
-	csrw 	 CSR_DLBOUND5LO, t0
-	csrw 	 CSR_DLBOUND5HI, t1
-	REG_L t0, PT_DLBOUND6LO(sp)
-	REG_L t1, PT_DLBOUND6HI(sp)
-	csrw 	 CSR_DLBOUND6LO, t0
-	csrw 	 CSR_DLBOUND6HI, t1
-	REG_L t0, PT_DLBOUND7LO(sp)
-	REG_L t1, PT_DLBOUND7HI(sp)
-	csrw 	 CSR_DLBOUND7LO, t0
-	csrw 	 CSR_DLBOUND7HI, t1
-
-	REG_L t0, PT_DLBOUND8LO(sp)
-	REG_L t1, PT_DLBOUND8HI(sp)
-	csrw 	 CSR_DLBOUND8LO, t0
-	csrw 	 CSR_DLBOUND8HI, t1
-	REG_L t0, PT_DLBOUND9LO(sp)
-	REG_L t1, PT_DLBOUND9HI(sp)
-	csrw 	 CSR_DLBOUND9LO, t0
-	csrw 	 CSR_DLBOUND9HI, t1
-	REG_L t0, PT_DLBOUND10LO(sp)
-	REG_L t1, PT_DLBOUND10HI(sp)
-	csrw 	 CSR_DLBOUND10LO, t0
-	csrw 	 CSR_DLBOUND10HI, t1
-	REG_L t0, PT_DLBOUND11LO(sp)
-	REG_L t1, PT_DLBOUND11HI(sp)
-	csrw 	 CSR_DLBOUND11LO, t0
-	csrw 	 CSR_DLBOUND11HI, t1
-	REG_L t0, PT_DLBOUND12LO(sp)
-	REG_L t1, PT_DLBOUND12HI(sp)
-	csrw 	 CSR_DLBOUND12LO, t0
-	csrw 	 CSR_DLBOUND12HI, t1
-	REG_L t0, PT_DLBOUND13LO(sp)
-	REG_L t1, PT_DLBOUND13HI(sp)
-	csrw 	 CSR_DLBOUND13LO, t0
-	csrw 	 CSR_DLBOUND13HI, t1
-	REG_L t0, PT_DLBOUND14LO(sp)
-	REG_L t1, PT_DLBOUND14HI(sp)
-	csrw 	 CSR_DLBOUND14LO, t0
-	csrw 	 CSR_DLBOUND14HI, t1
-	REG_L t0, PT_DLBOUND15LO(sp)
-	REG_L t1, PT_DLBOUND15HI(sp)
-	csrw 	 CSR_DLBOUND15LO, t0
-	csrw 	 CSR_DLBOUND15HI, t1
 
 	REG_L t0, PT_DMAINCALL(sp)
 	csrw CSR_DMAINCALL, t0
 	REG_L t1, PT_DRETURNPC(sp)
 	csrw CSR_DRETURNPC, t1
-	REG_L t0, PT_DFZRETURN(sp)
-	csrw CSR_DFZRETURN, t0
 
 	REG_L t0, PT_DJBOUND0LO(sp)
 	REG_L t1, PT_DJBOUND0HI(sp)
 	csrw 	 CSR_DJBOUND0LO, t0
 	csrw 	 CSR_DJBOUND0HI, t1
-	REG_L t0, PT_DJBOUND1LO(sp)
-	REG_L t1, PT_DJBOUND1HI(sp)
-	csrw 	 CSR_DJBOUND1LO, t0
-	csrw 	 CSR_DJBOUND1HI, t1
-	REG_L t0, PT_DJBOUND2LO(sp)
-	REG_L t1, PT_DJBOUND2HI(sp)
-	csrw 	 CSR_DJBOUND2LO, t0
-	csrw 	 CSR_DJBOUND2HI, t1
-	REG_L t0, PT_DJBOUND3LO(sp)
-	REG_L t1, PT_DJBOUND3HI(sp)
-	csrw 	 CSR_DJBOUND3LO, t0
-	csrw 	 CSR_DJBOUND3HI, t1
 
 	REG_L t0, PT_DJCFG(sp)
 	csrw 	 CSR_DJCFG, t0
 
-	.endm
-
-	.macro RESTORE_UCSR
-
-	/* Restore N Extension registers. */
-	REG_L t0, PT_USTATUS(sp)	
-	csrw CSR_USTATUS, t0
-	REG_L t1, PT_UEPC(sp)
-	csrw CSR_UEPC, t1
-	REG_L t0, PT_UBADADDR(sp)
-	csrw CSR_UTVAL, t0
-	REG_L t1, PT_UCAUSE(sp)
-	csrw CSR_UCAUSE, t1	
-	REG_L t0, PT_UTVEC(sp)	
-	csrw CSR_UTVEC, t0
-	REG_L t1, PT_UIE(sp)	
-	csrw CSR_UIE, t1	
-	REG_L t0, PT_UIP(sp)	
-	csrw CSR_UIP, t0
-	REG_L t1, PT_USCRATCH(sp)	
-	csrw CSR_USCRATCH, t1
 	.endm
 /*
  * Prepares to return from a system call or exception by restoring all
@@ -435,7 +260,6 @@ _check_dasics:
 	beqz t0, _restore_general
 _restore_dasics:
 	RESTORE_DASICS
-	RESTORE_UCSR
 _restore_general:
 	/* restore general regs */
 
@@ -826,13 +650,8 @@ ENTRY(excp_vect_table)
 	RISCV_PTR do_trap_unknown
 	RISCV_PTR do_trap_unknown	
 	RISCV_PTR do_trap_dasics  /* dasics ufetch fault */
-	RISCV_PTR do_trap_dasics  /* dasics sfetch fault */
 	RISCV_PTR do_trap_dasics  /* dasics uload fault */
-	RISCV_PTR do_trap_dasics  /* dasics sload fault */
 	RISCV_PTR do_trap_dasics  /* dasics ustore fault */
-	RISCV_PTR do_trap_dasics  /* dasics sstore fault */
-	RISCV_PTR do_trap_dasics  /* dasics uecall fault */
-	RISCV_PTR do_trap_dasics  /* dasics secall fault */
 excp_vect_table_end:
 END(excp_vect_table)
 

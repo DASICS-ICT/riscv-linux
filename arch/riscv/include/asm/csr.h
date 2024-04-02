@@ -160,24 +160,9 @@
 #ifdef CONFIG_DASICS 
 /* Add dasics exceptions */
 #define EXC_DASICS_UFETCH_FAULT   24
-#define EXC_DASICS_SFETCH_FAULT   25
-#define EXC_DASICS_ULOAD_FAULT   26
-#define EXC_DASICS_SLOAD_FAULT   27
-#define EXC_DASICS_USTORE_FAULT  28
-#define EXC_DASICS_SSTORE_FAULT  29
-#define EXC_DASICS_UECALL_FAULT  30
-#define EXC_DASICS_SECALL_FAULT  31
+#define EXC_DASICS_ULOAD_FAULT   25
+#define EXC_DASICS_USTORE_FAULT  26
 #endif /* CONFIG_DASICS */
-
-/* U state csrs */
-#define CSR_USTATUS         0x000
-#define CSR_UIE             0x004
-#define CSR_UTVEC           0x005
-#define CSR_USCRATCH        0x040
-#define CSR_UEPC            0x041
-#define CSR_UCAUSE          0x042
-#define CSR_UTVAL           0x043
-#define CSR_UIP             0x044
 
 #ifdef CONFIG_DASICS
 /* DASICS csrs */

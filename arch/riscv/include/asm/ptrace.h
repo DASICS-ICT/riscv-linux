@@ -51,16 +51,6 @@ struct pt_regs {
 	/* a0 value before the syscall */
 	unsigned long orig_a0;
 
-	/* N-extension user registers */
-	unsigned long ustatus;
-	unsigned long uepc;
-	unsigned long ubadaddr;
-	unsigned long ucause;
-	unsigned long utvec;
-	unsigned long uie;
-	unsigned long uip;
-	unsigned long uscratch;
-
 #ifdef CONFIG_DASICS
 	/* dasics supervisor registers */
 	unsigned long dasicsUmainCfg;  		/* initialize should be zero */
@@ -69,12 +59,10 @@ struct pt_regs {
 
     /* Saved DASICS user registers */
     unsigned long dasicsLibCfg0;
-    unsigned long dasicsLibCfg1;    // reserved
-    unsigned long dasicsLibBounds[16][2];
+    unsigned long dasicsLibBounds[4][2];
     unsigned long dasicsMaincall;
     unsigned long dasicsReturnPC;
-    unsigned long dasicsFreezoneRet;
-    unsigned long dasicsJumpBounds[4][2];
+    unsigned long dasicsJumpBounds[1][2];
     unsigned long dasicsJumpCfg;
 #endif 	
 
