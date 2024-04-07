@@ -1822,13 +1822,28 @@ static int __do_execve_file(int fd, struct filename *filename,
 	int name_length = strnlen_user(name_str, MAX_ARG_STRLEN);
 
 	char *name_buffer = kmalloc(name_length, GFP_KERNEL);	
+	char *real_name_buffer = name_buffer; 
 
 	copy_from_user(name_buffer, name_str, name_length);	
 
-	if (!strcmp(name_buffer, "time") || !strcmp(name_buffer, "strace"))
+	int i;
+	for (i = name_length - 1; i >= 0; i--)
 	{
+		if (name_buffer[i] == '/') 
+		{
+			real_name_buffer = &name_buffer[i + 1];
+			break;
+		}
+	}
+	
+
+	if (!strcmp(real_name_buffer, "time") || !strcmp(real_name_buffer, "strace"))
+	{
+		kfree(name_buffer);
 		goto no_need_dasics;
 	}	
+
+	kfree(name_buffer);
 	
 	int length = DASICS_LENGTH;
 	const char __user *str = get_user_arg_ptr(argv, bprm->argc - 1);
