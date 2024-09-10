@@ -108,7 +108,7 @@
 #define CSR_UCAUSE          0x042
 #define CSR_UTVAL           0x043
 #define CSR_UIP             0x044
-
+#define CSR_UTIMER          0x045
 #ifdef CONFIG_DASICS
 /* DASICS csrs */
 #define CSR_DUMCFG          0x9e0

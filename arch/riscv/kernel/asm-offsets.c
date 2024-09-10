@@ -125,7 +125,7 @@ void asm_offsets(void)
 	OFFSET(PT_UIE, pt_regs, uie);
 	OFFSET(PT_UIP, pt_regs, uip);
 	OFFSET(PT_USCRATCH, pt_regs, uscratch);
-
+	OFFSET(PT_UTIMER, pt_regs, utimer);
 #ifdef CONFIG_DASICS
 	/* dasics supervisor registers */
 	OFFSET(PT_DUMCFG, pt_regs, dasicsUmainCfg);

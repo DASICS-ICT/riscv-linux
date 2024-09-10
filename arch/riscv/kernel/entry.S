@@ -159,7 +159,8 @@
   	REG_S t0, PT_UIP(sp)
 	csrr t1, CSR_USCRATCH
  	REG_S t1, PT_USCRATCH(sp)
-
+	csrr t1, CSR_UTIMER
+ 	REG_S t1, PT_UTIMER(sp)
 	.endm 
 
 /*
@@ -396,6 +397,8 @@ _save_end:
 	csrw CSR_UIP, t0
 	REG_L t1, PT_USCRATCH(sp)	
 	csrw CSR_USCRATCH, t1
+	REG_L t0, PT_UTIMER(sp)	
+	csrw CSR_UTIMER, t0
 	.endm
 /*
  * Prepares to return from a system call or exception by restoring all

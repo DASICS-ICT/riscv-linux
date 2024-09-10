@@ -68,7 +68,7 @@ struct pt_regs {
 	unsigned long uie;
 	unsigned long uip;
 	unsigned long uscratch;
-
+	unsigned long utimer;
 #ifdef CONFIG_DASICS
 	/* dasics supervisor registers */
 	unsigned long dasicsUmainCfg;  		/* initialize should be zero */

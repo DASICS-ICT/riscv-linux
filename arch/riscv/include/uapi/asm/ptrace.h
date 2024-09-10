@@ -96,7 +96,7 @@ struct user_ext_regs_struct {
 	unsigned long uie;
 	unsigned long uip;
 	unsigned long uscratch;
-
+	unsigned long utimer;
 	/* dasics supervisor registers */
 	unsigned long dasicsUmainCfg;  		/* initialize should be zero */
 	unsigned long dasicsUMainBoundLo;
