@@ -61,6 +61,7 @@ struct pt_regs {
 	unsigned long uie;
 	unsigned long uip;
 	unsigned long uscratch;
+	unsigned long utimer;
 
 #ifdef CONFIG_DASICS
 	/* dasics supervisor registers */
@@ -75,6 +76,7 @@ struct pt_regs {
     unsigned long dasicsMaincall;
     unsigned long dasicsReturnPC;
     unsigned long dasicsFreezoneRet;
+	unsigned long dasicsFaultReason;
     unsigned long dasicsJumpBounds[4][2];
     unsigned long dasicsJumpCfg;
 #endif 	

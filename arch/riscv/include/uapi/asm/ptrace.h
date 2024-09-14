@@ -88,6 +88,7 @@ struct user_ext_regs_struct {
 	unsigned long uie;
 	unsigned long uip;
 	unsigned long uscratch;
+	unsigned long utimer;
 
 	/* dasics supervisor registers */
 	unsigned long dasicsUmainCfg;  		/* initialize should be zero */
@@ -101,6 +102,7 @@ struct user_ext_regs_struct {
     unsigned long dasicsMaincall;
     unsigned long dasicsReturnPC;
     unsigned long dasicsFreezoneRet;
+	unsigned long dasicsFaultReason;
     unsigned long dasicsJumpBounds[4][2];
     unsigned long dasicsJumpCfg;
 };

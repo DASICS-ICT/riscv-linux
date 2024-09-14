@@ -93,8 +93,8 @@ void show_ext_regs(struct pt_regs *regs)
 		regs->ustatus, regs->uepc, regs->ubadaddr);
 	pr_cont("ucause: " REG_FMT " utvec: " REG_FMT " uie: " REG_FMT "\n",
 		regs->ucause, regs->utvec, regs->uie);
-	pr_cont("uip: " REG_FMT " uscratch: " REG_FMT "\n",
-		regs->uip, regs->uscratch);	
+	pr_cont("uip: " REG_FMT " uscratch: " REG_FMT " utimer: " REG_FMT "\n",
+		regs->uip, regs->uscratch, regs->utimer);	
 
 	/* Dasics supervisor regs */
 	pr_cont("DASICS User Main Registers: \n");
@@ -117,8 +117,8 @@ void show_ext_regs(struct pt_regs *regs)
 	}
 
 	pr_cont("DASICS Other Registers: \n");
-	pr_cont("main call entry: " REG_FMT " return pc: " REG_FMT " free zone return pc: " REG_FMT "\n",
-		regs->dasicsMaincall, regs->dasicsReturnPC, regs->dasicsFreezoneRet);
+	pr_cont("main call entry: " REG_FMT " return pc: " REG_FMT " free zone return pc: " REG_FMT " fault reason: " REG_FMT "\n",
+		regs->dasicsMaincall, regs->dasicsReturnPC, regs->dasicsFreezoneRet, regs->dasicsFaultReason);
 }
 
 void start_thread(struct pt_regs *regs, unsigned long pc,

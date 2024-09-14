@@ -209,8 +209,8 @@ asmlinkage void do_trap_dasics(struct pt_regs *regs)
 
 	show_regs(regs);
 	show_ext_regs(regs);
-	pr_info("ra: 0x" REG_FMT " sbadaddr: 0x" REG_FMT " scause: 0x" REG_FMT,
-		                                regs->ra, regs->badaddr, regs->cause);
+	pr_info("ra: 0x" REG_FMT " sbadaddr: 0x" REG_FMT " scause: 0x" REG_FMT "dfreason: 0x%lx",
+									regs->ra, regs->badaddr, regs->cause, csr_read(0x8b3));
 
 	// currently just skip error pc.
 	   regs->epc += 4;
