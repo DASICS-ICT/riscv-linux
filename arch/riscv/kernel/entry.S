@@ -117,6 +117,8 @@
 	REG_S t1, PT_DRETURNPC(sp)
 	csrr t0, CSR_DFZRETURN
 	REG_S t0, PT_DFZRETURN(sp)
+	csrr t1, CSR_DFREASON
+	REG_S t1, PT_DFREASON(sp)
 
 	csrr t0, CSR_DJBOUND0LO
 	csrr t1, CSR_DJBOUND0HI
@@ -159,7 +161,8 @@
   	REG_S t0, PT_UIP(sp)
 	csrr t1, CSR_USCRATCH
  	REG_S t1, PT_USCRATCH(sp)
-
+	csrr t0, CSR_UTIMER
+ 	REG_S t0, PT_UTIMER(sp)
 	.endm 
 
 /*
@@ -355,6 +358,8 @@ _save_end:
 	csrw CSR_DRETURNPC, t1
 	REG_L t0, PT_DFZRETURN(sp)
 	csrw CSR_DFZRETURN, t0
+	REG_L t1, PT_DFREASON(sp)
+	csrw CSR_DFREASON, t1
 
 	REG_L t0, PT_DJBOUND0LO(sp)
 	REG_L t1, PT_DJBOUND0HI(sp)
@@ -396,6 +401,8 @@ _save_end:
 	csrw CSR_UIP, t0
 	REG_L t1, PT_USCRATCH(sp)	
 	csrw CSR_USCRATCH, t1
+	REG_L t0, PT_UTIMER(sp)	
+	csrw CSR_UTIMER, t0
 	.endm
 /*
  * Prepares to return from a system call or exception by restoring all
@@ -795,17 +802,7 @@ ENTRY(excp_vect_table)
 	RISCV_PTR do_trap_unknown
 	RISCV_PTR do_trap_unknown
 	RISCV_PTR do_trap_unknown	
-	RISCV_PTR do_trap_dasics  /* dasics ufetch fault */
-	RISCV_PTR do_trap_dasics  /* dasics sfetch fault */
-	RISCV_PTR do_trap_dasics  /* dasics uload fault */
-	RISCV_PTR do_trap_dasics  /* dasics sload fault */
-	RISCV_PTR do_trap_dasics  /* dasics ustore fault */
-	RISCV_PTR do_trap_dasics  /* dasics sstore fault */
-	RISCV_PTR do_trap_dasics  /* dasics uecall fault */
-	RISCV_PTR do_trap_dasics  /* dasics secall fault */
-	RISCV_PTR do_mpk_page_fault
-	RISCV_PTR do_mpk_page_fault
-	RISCV_PTR do_mpk_page_fault
-	RISCV_PTR do_mpk_page_fault
+	RISCV_PTR do_trap_dasics  /* dasics ucheck fault */
+	RISCV_PTR do_trap_dasics  /* dasics scheck fault */
 excp_vect_table_end:
 END(excp_vect_table)

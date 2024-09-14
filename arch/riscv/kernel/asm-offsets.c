@@ -125,6 +125,7 @@ void asm_offsets(void)
 	OFFSET(PT_UIE, pt_regs, uie);
 	OFFSET(PT_UIP, pt_regs, uip);
 	OFFSET(PT_USCRATCH, pt_regs, uscratch);
+	OFFSET(PT_UTIMER, pt_regs, utimer);
 
 #ifdef CONFIG_DASICS
 	/* dasics supervisor registers */
@@ -171,6 +172,7 @@ void asm_offsets(void)
 	OFFSET(PT_DMAINCALL, pt_regs, dasicsMaincall);
 	OFFSET(PT_DRETURNPC, pt_regs, dasicsReturnPC);
 	OFFSET(PT_DFZRETURN, pt_regs, dasicsFreezoneRet);
+	OFFSET(PT_DFREASON, pt_regs, dasicsFaultReason);
 
 	OFFSET(PT_DJBOUND0LO, pt_regs, dasicsJumpBounds[0][0]);
 	OFFSET(PT_DJBOUND0HI, pt_regs, dasicsJumpBounds[0][1]);
