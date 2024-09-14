@@ -211,7 +211,7 @@ CONFIG_RISCV_ISA_C=y
 CONFIG_RISCV_BASE_PMU=y
 # end of supported PMU type
 
-CONFIG_FPU=n
+CONFIG_FPU=y
 # end of Platform type
 
 #
