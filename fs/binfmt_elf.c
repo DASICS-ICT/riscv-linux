@@ -1661,8 +1661,8 @@ out_free_interp:
 		regs->ustatus, regs->uepc, regs->ubadaddr);
 	pr_info("ucause: " REG_FMT " utvec: " REG_FMT " uie: " REG_FMT "\n",
 		regs->ucause, regs->utvec, regs->uie);
-	pr_info("uip: " REG_FMT " uscratch: " REG_FMT "\n",
-		regs->uip, regs->uscratch);	
+	pr_info("uip: " REG_FMT " uscratch: " REG_FMT " utimer: " REG_FMT "\n",
+		regs->uip, regs->uscratch, regs->utimer);	
 
 	/* Dasics supervisor regs */
 	pr_info("DASICS User Main Registers: \n");
@@ -1690,10 +1690,8 @@ out_free_interp:
 		regs->status, regs->badaddr, regs->cause);
 	pr_info("ustatus: " REG_FMT " ubadaddr: " REG_FMT " ucause: " REG_FMT "\n",
 		regs->ustatus, regs->ubadaddr, regs->ucause);
-	pr_info("maincall entry: " REG_FMT " return pc: " REG_FMT " freezone return pc: " REG_FMT "\n",
-		regs->dasicsMaincall, regs->dasicsReturnPC, regs->dasicsFreezoneRet);
-#endif 
-
+	pr_info("maincall entry: " REG_FMT " return pc: " REG_FMT " freezone return pc: " REG_FMT " fault reason: " REG_FMT "\n",
+		regs->dasicsMaincall, regs->dasicsReturnPC, regs->dasicsFreezoneRet, regs->dasicsFaultReason);
 	pr_info("finish dasics initialization.\n");
 
 out_free_secstrs:
