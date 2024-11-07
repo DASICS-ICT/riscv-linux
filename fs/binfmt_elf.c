@@ -1550,12 +1550,12 @@ out_free_interp:
 	pr_info("config0: " REG_FMT "\n", regs->dasicsLibCfg0);
 
 	int cnt;
-	for (cnt = 0; cnt < 4; cnt++) {
+	for (cnt = 0; cnt < 16; cnt++) {
 		pr_info("(%d) mem bound lo: " REG_FMT " mem bound hi: " REG_FMT "\n",
 			cnt, regs->dasicsLibBounds[cnt][0], regs->dasicsLibBounds[cnt][1]);
 	}
 
-	for (cnt = 0; cnt < 1; cnt++) {
+	for (cnt = 0; cnt < 4; cnt++) {
 		pr_info("(%d) jump bound lo: " REG_FMT " jump bound hi: " REG_FMT "\n",
 			cnt, regs->dasicsJumpBounds[cnt][0], regs->dasicsJumpBounds[cnt][1]);
 	}

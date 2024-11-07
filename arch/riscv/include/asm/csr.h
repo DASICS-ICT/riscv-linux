@@ -166,12 +166,12 @@
 
 #ifdef CONFIG_DASICS
 /* DASICS csrs */
-#define CSR_DUMCFG          0x9e0
+#define CSR_DUMCFG          0x9e1
 #define CSR_DUMBOUNDLO      0x9e2
 #define CSR_DUMBOUNDHI      0x9e3
 
 /* DASICS Main cfg */
-#define DASICS_MAINCFG_MASK 0xfUL
+#define DASICS_MAINCFG_MASK 0xffUL
 #define DASICS_UCFG_CLS     0x8UL
 #define DASICS_SCFG_CLS     0x4UL
 #define DASICS_UCFG_ENA     0x2UL
