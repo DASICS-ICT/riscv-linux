@@ -119,61 +119,54 @@ void asm_offsets(void)
 
 #ifdef CONFIG_DASICS
 	/* dasics supervisor registers */
-	OFFSET(PT_DUMCFG, pt_regs, dasicsUmainCfg);
-	OFFSET(PT_DUMBOUNDLO, pt_regs, dasicsUMainBoundLo);
-	OFFSET(PT_DUMBOUNDHI, pt_regs, dasicsUMainBoundHi);
+	OFFSET(PT_DUMBOUND, pt_regs, dasicsUMainBound);
 
-	OFFSET(PT_DLCFG0, pt_regs, dasicsLibCfg0);
-	OFFSET(PT_DLCFG1, pt_regs, dasicsLibCfg1);
-	OFFSET(PT_DLBOUND0LO, pt_regs, dasicsLibBounds[0][0]);
-	OFFSET(PT_DLBOUND0HI, pt_regs, dasicsLibBounds[0][1]);
-	OFFSET(PT_DLBOUND1LO, pt_regs, dasicsLibBounds[1][0]);
-	OFFSET(PT_DLBOUND1HI, pt_regs, dasicsLibBounds[1][1]);
-	OFFSET(PT_DLBOUND2LO, pt_regs, dasicsLibBounds[2][0]);
-	OFFSET(PT_DLBOUND2HI, pt_regs, dasicsLibBounds[2][1]);
-	OFFSET(PT_DLBOUND3LO, pt_regs, dasicsLibBounds[3][0]);
-	OFFSET(PT_DLBOUND3HI, pt_regs, dasicsLibBounds[3][1]);
-	OFFSET(PT_DLBOUND4LO, pt_regs, dasicsLibBounds[4][0]);
-	OFFSET(PT_DLBOUND4HI, pt_regs, dasicsLibBounds[4][1]);
-	OFFSET(PT_DLBOUND5LO, pt_regs, dasicsLibBounds[5][0]);
-	OFFSET(PT_DLBOUND5HI, pt_regs, dasicsLibBounds[5][1]);
-	OFFSET(PT_DLBOUND6LO, pt_regs, dasicsLibBounds[6][0]);
-	OFFSET(PT_DLBOUND6HI, pt_regs, dasicsLibBounds[6][1]);
-	OFFSET(PT_DLBOUND7LO, pt_regs, dasicsLibBounds[7][0]);
-	OFFSET(PT_DLBOUND7HI, pt_regs, dasicsLibBounds[7][1]);
-	OFFSET(PT_DLBOUND8LO, pt_regs, dasicsLibBounds[8][0]);
-	OFFSET(PT_DLBOUND8HI, pt_regs, dasicsLibBounds[8][1]);
-	OFFSET(PT_DLBOUND9LO, pt_regs, dasicsLibBounds[9][0]);
-	OFFSET(PT_DLBOUND9HI, pt_regs, dasicsLibBounds[9][1]);
-	OFFSET(PT_DLBOUND10LO, pt_regs, dasicsLibBounds[10][0]);
-	OFFSET(PT_DLBOUND10HI, pt_regs, dasicsLibBounds[10][1]);
-	OFFSET(PT_DLBOUND11LO, pt_regs, dasicsLibBounds[11][0]);
-	OFFSET(PT_DLBOUND11HI, pt_regs, dasicsLibBounds[11][1]);
-	OFFSET(PT_DLBOUND12LO, pt_regs, dasicsLibBounds[12][0]);
-	OFFSET(PT_DLBOUND12HI, pt_regs, dasicsLibBounds[12][1]);
-	OFFSET(PT_DLBOUND13LO, pt_regs, dasicsLibBounds[13][0]);
-	OFFSET(PT_DLBOUND13HI, pt_regs, dasicsLibBounds[13][1]);
-	OFFSET(PT_DLBOUND14LO, pt_regs, dasicsLibBounds[14][0]);
-	OFFSET(PT_DLBOUND14HI, pt_regs, dasicsLibBounds[14][1]);
-	OFFSET(PT_DLBOUND15LO, pt_regs, dasicsLibBounds[15][0]);
-	OFFSET(PT_DLBOUND15HI, pt_regs, dasicsLibBounds[15][1]);
-
+	OFFSET(PT_DMBOUND0, pt_regs, dasicsMemBounds[0]);
+	OFFSET(PT_DMBOUND1, pt_regs, dasicsMemBounds[1]);
+	OFFSET(PT_DMBOUND2, pt_regs, dasicsMemBounds[2]);
+	OFFSET(PT_DMBOUND3, pt_regs, dasicsMemBounds[3]);
+	OFFSET(PT_DMBOUND4, pt_regs, dasicsMemBounds[4]);
+	OFFSET(PT_DMBOUND5, pt_regs, dasicsMemBounds[5]);
+	OFFSET(PT_DMBOUND6, pt_regs, dasicsMemBounds[6]);
+	OFFSET(PT_DMBOUND7, pt_regs, dasicsMemBounds[7]);
+	OFFSET(PT_DMBOUND8, pt_regs, dasicsMemBounds[8]);
+	OFFSET(PT_DMBOUND9, pt_regs, dasicsMemBounds[9]);
+	OFFSET(PT_DMBOUND10, pt_regs, dasicsMemBounds[10]);
+	OFFSET(PT_DMBOUND11, pt_regs, dasicsMemBounds[11]);
+	OFFSET(PT_DMBOUND12, pt_regs, dasicsMemBounds[12]);
+	OFFSET(PT_DMBOUND13, pt_regs, dasicsMemBounds[13]);
+	OFFSET(PT_DMBOUND14, pt_regs, dasicsMemBounds[14]);
+	OFFSET(PT_DMBOUND15, pt_regs, dasicsMemBounds[15]);
+	OFFSET(PT_DMBOUND16, pt_regs, dasicsMemBounds[16]);
+	OFFSET(PT_DMBOUND17, pt_regs, dasicsMemBounds[17]);
+	OFFSET(PT_DMBOUND18, pt_regs, dasicsMemBounds[18]);
+	OFFSET(PT_DMBOUND19, pt_regs, dasicsMemBounds[19]);
+	OFFSET(PT_DMBOUND20, pt_regs, dasicsMemBounds[20]);
+	OFFSET(PT_DMBOUND21, pt_regs, dasicsMemBounds[21]);
+	OFFSET(PT_DMBOUND22, pt_regs, dasicsMemBounds[22]);
+	OFFSET(PT_DMBOUND23, pt_regs, dasicsMemBounds[23]);
+	OFFSET(PT_DMBOUND24, pt_regs, dasicsMemBounds[24]);
+	OFFSET(PT_DMBOUND25, pt_regs, dasicsMemBounds[25]);
+	OFFSET(PT_DMBOUND26, pt_regs, dasicsMemBounds[26]);
+	OFFSET(PT_DMBOUND27, pt_regs, dasicsMemBounds[27]);
+	OFFSET(PT_DMBOUND28, pt_regs, dasicsMemBounds[28]);
+	OFFSET(PT_DMBOUND29, pt_regs, dasicsMemBounds[29]);
+	OFFSET(PT_DMBOUND30, pt_regs, dasicsMemBounds[30]);
+	OFFSET(PT_DMBOUND31, pt_regs, dasicsMemBounds[31]);
 
 	OFFSET(PT_DMAINCALL, pt_regs, dasicsMaincall);
 	OFFSET(PT_DRETURNPC, pt_regs, dasicsReturnPC);
 	OFFSET(PT_DFZRETURN, pt_regs, dasicsFreezoneRet);
 	OFFSET(PT_DFREASON, pt_regs, dasicsFaultReason);
 
-	OFFSET(PT_DJBOUND0LO, pt_regs, dasicsJumpBounds[0][0]);
-	OFFSET(PT_DJBOUND0HI, pt_regs, dasicsJumpBounds[0][1]);
-	OFFSET(PT_DJBOUND1LO, pt_regs, dasicsJumpBounds[1][0]);
-	OFFSET(PT_DJBOUND1HI, pt_regs, dasicsJumpBounds[1][1]);
-	OFFSET(PT_DJBOUND2LO, pt_regs, dasicsJumpBounds[2][0]);
-	OFFSET(PT_DJBOUND2HI, pt_regs, dasicsJumpBounds[2][1]);
-	OFFSET(PT_DJBOUND3LO, pt_regs, dasicsJumpBounds[3][0]);
-	OFFSET(PT_DJBOUND3HI, pt_regs, dasicsJumpBounds[3][1]);
-
-	OFFSET(PT_DJCFG, pt_regs, dasicsJumpCfg);
+	OFFSET(PT_DJBOUND0, pt_regs, dasicsJmpBounds[0]);
+	OFFSET(PT_DJBOUND1, pt_regs, dasicsJmpBounds[1]);
+	OFFSET(PT_DJBOUND2, pt_regs, dasicsJmpBounds[2]);
+	OFFSET(PT_DJBOUND3, pt_regs, dasicsJmpBounds[3]);
+	OFFSET(PT_DJBOUND4, pt_regs, dasicsJmpBounds[4]);
+	OFFSET(PT_DJBOUND5, pt_regs, dasicsJmpBounds[5]);
+	OFFSET(PT_DJBOUND6, pt_regs, dasicsJmpBounds[6]);
+	OFFSET(PT_DJBOUND7, pt_regs, dasicsJmpBounds[7]);
 
 #endif 
 

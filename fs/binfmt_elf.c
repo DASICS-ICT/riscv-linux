@@ -1438,10 +1438,10 @@ out_free_interp:
 #ifdef CONFIG_DASICS
 
 	/* clear dasics csrs */
-    regs->dasicsUmainCfg = 0;
-	regs->dasicsLibCfg0 = 0;
-	regs->dasicsLibCfg1 = 0;
-
+    regs->dasicsUMainBound = 0;
+	int k;
+    for (k=0; k<DASICS_MEMCFG_WIDTH; k++) regs->dasicsMemBounds[k] = 0;
+    for (k=0; k<DASICS_JMPCFG_WIDTH; k++) regs->dasicsJmpBounds[k] = 0;
 	/* TODO: if .ulibtext exists, set dasics user main boundary registers. */
 	elf_shdata = load_elf_shdrs(elf_ex, bprm->file);
 	if (!elf_shdata)
@@ -1473,20 +1473,24 @@ out_free_interp:
 	/* set dasics lib config, need to update dynamic allocation */
 
 	/* kernel stack. This is used in S-state dasics protection. */
-	//regs->dasicsLibBounds[0] = (unsigned long)current->stack + THREAD_SIZE;
-	//regs->dasicsLibBounds[1] = (unsigned long)current->stack;
+	//regs->dasicsMemBounds[0] = (unsigned long)current->stack + THREAD_SIZE;
+	//regs->dasicsMemBounds[1] = (unsigned long)current->stack;
 
 #define align8up(addr) 		 ((addr+0x7) & ~(0x7)) 
 #define align8down(addr) 	 (addr & ~(0x7))
 
 	/* lib function text */
-	regs->dasicsJumpBounds[0][0] = align8down(lo);
-	regs->dasicsJumpBounds[0][1] = align8up(hi);  
-
+	regs->dasicsJmpBounds[0] = cal_dasics_bound_val(
+								align8down(lo),
+								align8up(hi),
+								DASICS_JMPCFG_V);
 	/* get read-only datas. */
 	/* This area contains some other codes, however, lib text should not execute them. */
-	regs->dasicsLibBounds[0][0] = align8down(hi);
-	regs->dasicsLibBounds[0][1] = align8up(start_data);
+	regs->dasicsMemBounds[0] = cal_dasics_bound_val(
+								align8down(hi),
+								align8up(start_data),
+								(DASICS_MEMCFG_V | DASICS_MEMCFG_R)
+								);
 
 	/* Following mapping is related to vm_mmap blocks. */
 	/* This should be updated in future.*/
@@ -1499,16 +1503,20 @@ out_free_interp:
 #endif
 
 	/* protect data */
-	/* currently protact heap\mmap\stack together */	
-	regs->dasicsLibBounds[1][0] = align8down(current->mm->start_brk);
-	regs->dasicsLibBounds[1][1] = align8up(current->mm->start_stack);
+	/* currently only protect part of heap\mmap\stack*/	
 
-	//jbound0: lib code jump enable     
-	//mbound0: v  | r  | hi -- start_data - 0x2UL
-	//mbound1: v  | rw | start_data -- TASK_SIZE
-	regs->dasicsJumpCfg =   DASICS_JUMPCFG_V;
-	regs->dasicsLibCfg0 = ((DASICS_LIBCFG_V | DASICS_LIBCFG_R | DASICS_LIBCFG_W) << 4 * 1) | 
-						  ((DASICS_LIBCFG_V | DASICS_LIBCFG_R));
+	regs->dasicsMemBounds[1] = cal_dasics_bound_val(
+								align8down(current->mm->start_stack - ((1UL<<21) - 8)),
+                				align8up(current->mm->start_stack),
+								(DASICS_MEMCFG_V | DASICS_MEMCFG_R | DASICS_MEMCFG_W)
+								);
+
+	regs->dasicsMemBounds[2] = cal_dasics_bound_val(
+								align8down(current->mm->start_brk),
+								align8up(current->mm->start_brk + ((1UL<<21) - 8)),
+								(DASICS_MEMCFG_V | DASICS_MEMCFG_R | DASICS_MEMCFG_W)
+								);
+
 
 /* set free zone*/ 
     elf_shtmp = find_sec(secstrs, elf_ex, elf_shdata, ".ufreezonetext");
@@ -1518,9 +1526,10 @@ out_free_interp:
 		lo = elf_shtmp->sh_addr + load_bias;
 
 		//jbound1: lib freezone jump enable 
-		regs->dasicsJumpBounds[1][0] = align8down(lo);
-		regs->dasicsJumpBounds[1][1] = align8up(hi);  
-		regs->dasicsJumpCfg =   (DASICS_JUMPCFG_V << 1*16) | regs->dasicsJumpCfg;
+		regs->dasicsJmpBounds[1] =  cal_dasics_bound_val(
+							        align8down(lo),
+								    align8up(hi),
+								    DASICS_JMPCFG_V); 
 
 #ifdef CONFIG_DASICS_DEBUG
 	    pr_info("free zone text start: 0x%lx, end: 0x%lx\n", lo, hi);
@@ -1535,9 +1544,10 @@ out_free_interp:
 	pr_info("text start: 0x%lx, end: 0x%lx\n", lo, hi);
 #endif
 
-	regs->dasicsUmainCfg = DASICS_UCFG_ENA; 
-	regs->dasicsUMainBoundLo = align8down(lo);
-	regs->dasicsUMainBoundHi = align8up(hi);
+	regs->dasicsUMainBound = cal_dasics_bound_val(
+							align8down(lo),
+							align8up(hi),
+							DASICS_MAINCFG_ECALLF | DASICS_MAINCFG_JUMPF | DASICS_MAINCFG_LOADF | DASICS_MAINCFG_STOREF); 
 
 #ifdef CONFIG_DASICS_DEBUG
 	/* NOTE: current tp is kernel tp, and regs->tp is user tp, might be different */
@@ -1550,34 +1560,32 @@ out_free_interp:
 	pr_info("uip: " REG_FMT " uscratch: " REG_FMT " utimer: " REG_FMT "\n",
 		regs->uip, regs->uscratch, regs->utimer);	
 
-	/* Dasics supervisor regs */
-	pr_info("DASICS User Main Registers: \n");
-	pr_info("config: " REG_FMT " bound hi: " REG_FMT " bound lo: " REG_FMT "\n",
-		regs->dasicsUmainCfg, regs->dasicsUMainBoundHi, regs->dasicsUMainBoundLo);
-
+	pr_cont("DASICS User Main Registers: \n");
+	  pr_cont("cfg: " REGFMT " lo: " REGFMT " hi: " REGFMT "\n",
+       get_dasics_bound_cfg(regs->dasicsUMainBound),
+       get_dasics_bound_lo(regs->dasicsUMainBound),
+       get_dasics_bound_hi(regs->dasicsUMainBound));
 	/* Dasics user regs */
-	pr_info("DASICS Lib Registers: \n");
-	pr_info("config0: " REG_FMT " config1: " REG_FMT "\n",
-		regs->dasicsLibCfg0, regs->dasicsLibCfg1);
+	pr_cont("DASICS Lib Registers: \n");
 
-	int cnt;
-	for (cnt = 0; cnt < 16; cnt++) {
-		pr_info("(%d) mem bound lo: " REG_FMT " mem bound hi: " REG_FMT "\n",
-			cnt, regs->dasicsLibBounds[cnt][0], regs->dasicsLibBounds[cnt][1]);
+	for (cnt = 0; cnt < DASICS_MEMCFG_WIDTH; cnt++) {
+		pr_cont("(%d) mem bound cfg:" REG_FMT " lo: " REG_FMT " mem bound hi: " REG_FMT "\n", cnt, 
+			get_dasics_bound_cfg(regs->dasicsMemBounds[cnt]),
+       		get_dasics_bound_lo(regs->dasicsMemBounds[cnt]),
+       		get_dasics_bound_hi(regs->dasicsMemBounds[cnt]));
 	}
 
-	for (cnt = 0; cnt < 4; cnt++) {
-		pr_info("(%d) jump bound lo: " REG_FMT " jump bound hi: " REG_FMT "\n",
-			cnt, regs->dasicsJumpBounds[cnt][0], regs->dasicsJumpBounds[cnt][1]);
+	for (cnt = 0; cnt < DASICS_JMPCFG_WIDTH; cnt++) {
+		pr_cont("(%d) jmp bound cfg:" REG_FMT " lo: " REG_FMT " mem bound hi: " REG_FMT "\n", cnt,
+			get_dasics_bound_cfg(regs->dasicsJmpBounds[cnt]),
+       		get_dasics_bound_lo(regs->dasicsJmpBounds[cnt]),
+       		get_dasics_bound_hi(regs->dasicsJmpBounds[cnt]));
 	}
 
-	pr_info("kernel tp: 0x%lx, user tp: 0x%lx\n", (unsigned long)current, regs->tp);
-	pr_info("sstatus: " REG_FMT " sbadaddr: " REG_FMT " scause: " REG_FMT "\n",
-		regs->status, regs->badaddr, regs->cause);
-	pr_info("ustatus: " REG_FMT " ubadaddr: " REG_FMT " ucause: " REG_FMT "\n",
-		regs->ustatus, regs->ubadaddr, regs->ucause);
-	pr_info("maincall entry: " REG_FMT " return pc: " REG_FMT " freezone return pc: " REG_FMT " fault reason: " REG_FMT "\n",
+	pr_cont("DASICS Other Registers: \n");
+	pr_cont("main call entry: " REG_FMT " return pc: " REG_FMT " free zone return pc: " REG_FMT " fault reason: " REG_FMT "\n",
 		regs->dasicsMaincall, regs->dasicsReturnPC, regs->dasicsFreezoneRet, regs->dasicsFaultReason);
+
 	pr_info("finish dasics initialization.\n");
 #endif
 

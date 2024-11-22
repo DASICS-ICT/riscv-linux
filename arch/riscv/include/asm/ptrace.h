@@ -64,20 +64,15 @@ struct pt_regs {
 
 #ifdef CONFIG_DASICS
 	/* dasics supervisor registers */
-	unsigned long dasicsUmainCfg;  		/* initialize should be zero */
-	unsigned long dasicsUMainBoundLo;
-	unsigned long dasicsUMainBoundHi;
+	unsigned long dasicsUMainBound;  		/* initialize should be zero */
 
     /* Saved DASICS user registers */
-    unsigned long dasicsLibCfg0;
-    unsigned long dasicsLibCfg1;    // reserved
-    unsigned long dasicsLibBounds[16][2];
+    unsigned long dasicsMemBounds[32];
     unsigned long dasicsMaincall;
     unsigned long dasicsReturnPC;
     unsigned long dasicsFreezoneRet;
 	unsigned long dasicsFaultReason;
-    unsigned long dasicsJumpBounds[4][2];
-    unsigned long dasicsJumpCfg;
+    unsigned long dasicsJmpBounds[8];
 #endif 	
 
 };
@@ -90,10 +85,6 @@ struct pt_regs {
 
 #define user_mode(regs) (((regs)->status & SR_PP) == 0)
 
-#ifdef CONFIG_DASICS
-#define dasics_uena(regs) (((regs)->dasicsUmainCfg & DASICS_UCFG_ENA) != 0)
-#define dasics_uopen(regs) (user_mode(regs) && dasics_uena(regs))
-#endif
 
 /* Helpers for working with the instruction pointer */
 static inline unsigned long instruction_pointer(struct pt_regs *regs)

@@ -27,84 +27,74 @@
 	.macro SAVE_DASICS
 
 	/* Save dasics main context */	
-	csrrw t0, CSR_DUMCFG, zero
-  	REG_S t0, PT_DUMCFG(sp)	 
-	csrr t1, CSR_DUMBOUNDLO
-	REG_S t1, PT_DUMBOUNDLO(sp)
-	csrr t0, CSR_DUMBOUNDHI
-	REG_S t0, PT_DUMBOUNDHI(sp)
+	csrr t0, CSR_DUMBOUND
+	REG_S t0, PT_DUMBOUND(sp)
 
+	csrr t0, CSR_DMBOUND0
+	csrr t1, CSR_DMBOUND1
+	REG_S t0, PT_DMBOUND0(sp)
+	REG_S t1, PT_DMBOUND1(sp)
+	csrr t0, CSR_DMBOUND2
+	csrr t1, CSR_DMBOUND3
+	REG_S t0, PT_DMBOUND2(sp)
+	REG_S t1, PT_DMBOUND3(sp)
+	csrr t0, CSR_DMBOUND4
+	csrr t1, CSR_DMBOUND5
+	REG_S t0, PT_DMBOUND4(sp)
+	REG_S t1, PT_DMBOUND5(sp)
+	csrr t0, CSR_DMBOUND6
+	csrr t1, CSR_DMBOUND7
+	REG_S t0, PT_DMBOUND6(sp)
+	REG_S t1, PT_DMBOUND7(sp)
+	csrr t0, CSR_DMBOUND8
+	csrr t1, CSR_DMBOUND9
+	REG_S t0, PT_DMBOUND8(sp)
+	REG_S t1, PT_DMBOUND9(sp)
+	csrr t0, CSR_DMBOUND10
+	csrr t1, CSR_DMBOUND11
+	REG_S t0, PT_DMBOUND10(sp)
+	REG_S t1, PT_DMBOUND11(sp)
+	csrr t0, CSR_DMBOUND12
+	csrr t1, CSR_DMBOUND13
+	REG_S t0, PT_DMBOUND12(sp)
+	REG_S t1, PT_DMBOUND13(sp)
+	csrr t0, CSR_DMBOUND14
+	csrr t1, CSR_DMBOUND15
+	REG_S t0, PT_DMBOUND14(sp)
+	REG_S t1, PT_DMBOUND15(sp)
 
-	csrr t0, CSR_DLCFG0
-	#csrr t1, CSR_DLCFG1
-	REG_S t0, PT_DLCFG0(sp)
-	#REG_S t1, PT_DLCFG1(sp)
-
-	csrr t0, CSR_DLBOUND0LO
-	csrr t1, CSR_DLBOUND0HI
-	REG_S t0, PT_DLBOUND0LO(sp)
-	REG_S t1, PT_DLBOUND0HI(sp)
-	csrr t0, CSR_DLBOUND1LO
-	csrr t1, CSR_DLBOUND1HI
-	REG_S t0, PT_DLBOUND1LO(sp)
-	REG_S t1, PT_DLBOUND1HI(sp)
-	csrr t0, CSR_DLBOUND2LO
-	csrr t1, CSR_DLBOUND2HI
-	REG_S t0, PT_DLBOUND2LO(sp)
-	REG_S t1, PT_DLBOUND2HI(sp)
-	csrr t0, CSR_DLBOUND3LO
-	csrr t1, CSR_DLBOUND3HI
-	REG_S t0, PT_DLBOUND3LO(sp)
-	REG_S t1, PT_DLBOUND3HI(sp)
-	csrr t0, CSR_DLBOUND4LO
-	csrr t1, CSR_DLBOUND4HI
-	REG_S t0, PT_DLBOUND4LO(sp)
-	REG_S t1, PT_DLBOUND4HI(sp)
-	csrr t0, CSR_DLBOUND5LO
-	csrr t1, CSR_DLBOUND5HI
-	REG_S t0, PT_DLBOUND5LO(sp)
-	REG_S t1, PT_DLBOUND5HI(sp)
-	csrr t0, CSR_DLBOUND6LO
-	csrr t1, CSR_DLBOUND6HI
-	REG_S t0, PT_DLBOUND6LO(sp)
-	REG_S t1, PT_DLBOUND6HI(sp)
-	csrr t0, CSR_DLBOUND7LO
-	csrr t1, CSR_DLBOUND7HI
-	REG_S t0, PT_DLBOUND7LO(sp)
-	REG_S t1, PT_DLBOUND7HI(sp)
-
-	csrr t0, CSR_DLBOUND8LO
-	csrr t1, CSR_DLBOUND8HI
-	REG_S t0, PT_DLBOUND8LO(sp)
-	REG_S t1, PT_DLBOUND8HI(sp)
-	csrr t0, CSR_DLBOUND9LO
-	csrr t1, CSR_DLBOUND9HI
-	REG_S t0, PT_DLBOUND9LO(sp)
-	REG_S t1, PT_DLBOUND9HI(sp)
-	csrr t0, CSR_DLBOUND10LO
-	csrr t1, CSR_DLBOUND10HI
-	REG_S t0, PT_DLBOUND10LO(sp)
-	REG_S t1, PT_DLBOUND10HI(sp)
-	csrr t0, CSR_DLBOUND11LO
-	csrr t1, CSR_DLBOUND11HI
-	REG_S t0, PT_DLBOUND11LO(sp)
-	REG_S t1, PT_DLBOUND11HI(sp)
-	csrr t0, CSR_DLBOUND12LO
-	csrr t1, CSR_DLBOUND12HI
-	REG_S t0, PT_DLBOUND12LO(sp)
-	REG_S t1, PT_DLBOUND12HI(sp)
-	csrr t0, CSR_DLBOUND13LO
-	csrr t1, CSR_DLBOUND13HI
-	REG_S t0, PT_DLBOUND13LO(sp)
-	REG_S t1, PT_DLBOUND13HI(sp)
-	csrr t0, CSR_DLBOUND14LO
-	csrr t1, CSR_DLBOUND14HI
-	REG_S t0, PT_DLBOUND14LO(sp)
-	REG_S t1, PT_DLBOUND14HI(sp)
-	csrr t0, CSR_DLBOUND15LO
-	csrr t1, CSR_DLBOUND15HI
-	REG_S t0, PT_DLBOUND15LO(sp)
-	REG_S t1, PT_DLBOUND15HI(sp)
+	csrr t0, CSR_DMBOUND16
+	csrr t1, CSR_DMBOUND17
+	REG_S t0, PT_DMBOUND16(sp)
+	REG_S t1, PT_DMBOUND17(sp)
+	csrr t0, CSR_DMBOUND18
+	csrr t1, CSR_DMBOUND19
+	REG_S t0, PT_DMBOUND18(sp)
+	REG_S t1, PT_DMBOUND19(sp)
+	csrr t0, CSR_DMBOUND20
+	csrr t1, CSR_DMBOUND21
+	REG_S t0, PT_DMBOUND20(sp)
+	REG_S t1, PT_DMBOUND21(sp)
+	csrr t0, CSR_DMBOUND22
+	csrr t1, CSR_DMBOUND23
+	REG_S t0, PT_DMBOUND22(sp)
+	REG_S t1, PT_DMBOUND23(sp)
+	csrr t0, CSR_DMBOUND24
+	csrr t1, CSR_DMBOUND25
+	REG_S t0, PT_DMBOUND24(sp)
+	REG_S t1, PT_DMBOUND25(sp)
+	csrr t0, CSR_DMBOUND26
+	csrr t1, CSR_DMBOUND27
+	REG_S t0, PT_DMBOUND26(sp)
+	REG_S t1, PT_DMBOUND27(sp)
+	csrr t0, CSR_DMBOUND28
+	csrr t1, CSR_DMBOUND29
+	REG_S t0, PT_DMBOUND28(sp)
+	REG_S t1, PT_DMBOUND29(sp)
+	csrr t0, CSR_DMBOUND30
+	csrr t1, CSR_DMBOUND31
+	REG_S t0, PT_DMBOUND30(sp)
+	REG_S t1, PT_DMBOUND31(sp)
 
 	csrr t0, CSR_DMAINCALL
 	REG_S t0, PT_DMAINCALL(sp)
@@ -115,30 +105,25 @@
 	csrr t1, CSR_DFREASON
 	REG_S t1, PT_DFREASON(sp)
 
-	csrr t0, CSR_DJBOUND0LO
-	csrr t1, CSR_DJBOUND0HI
-	REG_S t0, PT_DJBOUND0LO(sp)
-	REG_S t1, PT_DJBOUND0HI(sp)
-	csrr t0, CSR_DJBOUND1LO
-	csrr t1, CSR_DJBOUND1HI
-	REG_S t0, PT_DJBOUND1LO(sp)
-	REG_S t1, PT_DJBOUND1HI(sp)
-	csrr t0, CSR_DJBOUND2LO
-	csrr t1, CSR_DJBOUND2HI
-	REG_S t0, PT_DJBOUND2LO(sp)
-	REG_S t1, PT_DJBOUND2HI(sp)
-	csrr t0, CSR_DJBOUND3LO
-	csrr t1, CSR_DJBOUND3HI
-	REG_S t0, PT_DJBOUND3LO(sp)
-	REG_S t1, PT_DJBOUND3HI(sp)
-
-	csrr t0, CSR_DJCFG
-	REG_S t0, PT_DJCFG(sp)
-
+	csrr t0, CSR_DJBOUND0
+	csrr t1, CSR_DJBOUND1
+	REG_S t0, PT_DJBOUND0(sp)
+	REG_S t1, PT_DJBOUND1(sp)
+	csrr t0, CSR_DJBOUND2
+	csrr t1, CSR_DJBOUND3
+	REG_S t0, PT_DJBOUND2(sp)
+	REG_S t1, PT_DJBOUND3(sp)
+	csrr t0, CSR_DJBOUND4
+	csrr t1, CSR_DJBOUND5
+	REG_S t0, PT_DJBOUND4(sp)
+	REG_S t1, PT_DJBOUND5(sp)
+	csrr t0, CSR_DJBOUND6
+	csrr t1, CSR_DJBOUND7
+	REG_S t0, PT_DJBOUND6(sp)
+	REG_S t1, PT_DJBOUND7(sp)
 	.endm
 
 	.macro SAVE_UCSR
-
 	/* save N Extension registers. */
   	csrr t0, CSR_USTATUS
   	REG_S t0, PT_USTATUS(sp)
@@ -240,22 +225,20 @@ _save_context:
 	REG_S s4, PT_CAUSE(sp)
 	REG_S s5, PT_TP(sp)
 
+	SAVE_UCSR
+
 _check_kernel:
 	/* if exception comes from kernel, sscratch contains 0 */
-	# bnez s5, _check_dasics
-	# REG_S zero, PT_DUMCFG(sp)
-	# j _save_end
 
 _check_dasics:
 	/* dasics uregs are thread specific.
 	 * if this thread doesn't open dasics, 
-	 * its umaincfg should be set to 0 
+	 * its umainbound should be set to 0 
 	 * before starting thread. */
-	REG_L t0, PT_DUMCFG(sp)
+	REG_L t0, PT_DUMBOUND(sp)
 	bnez t0, _save_dasics
 	j _save_end
 _save_dasics:
-	SAVE_UCSR
 	SAVE_DASICS
 _save_end:	
 	.endm
@@ -263,85 +246,73 @@ _save_end:
 	.macro RESTORE_DASICS
 
 	/* Restore dasics main context */
-	/* dumaincfg is saved previously */
-	// REG_L t0, PT_DUMCFG(sp)
-	// csrw CSR_DUMCFG, t0
-	REG_L t1, PT_DUMBOUNDLO(sp)
-	csrw CSR_DUMBOUNDLO, t1
-	REG_L t0, PT_DUMBOUNDHI(sp)
-	csrw CSR_DUMBOUNDHI, t0
+	/* dumbound is saved previously */
 
+	REG_L t0, PT_DMBOUND0(sp)
+	REG_L t1, PT_DMBOUND1(sp)
+	csrw 	 CSR_DMBOUND0, t0
+	csrw 	 CSR_DMBOUND1, t1
+	REG_L t0, PT_DMBOUND2(sp)
+	REG_L t1, PT_DMBOUND3(sp)
+	csrw 	 CSR_DMBOUND2, t0
+	csrw 	 CSR_DMBOUND3, t1
+	REG_L t0, PT_DMBOUND4(sp)
+	REG_L t1, PT_DMBOUND5(sp)
+	csrw 	 CSR_DMBOUND4, t0
+	csrw 	 CSR_DMBOUND5, t1
+	REG_L t0, PT_DMBOUND6(sp)
+	REG_L t1, PT_DMBOUND7(sp)
+	csrw 	 CSR_DMBOUND6, t0
+	csrw 	 CSR_DMBOUND7, t1
+	REG_L t0, PT_DMBOUND8(sp)
+	REG_L t1, PT_DMBOUND9(sp)
+	csrw 	 CSR_DMBOUND8, t0
+	csrw 	 CSR_DMBOUND9, t1
+	REG_L t0, PT_DMBOUND10(sp)
+	REG_L t1, PT_DMBOUND11(sp)
+	csrw 	 CSR_DMBOUND10, t0
+	csrw 	 CSR_DMBOUND11, t1
+	REG_L t0, PT_DMBOUND12(sp)
+	REG_L t1, PT_DMBOUND13(sp)
+	csrw 	 CSR_DMBOUND12, t0
+	csrw 	 CSR_DMBOUND13, t1
+	REG_L t0, PT_DMBOUND14(sp)
+	REG_L t1, PT_DMBOUND15(sp)
+	csrw 	 CSR_DMBOUND14, t0
+	csrw 	 CSR_DMBOUND15, t1
 
-	REG_L t0, PT_DLCFG0(sp)
-	# REG_L t1, PT_DLCFG1(sp)
-	csrw CSR_DLCFG0, t0
-	# csrw CSR_DLCFG1, t1
-
-	REG_L t0, PT_DLBOUND0LO(sp)
-	REG_L t1, PT_DLBOUND0HI(sp)
-	csrw 	 CSR_DLBOUND0LO, t0
-	csrw 	 CSR_DLBOUND0HI, t1
-	REG_L t0, PT_DLBOUND1LO(sp)
-	REG_L t1, PT_DLBOUND1HI(sp)
-	csrw 	 CSR_DLBOUND1LO, t0
-	csrw 	 CSR_DLBOUND1HI, t1
-	REG_L t0, PT_DLBOUND2LO(sp)
-	REG_L t1, PT_DLBOUND2HI(sp)
-	csrw 	 CSR_DLBOUND2LO, t0
-	csrw 	 CSR_DLBOUND2HI, t1
-	REG_L t0, PT_DLBOUND3LO(sp)
-	REG_L t1, PT_DLBOUND3HI(sp)
-	csrw 	 CSR_DLBOUND3LO, t0
-	csrw 	 CSR_DLBOUND3HI, t1
-	REG_L t0, PT_DLBOUND4LO(sp)
-	REG_L t1, PT_DLBOUND4HI(sp)
-	csrw 	 CSR_DLBOUND4LO, t0
-	csrw 	 CSR_DLBOUND4HI, t1
-	REG_L t0, PT_DLBOUND5LO(sp)
-	REG_L t1, PT_DLBOUND5HI(sp)
-	csrw 	 CSR_DLBOUND5LO, t0
-	csrw 	 CSR_DLBOUND5HI, t1
-	REG_L t0, PT_DLBOUND6LO(sp)
-	REG_L t1, PT_DLBOUND6HI(sp)
-	csrw 	 CSR_DLBOUND6LO, t0
-	csrw 	 CSR_DLBOUND6HI, t1
-	REG_L t0, PT_DLBOUND7LO(sp)
-	REG_L t1, PT_DLBOUND7HI(sp)
-	csrw 	 CSR_DLBOUND7LO, t0
-	csrw 	 CSR_DLBOUND7HI, t1
-
-	REG_L t0, PT_DLBOUND8LO(sp)
-	REG_L t1, PT_DLBOUND8HI(sp)
-	csrw 	 CSR_DLBOUND8LO, t0
-	csrw 	 CSR_DLBOUND8HI, t1
-	REG_L t0, PT_DLBOUND9LO(sp)
-	REG_L t1, PT_DLBOUND9HI(sp)
-	csrw 	 CSR_DLBOUND9LO, t0
-	csrw 	 CSR_DLBOUND9HI, t1
-	REG_L t0, PT_DLBOUND10LO(sp)
-	REG_L t1, PT_DLBOUND10HI(sp)
-	csrw 	 CSR_DLBOUND10LO, t0
-	csrw 	 CSR_DLBOUND10HI, t1
-	REG_L t0, PT_DLBOUND11LO(sp)
-	REG_L t1, PT_DLBOUND11HI(sp)
-	csrw 	 CSR_DLBOUND11LO, t0
-	csrw 	 CSR_DLBOUND11HI, t1
-	REG_L t0, PT_DLBOUND12LO(sp)
-	REG_L t1, PT_DLBOUND12HI(sp)
-	csrw 	 CSR_DLBOUND12LO, t0
-	csrw 	 CSR_DLBOUND12HI, t1
-	REG_L t0, PT_DLBOUND13LO(sp)
-	REG_L t1, PT_DLBOUND13HI(sp)
-	csrw 	 CSR_DLBOUND13LO, t0
-	csrw 	 CSR_DLBOUND13HI, t1
-	REG_L t0, PT_DLBOUND14LO(sp)
-	REG_L t1, PT_DLBOUND14HI(sp)
-	csrw 	 CSR_DLBOUND14LO, t0
-	csrw 	 CSR_DLBOUND14HI, t1
-	REG_L t0, PT_DLBOUND15LO(sp)
-	REG_L t1, PT_DLBOUND15HI(sp)
-	csrw 	 CSR_DLBOUND15LO, t0
-	csrw 	 CSR_DLBOUND15HI, t1
+	REG_L t0, PT_DMBOUND16(sp)
+	REG_L t1, PT_DMBOUND17(sp)
+	csrw 	 CSR_DMBOUND16, t0
+	csrw 	 CSR_DMBOUND17, t1
+	REG_L t0, PT_DMBOUND18(sp)
+	REG_L t1, PT_DMBOUND19(sp)
+	csrw 	 CSR_DMBOUND18, t0
+	csrw 	 CSR_DMBOUND19, t1
+	REG_L t0, PT_DMBOUND20(sp)
+	REG_L t1, PT_DMBOUND21(sp)
+	csrw 	 CSR_DMBOUND20, t0
+	csrw 	 CSR_DMBOUND21, t1
+	REG_L t0, PT_DMBOUND22(sp)
+	REG_L t1, PT_DMBOUND23(sp)
+	csrw 	 CSR_DMBOUND22, t0
+	csrw 	 CSR_DMBOUND23, t1
+	REG_L t0, PT_DMBOUND24(sp)
+	REG_L t1, PT_DMBOUND25(sp)
+	csrw 	 CSR_DMBOUND24, t0
+	csrw 	 CSR_DMBOUND25, t1
+	REG_L t0, PT_DMBOUND26(sp)
+	REG_L t1, PT_DMBOUND27(sp)
+	csrw 	 CSR_DMBOUND26, t0
+	csrw 	 CSR_DMBOUND27, t1
+	REG_L t0, PT_DMBOUND28(sp)
+	REG_L t1, PT_DMBOUND29(sp)
+	csrw 	 CSR_DMBOUND28, t0
+	csrw 	 CSR_DMBOUND29, t1
+	REG_L t0, PT_DMBOUND30(sp)
+	REG_L t1, PT_DMBOUND31(sp)
+	csrw 	 CSR_DMBOUND30, t0
+	csrw 	 CSR_DMBOUND31, t1
 
 	REG_L t0, PT_DMAINCALL(sp)
 	csrw CSR_DMAINCALL, t0
@@ -352,25 +323,22 @@ _save_end:
 	REG_L t1, PT_DFREASON(sp)
 	csrw CSR_DFREASON, t1
 
-	REG_L t0, PT_DJBOUND0LO(sp)
-	REG_L t1, PT_DJBOUND0HI(sp)
-	csrw 	 CSR_DJBOUND0LO, t0
-	csrw 	 CSR_DJBOUND0HI, t1
-	REG_L t0, PT_DJBOUND1LO(sp)
-	REG_L t1, PT_DJBOUND1HI(sp)
-	csrw 	 CSR_DJBOUND1LO, t0
-	csrw 	 CSR_DJBOUND1HI, t1
-	REG_L t0, PT_DJBOUND2LO(sp)
-	REG_L t1, PT_DJBOUND2HI(sp)
-	csrw 	 CSR_DJBOUND2LO, t0
-	csrw 	 CSR_DJBOUND2HI, t1
-	REG_L t0, PT_DJBOUND3LO(sp)
-	REG_L t1, PT_DJBOUND3HI(sp)
-	csrw 	 CSR_DJBOUND3LO, t0
-	csrw 	 CSR_DJBOUND3HI, t1
-
-	REG_L t0, PT_DJCFG(sp)
-	csrw 	 CSR_DJCFG, t0
+	REG_L t0, PT_DJBOUND0(sp)
+	REG_L t1, PT_DJBOUND1(sp)
+	csrw 	 CSR_DJBOUND0, t0
+	csrw 	 CSR_DJBOUND1, t1
+	REG_L t0, PT_DJBOUND2(sp)
+	REG_L t1, PT_DJBOUND3(sp)
+	csrw 	 CSR_DJBOUND2, t0
+	csrw 	 CSR_DJBOUND3, t1
+	REG_L t0, PT_DJBOUND4(sp)
+	REG_L t1, PT_DJBOUND5(sp)
+	csrw 	 CSR_DJBOUND4, t0
+	csrw 	 CSR_DJBOUND5, t1
+	REG_L t0, PT_DJBOUND6(sp)
+	REG_L t1, PT_DJBOUND7(sp)
+	csrw 	 CSR_DJBOUND6, t0
+	csrw 	 CSR_DJBOUND7, t1
 
 	.endm
 
@@ -432,20 +400,17 @@ _save_end:
 
 _check_kernel:
 	/* How can I know I handled an exception from kernel thread? */
-	# andi t0, a0, SR_SPP
-	# beqz t0, _check_dasics
-	# csrw CSR_DUMCFG, zero
-	# j _restore_general
+
 _check_dasics:
-	REG_L t0, PT_DUMCFG(sp)
-	csrw CSR_DUMCFG, t0
+	REG_L t0, PT_DUMBOUND(sp)
+	csrw CSR_DUMBOUND, t0
 	beqz t0, _restore_general
 _restore_dasics:
 	RESTORE_DASICS
-	RESTORE_UCSR
 _restore_general:
-	/* restore general regs */
+	RESTORE_UCSR
 
+	/* restore general regs */
 	REG_L x1,  PT_RA(sp)
 	REG_L x3,  PT_GP(sp)
 	REG_L x4,  PT_TP(sp)

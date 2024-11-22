@@ -91,20 +91,15 @@ struct user_ext_regs_struct {
 	unsigned long utimer;
 
 	/* dasics supervisor registers */
-	unsigned long dasicsUmainCfg;  		/* initialize should be zero */
-	unsigned long dasicsUMainBoundLo;
-	unsigned long dasicsUMainBoundHi;
+	unsigned long dasicsUMainBound;  		/* initialize should be zero */
 
     /* Saved DASICS user registers */
-    unsigned long dasicsLibCfg0;
-    unsigned long dasicsLibCfg1;    // reserved
-    unsigned long dasicsLibBounds[16][2];
+    unsigned long dasicsMemBounds[32];
     unsigned long dasicsMaincall;
     unsigned long dasicsReturnPC;
     unsigned long dasicsFreezoneRet;
 	unsigned long dasicsFaultReason;
-    unsigned long dasicsJumpBounds[4][2];
-    unsigned long dasicsJumpCfg;
+    unsigned long dasicsJmpBounds[8];
 };
 #endif 
 

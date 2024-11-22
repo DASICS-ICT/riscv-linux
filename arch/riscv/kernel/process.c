@@ -22,6 +22,10 @@
 #include <asm/switch_to.h>
 #include <asm/thread_info.h>
 
+#ifdef CONFIG_DASICS
+#include <asm/kdasics.h>
+#endif /* CONFIG_DASICS */
+
 register unsigned long gp_in_global __asm__("gp");
 
 #ifdef CONFIG_STACKPROTECTOR
@@ -84,23 +88,27 @@ void show_ext_regs(struct pt_regs *regs)
 		regs->uip, regs->uscratch, regs->utimer);	
 
 	/* Dasics supervisor regs */
-	pr_cont("DASICS User Main Registers: \n");
-	pr_cont("config: " REG_FMT " bound hi: " REG_FMT " bound lo: " REG_FMT "\n",
-		regs->dasicsUmainCfg, regs->dasicsUMainBoundHi, regs->dasicsUMainBoundLo);
 
+	pr_cont("DASICS User Main Registers: \n");
+	  pr_cont("cfg: " REG_FMT " lo: " REG_FMT " hi: " REG_FMT "\n",
+       get_dasics_bound_cfg(regs->dasicsUMainBound),
+       get_dasics_bound_lo(regs->dasicsUMainBound),
+       get_dasics_bound_hi(regs->dasicsUMainBound));
 	/* Dasics user regs */
 	pr_cont("DASICS Lib Registers: \n");
-	pr_cont("config0: " REG_FMT " config1: " REG_FMT "\n",
-		regs->dasicsLibCfg0, regs->dasicsLibCfg1);
 
-	for (cnt = 0; cnt < 16; cnt++) {
-		pr_cont("(%d) mem bound lo: " REG_FMT " mem bound hi: " REG_FMT "\n",
-			cnt, regs->dasicsLibBounds[cnt][0], regs->dasicsLibBounds[cnt][1]);
+	for (cnt = 0; cnt < DASICS_MEMCFG_WIDTH; cnt++) {
+		pr_cont("(%d) mem bound cfg:" REG_FMT " lo: " REG_FMT " mem bound hi: " REG_FMT "\n", cnt, 
+			get_dasics_bound_cfg(regs->dasicsMemBounds[cnt]),
+       		get_dasics_bound_lo(regs->dasicsMemBounds[cnt]),
+       		get_dasics_bound_hi(regs->dasicsMemBounds[cnt]));
 	}
 
-	for (cnt = 0; cnt < 4; cnt++) {
-		pr_cont("(%d) jump bound lo: " REG_FMT " jump bound hi: " REG_FMT "\n",
-			cnt, regs->dasicsJumpBounds[cnt][0], regs->dasicsJumpBounds[cnt][1]);
+	for (cnt = 0; cnt < DASICS_JMPCFG_WIDTH; cnt++) {
+		pr_cont("(%d) jmp bound cfg:" REG_FMT " lo: " REG_FMT " mem bound hi: " REG_FMT "\n", cnt,
+			get_dasics_bound_cfg(regs->dasicsJmpBounds[cnt]),
+       		get_dasics_bound_lo(regs->dasicsJmpBounds[cnt]),
+       		get_dasics_bound_hi(regs->dasicsJmpBounds[cnt]));
 	}
 
 	pr_cont("DASICS Other Registers: \n");
