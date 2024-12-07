@@ -1693,6 +1693,7 @@ out_free_interp:
 	pr_info("maincall entry: " REG_FMT " return pc: " REG_FMT " freezone return pc: " REG_FMT " fault reason: " REG_FMT "\n",
 		regs->dasicsMaincall, regs->dasicsReturnPC, regs->dasicsFreezoneRet, regs->dasicsFaultReason);
 	pr_info("finish dasics initialization.\n");
+#endif /* CONFIG_DASICS_DEBUG */
 
 out_free_secstrs:
 	kfree(secstrs);
