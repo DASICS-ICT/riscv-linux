@@ -1469,15 +1469,16 @@ static int load_elf_binary(struct linux_binprm *bprm)
 
 	/* protect data */
 	/* currently protact heap\mmap\stack together */	
-	regs->dasicsLibBounds[dasics_libidx][0] = align8down(current->mm->start_brk);
-	regs->dasicsLibBounds[dasics_libidx++][1] = align8up(current->mm->start_stack);
+	// regs->dasicsLibBounds[dasics_libidx][0] = align8down(current->mm->start_brk);
+	// regs->dasicsLibBounds[dasics_libidx++][1] = align8up(current->mm->start_stack);
 
 	//jbound0: lib code jump enable     
 	//mbound0: v  | r  | hi -- start_data - 0x2UL
 	//mbound1: v  | rw | start_data -- TASK_SIZE
-	regs->dasicsJumpCfg =   DASICS_JUMPCFG_V;
-	regs->dasicsLibCfg0 = ((DASICS_LIBCFG_V | DASICS_LIBCFG_R | DASICS_LIBCFG_W) << 4 * 1) | 
-						  ((DASICS_LIBCFG_V | DASICS_LIBCFG_R));
+	// regs->dasicsJumpCfg =   DASICS_JUMPCFG_V;
+	// regs->dasicsLibCfg0 = ((DASICS_LIBCFG_V | DASICS_LIBCFG_R | DASICS_LIBCFG_W) << 4 * 1) | 
+	// 					  ((DASICS_LIBCFG_V | DASICS_LIBCFG_R));
+	regs->dasicsLibCfg0 = DASICS_LIBCFG_V | DASICS_LIBCFG_R;
 
 /* set free zone*/ 
     elf_shtmp = find_sec(secstrs, &loc->elf_ex, elf_shdata, ".ufreezonetext");
