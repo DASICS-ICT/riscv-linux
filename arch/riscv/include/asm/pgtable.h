@@ -29,6 +29,12 @@
 #define BPF_JIT_REGION_START	(PAGE_OFFSET - BPF_JIT_REGION_SIZE)
 #define BPF_JIT_REGION_END	(VMALLOC_END)
 
+/* dasics trusted or untrusted modules range */
+#define UT_MODULES_START VMALLOC_START
+#define UT_MODULES_END   VMALLOC_START + (VMALLOC_SIZE / 2)
+#define T_MODULES_START  UT_MODULES_END
+#define T_MODULES_END VMALLOC_END
+
 /*
  * Roughly size the vmemmap space to be large enough to fit enough
  * struct pages to map half the virtual address space. Then

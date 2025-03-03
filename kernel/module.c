@@ -2868,6 +2868,20 @@ void * __weak module_alloc(unsigned long size)
 			NUMA_NO_NODE, __builtin_return_address(0));
 }
 
+void * trusted_module_alloc(unsigned long size)
+{
+	return __vmalloc_node_range(size, 1, T_MODULES_START, T_MODULES_END,
+			GFP_KERNEL, PAGE_KERNEL_EXEC, VM_FLUSH_RESET_PERMS,
+			NUMA_NO_NODE, __builtin_return_address(0));
+}
+
+void * untrusted_module_alloc(unsigned long size)
+{
+	return __vmalloc_node_range(size, 1, UT_MODULES_START, UT_MODULES_END,
+			GFP_KERNEL, PAGE_KERNEL_EXEC, VM_FLUSH_RESET_PERMS,
+			NUMA_NO_NODE, __builtin_return_address(0));
+}
+
 bool __weak module_init_section(const char *name)
 {
 	return strstarts(name, ".init");
@@ -3414,7 +3428,8 @@ static int move_module(struct module *mod, struct load_info *info)
 	void *ptr;
 
 	/* Do the allocs. */
-	ptr = module_alloc(mod->core_layout.size);
+	//ptr = module_alloc(mod->core_layout.size);
+	ptr = trusted_module_alloc(mod->core_layout.size);
 	/*
 	 * The pointer to this block is stored in the module structure
 	 * which is inside the block. Just mark it as not being a
