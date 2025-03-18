@@ -249,6 +249,10 @@
 #define DASICS_JUMPCFG_V    	0x1UL
 #endif /* CONFIG_DASICS */
 
+#ifdef CONFIG_RISCV_ZICFILP
+#define CSR_SENVCFG 0X10a
+#endif
+
 #ifndef __ASSEMBLY__
 
 #define csr_swap(csr, val)					\
