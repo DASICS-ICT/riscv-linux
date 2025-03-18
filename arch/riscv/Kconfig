@@ -216,6 +216,10 @@ config DASICS_DEBUG
 config ZYNQ_ONBOARD
 	def_bool n	
 
+config RISCV_ZICFILP
+	bool "config RISCV_ZICFILP is used for opening zicfilp protection"
+	default y
+	
 menu "Platform type"
 
 choice
