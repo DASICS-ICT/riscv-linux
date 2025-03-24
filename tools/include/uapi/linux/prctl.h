@@ -247,4 +247,20 @@ struct prctl_mm_map {
 #define PR_SET_IO_FLUSHER		57
 #define PR_GET_IO_FLUSHER		58
 
+#ifdef __riscv
+/* Enable/Disable zicfilp function in U-mode for RISCV */
+# define PR_RISCV_ZICFILP 1000
+
+/* Operation codes for zicfilp feature */
+#define RISCV_ZICFILP_GET    1
+#define RISCV_ZICFILP_SET    2
+
+/* Values for set operation */
+#define RISCV_ZICFILP_DISABLE 0
+#define RISCV_ZICFILP_ENABLE  1
+
+int riscv_handle_zicfilp(unsigned long op, unsigned long val);
+
+#endif // __riscv
+
 #endif /* _LINUX_PRCTL_H */

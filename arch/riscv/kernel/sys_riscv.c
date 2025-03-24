@@ -6,6 +6,7 @@
  */
 
 #include <linux/syscalls.h>
+#include <linux/prctl.h>
 #include <asm/unistd.h>
 #include <asm/cacheflush.h>
 #include <asm-generic/mman-common.h>
@@ -66,4 +67,67 @@ SYSCALL_DEFINE3(riscv_flush_icache, uintptr_t, start, uintptr_t, end,
 	flush_icache_mm(current->mm, flags & SYS_RISCV_FLUSH_ICACHE_LOCAL);
 
 	return 0;
+}
+
+/**
+ * Handle zicfilp feature operations for prctl
+ * @param op: Operation type - RISCV_ZICFILP_GET: get status, RISCV_ZICFILP_SET: set status
+ * @param val: When op=RISCV_ZICFILP_SET, this parameter specifies the value to set
+ *            (RISCV_ZICFILP_DISABLE or RISCV_ZICFILP_ENABLE)
+ *
+ * @return On success: If get operation, returns current status (0 or 1); If set operation, returns 0
+ *         On failure: Returns negative error code
+ */
+int riscv_handle_zicfilp(unsigned long op, unsigned long val)
+{
+    /* Validate operation type */
+    if (op != RISCV_ZICFILP_GET && op != RISCV_ZICFILP_SET)
+        return -EINVAL;
+    
+    /* For set operation, validate the value */
+    if (op == RISCV_ZICFILP_SET && 
+        val != RISCV_ZICFILP_DISABLE && val != RISCV_ZICFILP_ENABLE)
+        return -EINVAL;
+    
+    /* Require admin privileges for set operation */
+    if (op == RISCV_ZICFILP_SET && !capable(CAP_SYS_ADMIN))
+        return -EPERM;
+    
+    /* Handle GET operation */
+    if (op == RISCV_ZICFILP_GET) {
+        unsigned long status;
+        
+        /* Read the bit directly with optimized assembly */
+        asm volatile(
+            "csrr %0, 0x10a\n\t"  /* Read the CSR register */
+            "andi %0, %0, 4\n\t"   /* Mask bit 2 (0x4) */
+            "srli %0, %0, 2"       /* Shift right to get 0 or 1 */
+            : "=r"(status)         /* Output: status */
+            :                      /* No inputs */
+            : /* No clobbers */
+        );
+        
+        return status;
+    } else {
+        /* Handle SET operation */
+        if (val == RISCV_ZICFILP_ENABLE) {
+            /* Set bit 2 using csrsi (CSR Set Immediate) */
+            asm volatile(
+                "csrsi 0x10a, 4"   /* Set bit 2 (0x4) */
+                :                  /* No outputs */
+                :                  /* No inputs */
+                : "memory"         /* Memory clobber to prevent reordering */
+            );
+        } else {
+            /* Clear bit 2 using csrci (CSR Clear Immediate) */
+            asm volatile(
+                "csrci 0x10a, 4"   /* Clear bit 2 (0x4) */
+                :                  /* No outputs */
+                :                  /* No inputs */
+                : "memory"         /* Memory clobber to prevent reordering */
+            );
+        }
+        
+        return 0;
+    }
 }

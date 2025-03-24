@@ -2525,6 +2525,16 @@ SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
 
 		error = (current->flags & PR_IO_FLUSHER) == PR_IO_FLUSHER;
 		break;
+
+#ifdef CONFIG_RISCV
+	case PR_RISCV_ZICFILP:
+	/* Validate parameters - arg4 and arg5 must be 0 */
+		if (arg4 || arg5)
+			return -EINVAL;
+		error = riscv_handle_zicfilp(arg2, arg3);
+		break;
+#endif // CONFIG_RISCV
+
 	default:
 		error = -EINVAL;
 		break;
