@@ -22,6 +22,7 @@
 #include <asm/io.h>
 #include <asm/ptdump.h>
 #include <asm/sbi.h>
+#include <asm/pgtable.h>
 
 #include "../kernel/head.h"
 
@@ -672,7 +673,7 @@ void __init paging_init(void)
 	setup_zero_page();
 	// update s main reg for dasics
 	// only can write by M code or sbi_ecall
-	sbi_ecall(0xda51c5, 0x1, 0, (~0UL), 0x1, 0, 0, 0);
+	sbi_ecall(0xda51c5, 0x1, T_MODULES_START, PAGE_OFFSET + (512 * 1024 * 1024), 0x1, 0, 0, 0);
 }
 
 void __init misc_mem_init(void)

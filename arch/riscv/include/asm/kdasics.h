@@ -21,17 +21,50 @@
 #define TRUST_LIB_BASE 0x800000
 // TODO: Add Smaincall types
 typedef enum {
-    Smaincall_UNKNOWN
+    Smaincall_PRINT = 1
 } SmaincallTypes;
+
+#define DASICS_LIBCFG_WIDTH 16
+#define DASICS_LIBCFG_MASK  0xfUL
+#define DASICS_LIBCFG_V     0x8UL
+#define DASICS_LIBCFG_R     0x2UL
+#define DASICS_LIBCFG_W     0x1UL
+
+#define DASICS_JUMPCFG_WIDTH 	4
+#define DASICS_JUMPCFG_MASK 	0xffffUL
+#define DASICS_JUMPCFG_V    	0x1UL
+
+/* smaincall used */
+#define OFFSET_SMAINCALL_T0     (8*0)
+#define OFFSET_SMAINCALL_T1     (8*1)
+#define OFFSET_SMAINCALL_T3     (8*2)
+#define OFFSET_SMAINCALL_RA     (8*3)
+#define OFFSET_SMAINCALL_A0     (8*4)
+#define OFFSET_SMAINCALL_A1     (8*5)
+#define OFFSET_SMAINCALL_A2     (8*6)
+#define OFFSET_SMAINCALL_A3     (8*7)
+#define OFFSET_SMAINCALL_A4     (8*8)
+#define OFFSET_SMAINCALL_A5     (8*9)
+#define OFFSET_SMAINCALL_A6     (8*10)
+#define OFFSET_SMAINCALL_A7     (8*11)
+#define OFFSET_SMAINCALL_SP     (8*12)
+
+#define OFFSET_SMAINCALL        (8*13)
 
 void     dasics_init_umain_bound(uint64_t cfg, uint64_t hi, uint64_t lo);
 void     dasics_init_smaincall(uint64_t entry);
-uint64_t dasics_smaincall(SmaincallTypes type, uint64_t arg0, uint64_t arg1, uint64_t arg2);
+uint64_t dasics_smaincall(SmaincallTypes type, uint64_t arg0, uint64_t arg1);
 int32_t  dasics_libcfg_kalloc(uint64_t cfg, uint64_t hi, uint64_t lo);
 int32_t  dasics_libcfg_kfree(int32_t idx);
 uint32_t dasics_libcfg_kget(int32_t idx);
 int32_t  dasics_jumpcfg_kalloc(uint64_t lo, uint64_t hi);
 int32_t  dasics_jumpcfg_kfree(int32_t idx);
 uint32_t dasics_jumpcfg_kget(int32_t idx);
+void klib_call(void* func_name, ...);
+int ret_klib_call(void* func_name, ...);
+void register_kdasics(uint64_t funcptr);
+void unregister_kdasics(void);
+//void save_smaincall(void);
+//void restore_smaincall(void);
 
 #endif

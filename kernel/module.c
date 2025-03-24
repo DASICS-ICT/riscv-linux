@@ -67,6 +67,8 @@
 #define ARCH_SHF_SMALL 0
 #endif
 
+#include <asm/kdasics.h>
+
 /*
  * Modules' sections will be aligned on page boundaries
  * to ensure complete separation of code and data, but
@@ -3422,19 +3424,22 @@ static int find_module_sections(struct module *mod, struct load_info *info)
 	return 0;
 }
 
-static int move_module(struct module *mod, struct load_info *info)
+static int move_module(struct module *mod, struct load_info *info, int trust)
 {
 	int i;
 	void *ptr;
 
 	/* Do the allocs. */
-	//ptr = module_alloc(mod->core_layout.size);
-	ptr = trusted_module_alloc(mod->core_layout.size);
+	if (trust)
+		ptr = trusted_module_alloc(mod->core_layout.size);
+	else
+		ptr = untrusted_module_alloc(mod->core_layout.size);
 	/*
 	 * The pointer to this block is stored in the module structure
 	 * which is inside the block. Just mark it as not being a
 	 * leak.
 	 */
+    pr_info("module ptr is %lx\n", ptr);
 	kmemleak_not_leak(ptr);
 	if (!ptr)
 		return -ENOMEM;
@@ -3443,7 +3448,10 @@ static int move_module(struct module *mod, struct load_info *info)
 	mod->core_layout.base = ptr;
 
 	if (mod->init_layout.size) {
-		ptr = module_alloc(mod->init_layout.size);
+		if (trust)
+			ptr = trusted_module_alloc(mod->init_layout.size);
+		else
+			ptr = untrusted_module_alloc(mod->init_layout.size);
 		/*
 		 * The pointer to this block is stored in the module structure
 		 * which is inside the block. This block doesn't need to be
@@ -3571,7 +3579,7 @@ static bool blacklisted(const char *module_name)
 }
 core_param(module_blacklist, module_blacklist, charp, 0400);
 
-static struct module *layout_and_allocate(struct load_info *info, int flags)
+static struct module *layout_and_allocate(struct load_info *info, int flags, int trust)
 {
 	struct module *mod;
 	unsigned int ndx;
@@ -3620,7 +3628,7 @@ static struct module *layout_and_allocate(struct load_info *info, int flags)
 	layout_symtab(info->mod, info);
 
 	/* Allocate and move to the final place */
-	err = move_module(info->mod, info);
+	err = move_module(info->mod, info, trust);
 	if (err)
 		return ERR_PTR(err);
 
@@ -3722,7 +3730,7 @@ static void do_free_init(struct work_struct *w)
  * Keep it uninlined to provide a reliable breakpoint target, e.g. for the gdb
  * helper command 'lx-symbols'.
  */
-static noinline int do_init_module(struct module *mod)
+static noinline int do_init_module(struct module *mod, int trust)
 {
 	int ret = 0;
 	struct mod_initfree *freeinit;
@@ -3733,11 +3741,16 @@ static noinline int do_init_module(struct module *mod)
 		goto fail;
 	}
 	freeinit->module_init = mod->init_layout.base;
-
 	do_mod_ctors(mod);
 	/* Start the module */
-	if (mod->init != NULL)
-		ret = do_one_initcall(mod->init);
+	if (mod->init != NULL) {
+        if (trust)
+		    ret = do_one_initcall(mod->init);
+        else
+            ret = do_untrust_one_init_call(mod->init, mod->core_layout.base, 
+                mod->core_layout.base + mod->core_layout.size);
+            //ret = do_untrust_one_init_call(mod->init, mod->core_layout.base, mod->core_layout.size, mod->core_layout.base, mod->core_layout.size);
+    }
 	if (ret < 0) {
 		goto fail_free_freeinit;
 	}
@@ -4015,7 +4028,14 @@ static int load_module(struct load_info *info, const char __user *uargs,
 	}
 
 	/* Figure out module layout, and allocate all the memory. */
-	mod = layout_and_allocate(info, flags);
+    char *param = kmalloc(10, GFP_KERNEL);
+    memset(param, 'A', 9);
+    param[9] = 0;
+	if (copy_from_user(param, uargs, 9))
+		pr_err("copy from user failed\n");
+	int trust = param[8] - '0';
+
+	mod = layout_and_allocate(info, flags, trust);
 	if (IS_ERR(mod)) {
 		err = PTR_ERR(mod);
 		goto free_copy;
@@ -4128,7 +4148,7 @@ static int load_module(struct load_info *info, const char __user *uargs,
 	/* Done! */
 	trace_module_load(mod);
 
-	return do_init_module(mod);
+	return do_init_module(mod, trust);
 
  sysfs_cleanup:
 	mod_sysfs_teardown(mod);
