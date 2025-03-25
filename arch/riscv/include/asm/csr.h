@@ -73,6 +73,10 @@
 #define EXC_INST_PAGE_FAULT	12
 #define EXC_LOAD_PAGE_FAULT	13
 #define EXC_STORE_PAGE_FAULT	15
+#define EXC_SOFTWARE_CHECK  18
+
+/*zicfilp sw_check code*/
+#define EXC_SW_CHECK_FCFI_TVAL 2
 
 /* PMP configuration */
 #define PMP_R			0x01
