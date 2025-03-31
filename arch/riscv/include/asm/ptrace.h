@@ -64,6 +64,7 @@ struct pt_regs {
     unsigned long dasicsReturnPC;
     unsigned long dasicsJumpBounds[1][2];
     unsigned long dasicsJumpCfg;
+	unsigned long stval;
 #endif 	
 
 };

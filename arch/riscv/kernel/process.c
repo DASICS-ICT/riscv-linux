@@ -81,13 +81,14 @@ void show_ext_regs(struct pt_regs *regs)
 
 	/* Dasics user regs */
 	pr_cont("DASICS Lib Registers: \n");
-	pr_cont("config0: " REG_FMT "\n", regs->dasicsLibCfg0);
+	pr_cont("mconfig0: " REG_FMT "\n", regs->dasicsLibCfg0);
 
 	for (cnt = 0; cnt < 4; cnt++) {
 		pr_cont("(%d) mem bound lo: " REG_FMT " mem bound hi: " REG_FMT "\n",
 			cnt, regs->dasicsLibBounds[cnt][0], regs->dasicsLibBounds[cnt][1]);
 	}
 
+	pr_cont("jconfig0: " REG_FMT "\n", regs->dasicsJumpCfg);
 	for (cnt = 0; cnt < 1; cnt++) {
 		pr_cont("(%d) jump bound lo: " REG_FMT " jump bound hi: " REG_FMT "\n",
 			cnt, regs->dasicsJumpBounds[cnt][0], regs->dasicsJumpBounds[cnt][1]);

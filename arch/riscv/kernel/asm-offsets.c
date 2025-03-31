@@ -128,6 +128,7 @@ void asm_offsets(void)
 	OFFSET(PT_DJBOUND0LO, pt_regs, dasicsJumpBounds[0][0]);
 	OFFSET(PT_DJBOUND0HI, pt_regs, dasicsJumpBounds[0][1]);
 	OFFSET(PT_DJCFG, pt_regs, dasicsJumpCfg);
+	OFFSET(PT_STVAL, pt_regs, stval);
 
 #endif 
 

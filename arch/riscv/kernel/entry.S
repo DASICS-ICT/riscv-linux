@@ -67,6 +67,9 @@
 	csrr t0, CSR_DJCFG
 	REG_S t0, PT_DJCFG(sp)
 
+	csrr t0, CSR_STVAL
+	REG_S t0, PT_STVAL(sp)
+
 	.endm
 
 /*
@@ -215,6 +218,10 @@ _save_end:
 
 	REG_L t0, PT_DJCFG(sp)
 	csrw 	 CSR_DJCFG, t0
+
+	REG_L t0, PT_STVAL(sp)
+	csrw 	 CSR_STVAL, t0
+	fence.i
 
 	.endm
 /*

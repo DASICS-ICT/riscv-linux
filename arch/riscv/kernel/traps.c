@@ -199,14 +199,6 @@ asmlinkage void do_trap_dasics(struct pt_regs *regs)
 		                                trap_name, regs->cause, regs->epc, regs->badaddr);
 	die(regs, "Kernel BUG");
 
-	// currently just skip error pc.
-	   regs->epc += 4;
-	// rvc will compress jump/branch inst.
-	//if (regs->scause == EXC_DASICS_UFETCH_FAULT || regs->scause == EXC_DASICS_SFETCH_FAULT) 
-	//	regs->epc += 2;
-	//else 
-	//	regs->epc += 4;
-}
 
 /* stvec & scratch is already set from head.S */
 void trap_init(void)
