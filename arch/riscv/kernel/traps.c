@@ -199,7 +199,7 @@ asmlinkage void do_trap_dasics(struct pt_regs *regs)
 		                                trap_name, regs->cause, regs->epc, regs->badaddr);
 	die(regs, "Kernel BUG");
 
-
+}
 /* stvec & scratch is already set from head.S */
 void trap_init(void)
 {
