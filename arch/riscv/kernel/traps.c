@@ -21,6 +21,10 @@
 #include <asm/ptrace.h>
 #include <asm/csr.h>
 
+#include <linux/hashtable.h>
+#include <asm/kdasics.h>
+#include <linux/random.h>
+
 int show_unhandled_signals = 1;
 
 extern asmlinkage void handle_exception(void);
@@ -187,18 +191,54 @@ int is_valid_bugaddr(unsigned long pc)
 }
 #endif /* CONFIG_GENERIC_BUG */
 
+static int dasics_ldst_checker(uint64_t stval, int is_read, struct pt_regs *regs) {
+	int valid_perm = DASICS_LIBCFG_V | (is_read ? DASICS_LIBCFG_R : DASICS_LIBCFG_W);
+    uint64_t libcfg = regs->dasicsLibCfg0;   // DasicsLibCfg
+    int step = 4;
+
+	struct dasics_bound *bound;
+	int bkt;
+
+	hash_for_each(current->dasics_hash_table, bkt, bound, node) {
+		if (bound->lo <= stval && stval < bound->hi && \
+			(bound->priv & valid_perm) == valid_perm) {
+
+			int victim = get_random_u32() % DASICS_LIBCFG_WIDTH;
+			regs->dasicsLibBounds[victim][0] = bound->lo;
+			regs->dasicsLibBounds[victim][1] = bound->hi;
+
+			libcfg &= ~(DASICS_LIBCFG_MASK << (victim * step));
+			libcfg |= ((uint64_t)bound->priv) << (victim * step);
+			regs->dasicsLibCfg0 = libcfg;
+
+			current->dlibcfg_handle_map[victim] = bound->handle;
+
+			pr_info("[DASICS EXCEPTION]Info: dasics load/store fault OK! new csr idx is %d, lo = 0x%lx, hi = 0x%lx\n", 
+				victim, bound->lo, bound->hi);
+			return victim;
+		}
+	}
+
+	return -1;
+}
 /* This function may handle dasics exceptions in another way in future. */
 asmlinkage void do_trap_dasics(struct pt_regs *regs) 
 {
 	char *trap_name = regs->cause == 0x18 ? "fetch" :
 					  regs->cause == 0x19 ? "load"  : "store";
 
-	show_regs(regs);
-	show_ext_regs(regs);
+	// show_regs(regs);
+	// show_ext_regs(regs);
 	pr_info("[DASICS EXCEPTION]Info: dasics %s fault occurs, scause = 0x%lx spec = 0x%lx stval = 0x%lx\n",
-		                                trap_name, regs->cause, regs->epc, regs->badaddr);
-	die(regs, "Kernel BUG");
+		                                trap_name, regs->cause, regs->epc, regs->stval);
+	
+	if (regs->cause == 0x18) die(regs, "Jump Error!");
 
+	// load/store
+	int is_read = regs->cause == 0x19;
+	int csr_idx = dasics_ldst_checker(regs->stval, is_read, regs);
+
+	if (csr_idx == -1) die(regs, "No load/store bound!");	
 }
 /* stvec & scratch is already set from head.S */
 void trap_init(void)
