@@ -70,6 +70,11 @@
 #include <asm/unistd.h>
 #include <asm/mmu_context.h>
 
+#ifdef CONFIG_DASICS
+#include <linux/hashtable.h>
+#include <asm/kdasics.h>
+#endif
+
 /*
  * The default value should be high enough to not crash a system that randomly
  * crashes its kernel from time to time, but low enough to at least not permit
@@ -226,6 +231,19 @@ void put_task_struct_rcu_user(struct task_struct *task)
 		call_rcu(&task->rcu, delayed_put_task_struct);
 }
 
+#ifdef CONFIG_DASICS
+static void cleanup_hashtable(struct task_struct *p) {
+	struct dasics_bound *bound;
+	int bkt;
+
+	hash_for_each(current->dasics_hash_table, bkt, bound, node) {
+		hash_del(&bound->node);
+		kfree(bound);
+	}
+	pr_info("DASICS Cleanup Hashtable!\n");
+}
+#endif
+
 void release_task(struct task_struct *p)
 {
 	struct task_struct *leader;
@@ -265,6 +283,11 @@ repeat:
 	}
 
 	write_unlock_irq(&tasklist_lock);
+#ifdef CONFIG_DASICS
+	if (p->dasics_state != 0) {
+		cleanup_hashtable(p);
+	}
+#endif
 	seccomp_filter_release(p);
 	proc_flush_pid(thread_pid);
 	put_pid(thread_pid);

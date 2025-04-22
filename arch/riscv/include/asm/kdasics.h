@@ -24,6 +24,14 @@ typedef enum {
     Smaincall_UNKNOWN
 } SmaincallTypes;
 
+struct dasics_bound {
+    int handle;
+    int priv;
+    int lo;
+    int hi;
+    struct hlist_node node;
+};
+
 void     dasics_init_umain_bound(uint64_t cfg, uint64_t hi, uint64_t lo);
 void     dasics_init_smaincall(uint64_t entry);
 uint64_t dasics_smaincall(SmaincallTypes type, uint64_t arg0, uint64_t arg1, uint64_t arg2);

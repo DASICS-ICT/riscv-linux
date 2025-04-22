@@ -53,6 +53,7 @@
 #include <asm/csr.h>
 #include <asm/kdasics.h>
 #include <asm/thread_info.h>
+#include <linux/hashtable.h>
 #endif /* CONFIG_DASICS */
 
 
@@ -998,7 +999,7 @@ static int load_elf_binary(struct linux_binprm *bprm)
 	struct elf_shdr *elf_shdata, *elf_shtmp;
 	char *secstrs = NULL;
 	unsigned long hi = 0, lo = 0;
-	struct vm_area_struct *vmaptr;
+	// struct vm_area_struct *vmaptr;
 	int dasics_libidx = 0;
 	int dasics_jumpidx = 0;                 
 	unsigned long interp_entry;
@@ -1580,9 +1581,9 @@ out_free_interp:
 
 		/* get read-only datas. */
 		/* This area contains some other codes, however, lib text should not execute them. */
-		regs->dasicsLibBounds[dasics_libidx][0] = align8down(hi);
-		regs->dasicsLibBounds[dasics_libidx++][1] = align8up(start_data);
-		regs->dasicsLibCfg0 |= ((DASICS_LIBCFG_V | DASICS_LIBCFG_R) << (dasics_libidx - 1) * 4) ;
+		// regs->dasicsLibBounds[dasics_libidx][0] = align8down(hi);
+		// regs->dasicsLibBounds[dasics_libidx++][1] = align8up(start_data);
+		// regs->dasicsLibCfg0 |= ((DASICS_LIBCFG_V | DASICS_LIBCFG_R) << (dasics_libidx - 1) * 4) ;
 
 		regs->dasicsJumpBounds[dasics_jumpidx][0] = align8down(lo);
 		regs->dasicsJumpBounds[dasics_jumpidx++][1] = align8up(hi);
@@ -1607,13 +1608,13 @@ out_free_interp:
 
 	/* protect data */
 	/* currently protact heap\mmap\stack together */	
-	regs->dasicsLibBounds[dasics_libidx][0] = align8down(current->mm->start_brk);
-	regs->dasicsLibBounds[dasics_libidx++][1] = align8up(current->mm->start_stack);
+	// regs->dasicsLibBounds[dasics_libidx][0] = align8down(current->mm->start_brk);
+	// regs->dasicsLibBounds[dasics_libidx++][1] = align8up(current->mm->start_stack);
 
 	//jbound0: lib code jump enable     
 	//mbound0: v  | r  | hi -- start_data - 0x2UL
 	//mbound1: v  | rw | start_data -- TASK_SIZE
-	regs->dasicsLibCfg0 |= ((DASICS_LIBCFG_V | DASICS_LIBCFG_R | DASICS_LIBCFG_W) << 4 * (dasics_libidx - 1));
+	// regs->dasicsLibCfg0 |= ((DASICS_LIBCFG_V | DASICS_LIBCFG_R | DASICS_LIBCFG_W) << 4 * (dasics_libidx - 1));
 
 /* set free zone*/ 
     elf_shtmp = find_sec(secstrs, elf_ex, elf_shdata, ".ufreezonetext");
@@ -1651,6 +1652,11 @@ out_free_interp:
 	regs->dasicsUmainCfg = DASICS_UCFG_ENA; 
 	regs->dasicsUMainBoundLo = align8down(lo);
 	regs->dasicsUMainBoundHi = align8up(hi);
+
+	hash_init(current->dasics_hash_table);
+	for(dasics_libidx = 0; dasics_libidx < DASICS_LIBCFG_WIDTH; dasics_libidx++) 
+		current->dlibcfg_handle_map[dasics_libidx] = -1;
+	pr_info("DASICS Hashtable Init OK!\n");
 
 #ifdef CONFIG_DASICS_DEBUG
 	/* NOTE: current tp is kernel tp, and regs->tp is user tp, might be different */

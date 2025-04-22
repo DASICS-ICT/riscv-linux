@@ -1255,6 +1255,10 @@ asmlinkage long sys_ni_syscall(void);
 
 #endif /* CONFIG_ARCH_HAS_SYSCALL_WRAPPER */
 
+#ifdef CONFIG_DASICS
+asmlinkage long sys_riscv_dasics_bound(int op, int handle, int priv, unsigned long lo, unsigned long hi);
+#endif /* CONFIG_DASICS */
+
 
 /*
  * Kernel code should not call syscalls (i.e., sys_xyzyyz()) directly.

@@ -35,6 +35,10 @@
 #include <linux/seqlock.h>
 #include <linux/kcsan.h>
 
+#ifdef CONFIG_DASICS
+#include <linux/hashtable.h>
+#endif
+
 /* task_struct member predeclarations (sorted alphabetically): */
 struct audit_context;
 struct backing_dev_info;
@@ -661,6 +665,9 @@ struct task_struct {
 #ifdef CONFIG_DASICS
 	/* 0 normal, 1 dasics statis, 2 dasics dynamic */
 	volatile long 			dasics_state;
+	// DECLARE_HASHTABLE(dasics_hash_table, 4);
+	struct hlist_head dasics_hash_table[1 << (4)];
+	int dlibcfg_handle_map[DASICS_LIBCFG_WIDTH];
 #endif
 
 	void				*stack;
