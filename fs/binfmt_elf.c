@@ -1479,8 +1479,9 @@ out_free_interp:
 #define align8down(addr) 	 (addr & ~(0x7))
 
 	/* lib function text */
-	// regs->dasicsJumpBounds[0][0] = align8down(lo);
-	// regs->dasicsJumpBounds[0][1] = align8up(hi);  
+	regs->dasicsJumpBounds[0][0] = align8down(lo);
+	regs->dasicsJumpBounds[0][1] = align8up(hi);  
+	regs->dasicsJumpCfg =   DASICS_JUMPCFG_V;
 
 	/* get read-only datas. */
 	/* This area contains some other codes, however, lib text should not execute them. */

@@ -193,18 +193,12 @@ asmlinkage void do_trap_dasics(struct pt_regs *regs)
 	char *trap_name = regs->cause == 0x18 ? "fetch" :
 					  regs->cause == 0x19 ? "load"  : "store";
 
-	// show_regs(regs);
-	// show_ext_regs(regs);
+	show_regs(regs);
+	show_ext_regs(regs);
 	pr_info("[DASICS EXCEPTION]Info: dasics %s fault occurs, scause = 0x%lx spec = 0x%lx stval = 0x%lx\n",
 		                                trap_name, regs->cause, regs->epc, regs->badaddr);
+	die(regs, "Kernel BUG");
 
-	// currently just skip error pc.
-	   regs->epc += 4;
-	// rvc will compress jump/branch inst.
-	//if (regs->scause == EXC_DASICS_UFETCH_FAULT || regs->scause == EXC_DASICS_SFETCH_FAULT) 
-	//	regs->epc += 2;
-	//else 
-	//	regs->epc += 4;
 }
 
 /* stvec & scratch is already set from head.S */
