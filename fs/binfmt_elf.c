@@ -1640,10 +1640,9 @@ out_free_interp:
 	pr_info("text start: 0x%lx, end: 0x%lx\n", lo, hi);
 #endif
 
-
+	lo = TRUST_BASE;
 	if (likely(current->dasics_state == DASICS_DYNAMIC))
 	{
-		lo = DASICS_LINKER_BASE;
 		// the dasics will always go to the elf entry but not the dynamic linker
 		elf_entry = e_entry;
 	}
