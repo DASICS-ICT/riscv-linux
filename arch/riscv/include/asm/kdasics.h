@@ -6,6 +6,11 @@
 #include <asm/csr.h>
 
 // TODO: Add Smaincall types
+#define TRUST_BASE 0x1000
+#define DASICS_LINKER_BASE 0x1000 
+#define COPY_LINKER_BASE 0x30000
+#define DASICS_VDSO_BASE 0x60000
+#define TRUST_LIB_BASE 0x800000
 typedef enum {
     Smaincall_UNKNOWN
 } SmaincallTypes;

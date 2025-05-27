@@ -1914,6 +1914,10 @@ static int do_execveat_common(int fd, struct filename *filename,
 	retval = copy_string_kernel(bprm->filename, bprm);
 	if (retval < 0)
 		goto out_free;
+#ifdef CONFIG_DASICS
+	current->dasics_state = 0;
+#endif	
+	
 	bprm->exec = bprm->p;
 
 	retval = copy_strings(bprm->envc, envp, bprm);
