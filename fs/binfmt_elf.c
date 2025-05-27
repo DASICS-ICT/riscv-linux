@@ -1374,11 +1374,7 @@ out_free_interp:
 
 	set_binfmt(&elf_format);
 
-#ifdef ARCH_HAS_SETUP_ADDITIONAL_PAGES
-	retval = arch_setup_additional_pages(bprm, !!interpreter);
-	if (retval < 0)
-		goto out;
-#endif /* ARCH_HAS_SETUP_ADDITIONAL_PAGES */
+
 
 	retval = create_elf_tables(bprm, elf_ex, interp_load_addr,
 				   e_entry, phdr_addr);
@@ -1451,6 +1447,7 @@ out_free_interp:
 	elf_shtmp = find_sec(secstrs, elf_ex, elf_shdata, ".ulibtext");
 	if (!elf_shtmp)
 		goto out_free_secstrs;
+	current->dasics_state = 1;
 
 #ifdef CONFIG_DASICS_DEBUG
 	/* print infos for debugging */
@@ -1529,7 +1526,8 @@ out_free_interp:
 	/* get main text */
     elf_shtmp = find_sec(secstrs, elf_ex, elf_shdata, ".text");
 	hi = elf_shtmp->sh_addr + elf_shtmp->sh_size + load_bias;
-	lo = elf_shtmp->sh_addr + load_bias;
+	// lo = elf_shtmp->sh_addr + load_bias;
+	lo = TRUST_BASE; /* Dasics user main text start address */
 #ifdef CONFIG_DASICS_DEBUG
 	pr_info("text start: 0x%lx, end: 0x%lx\n", lo, hi);
 #endif
@@ -1576,7 +1574,14 @@ out_free_shdata:
 final_exec:
 #endif /* CONFIG_DASICS */
 
-	finalize_exec(bprm);
+
+#ifdef ARCH_HAS_SETUP_ADDITIONAL_PAGES
+	retval = arch_setup_additional_pages(bprm, !!interpreter);
+	if (retval < 0)
+		goto out;
+#endif /* ARCH_HAS_SETUP_ADDITIONAL_PAGES */
+
+finalize_exec(bprm);
 	start_thread(regs, elf_entry, bprm->p);
 	retval = 0;
 out:
