@@ -191,8 +191,6 @@ asmlinkage void do_trap_software_check(struct pt_regs *regs)
 {
 	pr_info("Raised a Software Check exception.");
 
-	show_regs(regs);
-
 	if (regs->badaddr == EXC_SW_CHECK_FCFI_TVAL){
 		/* Zicfilp Software check exception raised*/
 		pr_err("ZICFILP EXCEPTION: process %s (pid: %d)\n",
@@ -200,15 +198,11 @@ asmlinkage void do_trap_software_check(struct pt_regs *regs)
 		
 		pr_err("  epc: 0x" REG_FMT ", cause: 0x" REG_FMT "\n",
 				regs->epc, regs->cause);
-		if (user_mode(regs))
-		{
-			/* Kill the current process */
-			force_sig(regs);
-		}
+		// Disable Zicfilp in U-mode
+		csr_clear(CSR_SENVCFG, ZICFILP_BIT);
+		// Kill 
+		do_exit(SIGKILL);
 	}
-
-	
-	
 }
 
 /* This function may handle dasics exceptions in another way in future. */

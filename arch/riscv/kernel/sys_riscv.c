@@ -10,6 +10,7 @@
 #include <asm/unistd.h>
 #include <asm/cacheflush.h>
 #include <asm-generic/mman-common.h>
+#include <asm/csr.h>
 
 static long riscv_sys_mmap(unsigned long addr, unsigned long len,
 			   unsigned long prot, unsigned long flags,
@@ -95,37 +96,15 @@ int riscv_handle_zicfilp(unsigned long op, unsigned long val)
     
     /* Handle GET operation */
     if (op == RISCV_ZICFILP_GET) {
-        unsigned long status;
-        
         /* Read the bit directly with optimized assembly */
-        asm volatile(
-            "csrr %0, 0x10a\n\t"  /* Read the CSR register */
-            "andi %0, %0, 4\n\t"   /* Mask bit 2 (0x4) */
-            "srli %0, %0, 2"       /* Shift right to get 0 or 1 */
-            : "=r"(status)         /* Output: status */
-            :                      /* No inputs */
-            : /* No clobbers */
-        );
-        
-        return status;
+        unsigned long reg = csr_read(CSR_SENVCFG);
+        return !!(reg & ZICFILP_BIT);  // return 1 or 0
     } else {
         /* Handle SET operation */
         if (val == RISCV_ZICFILP_ENABLE) {
-            /* Set bit 2 using csrsi (CSR Set Immediate) */
-            asm volatile(
-                "csrsi 0x10a, 4"   /* Set bit 2 (0x4) */
-                :                  /* No outputs */
-                :                  /* No inputs */
-                : "memory"         /* Memory clobber to prevent reordering */
-            );
+            csr_set(CSR_SENVCFG, ZICFILP_BIT);
         } else {
-            /* Clear bit 2 using csrci (CSR Clear Immediate) */
-            asm volatile(
-                "csrci 0x10a, 4"   /* Clear bit 2 (0x4) */
-                :                  /* No outputs */
-                :                  /* No inputs */
-                : "memory"         /* Memory clobber to prevent reordering */
-            );
+            csr_clear(CSR_SENVCFG, ZICFILP_BIT);
         }
         
         return 0;

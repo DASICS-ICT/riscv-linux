@@ -255,6 +255,7 @@
 
 #ifdef CONFIG_RISCV_ZICFILP
 #define CSR_SENVCFG 0X10a
+#define ZICFILP_BIT 0x4
 #endif
 
 #ifndef __ASSEMBLY__
