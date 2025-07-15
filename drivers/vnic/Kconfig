@@ -1,0 +1,6 @@
+# SPDX-License-Identifier: GPL-2.0
+config VNIC
+    tristate "Customed VNIC Driver"
+    default m
+    help
+      This is a custom virtual NIC driver data transfer between DUT and host
