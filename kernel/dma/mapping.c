@@ -15,6 +15,9 @@
 #include <linux/vmalloc.h>
 #include "debug.h"
 #include "direct.h"
+#ifdef CONFIG_DMA_DBCHECKER
+#include "dbchecker.h"
+#endif
 
 bool dma_default_coherent;
 
@@ -158,6 +161,10 @@ dma_addr_t dma_map_page_attrs(struct device *dev, struct page *page,
 		addr = ops->map_page(dev, page, offset, size, dir, attrs);
 	debug_dma_map_page(dev, page, offset, size, dir, addr, attrs);
 
+#ifdef CONFIG_DMA_DBCHECKER
+	// alloc dbchecker metadata
+	addr = dbchecker_alloc_mtdt(addr, size, dir);
+#endif
 	return addr;
 }
 EXPORT_SYMBOL(dma_map_page_attrs);
@@ -165,15 +172,23 @@ EXPORT_SYMBOL(dma_map_page_attrs);
 void dma_unmap_page_attrs(struct device *dev, dma_addr_t addr, size_t size,
 		enum dma_data_direction dir, unsigned long attrs)
 {
+#ifdef CONFIG_DMA_DBCHECKER
+	// release dbchecker metadata
+	dma_addr_t orig_addr = dbchecker_free_mtdt(addr);
+#else 
+	dma_addr_t orig_addr = addr;
+#endif
+
 	const struct dma_map_ops *ops = get_dma_ops(dev);
 
 	BUG_ON(!valid_dma_direction(dir));
 	if (dma_map_direct(dev, ops) ||
-	    arch_dma_unmap_page_direct(dev, addr + size))
-		dma_direct_unmap_page(dev, addr, size, dir, attrs);
+	    arch_dma_unmap_page_direct(dev, orig_addr + size))
+		dma_direct_unmap_page(dev, orig_addr, size, dir, attrs);
 	else if (ops->unmap_page)
-		ops->unmap_page(dev, addr, size, dir, attrs);
-	debug_dma_unmap_page(dev, addr, size, dir);
+		ops->unmap_page(dev, orig_addr, size, dir, attrs);
+	debug_dma_unmap_page(dev, orig_addr, size, dir);
+
 }
 EXPORT_SYMBOL(dma_unmap_page_attrs);
 

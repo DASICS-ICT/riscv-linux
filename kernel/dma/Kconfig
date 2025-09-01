@@ -247,3 +247,10 @@ config DMA_MAP_BENCHMARK
 	  performance of dma_(un)map_page.
 
 	  See tools/testing/selftests/dma/dma_map_benchmark.c
+
+config DMA_DBCHECKER
+	bool "Enable DBChecker for DMA Checking"
+	default n
+	depends on HAS_DMA && ARCH_DMA_ADDR_T_64BIT
+	help
+	  Enable DBChecker, set/unset metadata when dma_map and dma_unmap.
