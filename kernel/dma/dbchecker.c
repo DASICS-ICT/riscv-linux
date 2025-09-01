@@ -69,7 +69,7 @@ dma_addr_t dbchecker_alloc_mtdt(dma_addr_t addr, size_t size, enum dma_data_dire
 EXPORT_SYMBOL(dbchecker_alloc_mtdt);
 
 dma_addr_t dbchecker_free_mtdt(dma_addr_t addr){
-    dbchecker_command(0x1UL, addr >> (64 - DBCHECKER_DBTE_INDEX_LEN));
+    dbchecker_command(0x1UL, addr >> 36);
     return addr & 0xFFFFFFFFF; // orig addr
 }
 EXPORT_SYMBOL(dbchecker_free_mtdt);

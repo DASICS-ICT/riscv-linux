@@ -4,7 +4,6 @@
 #include "direct.h"
 
 #define DBCHECKER_BASE_ADDR 0x40000000
-#define DBCHECKER_DBTE_INDEX_LEN 12 // DBTE: 4096 
 #define DBCHECKER_REG_SIZE 8 // 64bit
 #define DBCHECKER_REG_NUM 8  // 8 registers
 
