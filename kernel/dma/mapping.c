@@ -15,8 +15,10 @@
 #include <linux/vmalloc.h>
 #include "debug.h"
 #include "direct.h"
+
 #ifdef CONFIG_DMA_DBCHECKER
-#include "dbchecker.h"
+	extern dma_addr_t dbchecker_alloc_mtdt(dma_addr_t addr, size_t size, enum dma_data_direction dir);
+	extern dma_addr_t dbchecker_free_mtdt(dma_addr_t addr);
 #endif
 
 bool dma_default_coherent;

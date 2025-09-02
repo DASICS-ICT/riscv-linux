@@ -1,0 +1,1 @@
+obj-$(CONFIG_DMA_DBCHECKER)			+= dbchecker.o
