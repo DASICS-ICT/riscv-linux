@@ -21,6 +21,8 @@
 	extern dma_addr_t dbchecker_free_mtdt(dma_addr_t addr);
 #endif
 
+#define DMA_DEBUG 0
+
 bool dma_default_coherent;
 
 /*
@@ -151,6 +153,8 @@ dma_addr_t dma_map_page_attrs(struct device *dev, struct page *page,
 	const struct dma_map_ops *ops = get_dma_ops(dev);
 	dma_addr_t addr;
 
+	if (DMA_DEBUG) printk("%s map page for DMA, size = %lx, offset = %lx\n", dev_name(dev), size, offset);
+
 	BUG_ON(!valid_dma_direction(dir));
 
 	if (WARN_ON_ONCE(!dev->dma_mask))
@@ -174,22 +178,22 @@ EXPORT_SYMBOL(dma_map_page_attrs);
 void dma_unmap_page_attrs(struct device *dev, dma_addr_t addr, size_t size,
 		enum dma_data_direction dir, unsigned long attrs)
 {
+	const struct dma_map_ops *ops = get_dma_ops(dev);
+	if (DMA_DEBUG) printk("%s unmap page for DMA, size = %lx, addr = %llx\n", dev_name(dev), size, addr);
+
 #ifdef CONFIG_DMA_DBCHECKER
 	// release dbchecker metadata
-	dma_addr_t orig_addr = dbchecker_free_mtdt(addr);
-#else 
-	dma_addr_t orig_addr = addr;
+	addr = dbchecker_free_mtdt(addr);
 #endif
 
-	const struct dma_map_ops *ops = get_dma_ops(dev);
 
 	BUG_ON(!valid_dma_direction(dir));
 	if (dma_map_direct(dev, ops) ||
-	    arch_dma_unmap_page_direct(dev, orig_addr + size))
-		dma_direct_unmap_page(dev, orig_addr, size, dir, attrs);
+	    arch_dma_unmap_page_direct(dev, addr + size))
+		dma_direct_unmap_page(dev, addr, size, dir, attrs);
 	else if (ops->unmap_page)
-		ops->unmap_page(dev, orig_addr, size, dir, attrs);
-	debug_dma_unmap_page(dev, orig_addr, size, dir);
+		ops->unmap_page(dev, addr, size, dir, attrs);
+	debug_dma_unmap_page(dev, addr, size, dir);
 
 }
 EXPORT_SYMBOL(dma_unmap_page_attrs);
@@ -471,7 +475,6 @@ int dma_mmap_attrs(struct device *dev, struct vm_area_struct *vma,
 		unsigned long attrs)
 {
 	const struct dma_map_ops *ops = get_dma_ops(dev);
-
 	if (dma_alloc_direct(dev, ops))
 		return dma_direct_mmap(dev, vma, cpu_addr, dma_addr, size,
 				attrs);
@@ -507,11 +510,13 @@ void *dma_alloc_attrs(struct device *dev, size_t size, dma_addr_t *dma_handle,
 {
 	const struct dma_map_ops *ops = get_dma_ops(dev);
 	void *cpu_addr;
+	
+	if (DMA_DEBUG) printk("%s alloc attr for DMA, size = %lx, dma_handle = %llx\n", dev_name(dev), size, *dma_handle);
 
 	WARN_ON_ONCE(!dev->coherent_dma_mask);
 
 	if (dma_alloc_from_dev_coherent(dev, size, dma_handle, &cpu_addr))
-		return cpu_addr;
+		goto done;
 
 	/* let the implementation decide on the zone to allocate from: */
 	flag &= ~(__GFP_DMA | __GFP_DMA32 | __GFP_HIGHMEM);
@@ -524,6 +529,11 @@ void *dma_alloc_attrs(struct device *dev, size_t size, dma_addr_t *dma_handle,
 		return NULL;
 
 	debug_dma_alloc_coherent(dev, size, *dma_handle, cpu_addr, attrs);
+done:
+#ifdef CONFIG_DMA_DBCHECKER
+	// alloc dbchecker metadata
+	*dma_handle = dbchecker_alloc_mtdt(*dma_handle, size, DMA_BIDIRECTIONAL);
+#endif
 	return cpu_addr;
 }
 EXPORT_SYMBOL(dma_alloc_attrs);
@@ -532,7 +542,11 @@ void dma_free_attrs(struct device *dev, size_t size, void *cpu_addr,
 		dma_addr_t dma_handle, unsigned long attrs)
 {
 	const struct dma_map_ops *ops = get_dma_ops(dev);
-
+	if (DMA_DEBUG) printk("%s free attrs for DMA, size = %lx, cpu_addr = %llx, dma_handle = %llx\n", dev_name(dev), size, (uint64_t)cpu_addr, dma_handle);
+#ifdef CONFIG_DMA_DBCHECKER
+	// release dbchecker metadata
+	dma_handle = dbchecker_free_mtdt(dma_handle);
+#endif
 	if (dma_release_from_dev_coherent(dev, get_order(size), cpu_addr))
 		return;
 	/*
@@ -578,8 +592,15 @@ struct page *dma_alloc_pages(struct device *dev, size_t size,
 {
 	struct page *page = __dma_alloc_pages(dev, size, dma_handle, dir, gfp);
 
-	if (page)
+	if (DMA_DEBUG) printk("%s alloc page for DMA, size = %lx, dma_handle = %llx\n", dev_name(dev), size, *dma_handle);
+
+	if (page){
 		debug_dma_map_page(dev, page, 0, size, dir, *dma_handle, 0);
+#ifdef CONFIG_DMA_DBCHECKER
+		// alloc dbchecker metadata
+		*dma_handle = dbchecker_alloc_mtdt(*dma_handle, size, dir);
+#endif
+	}
 	return page;
 }
 EXPORT_SYMBOL_GPL(dma_alloc_pages);
@@ -588,7 +609,6 @@ static void __dma_free_pages(struct device *dev, size_t size, struct page *page,
 		dma_addr_t dma_handle, enum dma_data_direction dir)
 {
 	const struct dma_map_ops *ops = get_dma_ops(dev);
-
 	size = PAGE_ALIGN(size);
 	if (dma_alloc_direct(dev, ops))
 		dma_direct_free_pages(dev, size, page, dma_handle, dir);
@@ -599,6 +619,11 @@ static void __dma_free_pages(struct device *dev, size_t size, struct page *page,
 void dma_free_pages(struct device *dev, size_t size, struct page *page,
 		dma_addr_t dma_handle, enum dma_data_direction dir)
 {
+	if (DMA_DEBUG) printk("%s free page for DMA, size = %lx, dma_handle = %llx\n", dev_name(dev), size, dma_handle);
+#ifdef CONFIG_DMA_DBCHECKER
+		// release dbchecker metadata
+		dma_handle = dbchecker_free_mtdt(dma_handle);
+#endif
 	debug_dma_unmap_page(dev, dma_handle, size, dir);
 	__dma_free_pages(dev, size, page, dma_handle, dir);
 }

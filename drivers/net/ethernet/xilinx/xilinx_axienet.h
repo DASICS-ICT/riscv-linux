@@ -669,6 +669,7 @@ struct aximcdma_bd {
 #define XAE_NUM_MISC_CLOCKS 3
 #define DESC_DMA_MAP_SINGLE 0
 #define DESC_DMA_MAP_PAGE 1
+#define DESC_DMA_MAP_COHERENT 2
 
 #if defined(CONFIG_AXIENET_HAS_MCDMA)
 #define XAE_MAX_QUEUES		16

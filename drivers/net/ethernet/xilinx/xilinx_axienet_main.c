@@ -976,11 +976,12 @@ void axienet_start_xmit_done(struct net_device *ndev,
 				       cur_p->cntrl &
 				       XAXIDMA_BD_CTRL_LENGTH_MASK,
 				       DMA_TO_DEVICE);
-		else
+		else if (cur_p->tx_desc_mapping == DESC_DMA_MAP_SINGLE)
 			dma_unmap_single(ndev->dev.parent, cur_p->phys,
 					 cur_p->cntrl &
 					 XAXIDMA_BD_CTRL_LENGTH_MASK,
 					 DMA_TO_DEVICE);
+		/* For DESC_DMA_MAP_COHERENT, no unmap needed as it uses dma_alloc_coherent */
 		if (cur_p->tx_skb)
 			dev_kfree_skb_irq((struct sk_buff *)cur_p->tx_skb);
 		/*cur_p->phys = 0;*/
@@ -990,6 +991,7 @@ void axienet_start_xmit_done(struct net_device *ndev,
 		cur_p->app4 = 0;
 		cur_p->status = 0;
 		cur_p->tx_skb = 0;
+		cur_p->tx_desc_mapping = 0;
 #ifdef CONFIG_AXIENET_HAS_MCDMA
 		cur_p->sband_stats = 0;
 #endif
@@ -1392,6 +1394,7 @@ int axienet_queue_xmit(struct sk_buff *skb,
 #else
 		cur_p->cntrl = skb_pagelen(skb) | XAXIDMA_BD_CTRL_TXSOF_MASK;
 #endif
+		cur_p->tx_desc_mapping = DESC_DMA_MAP_COHERENT;
 		goto out;
 	} else {
 		cur_p->phys = dma_map_single(ndev->dev.parent, skb->data,

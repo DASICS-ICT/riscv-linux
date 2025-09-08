@@ -15,6 +15,13 @@
 #include <linux/slab.h>
 #include "direct.h"
 
+#ifdef CONFIG_DMA_DBCHECKER
+	extern dma_addr_t dbchecker_alloc_mtdt(dma_addr_t addr, size_t size, enum dma_data_direction dir);
+	extern dma_addr_t dbchecker_free_mtdt(dma_addr_t addr);
+#endif
+
+#define DMA_DEBUG 0
+
 /*
  * Most architectures use ZONE_DMA for the first 16 Megabytes, but some use
  * it for entirely different regions. In that case the arch code needs to
@@ -438,12 +445,15 @@ int dma_direct_map_sg(struct device *dev, struct scatterlist *sgl, int nents,
 {
 	int i;
 	struct scatterlist *sg;
-
+	if (DMA_DEBUG) printk("%s Mapping scatterlist for DMA, %d entries\n", dev_name(dev), nents);
 	for_each_sg(sgl, sg, nents, i) {
 		sg->dma_address = dma_direct_map_page(dev, sg_page(sg),
 				sg->offset, sg->length, dir, attrs);
 		if (sg->dma_address == DMA_MAPPING_ERROR)
 			goto out_unmap;
+#ifdef CONFIG_DMA_DBCHECKER
+		sg->dma_address = dbchecker_alloc_mtdt(sg->dma_address, sg->length, dir);
+#endif
 		sg_dma_len(sg) = sg->length;
 	}
 
