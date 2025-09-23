@@ -23,9 +23,11 @@
 #define DBCHECKER_BNDL_MAX_SIZE  0x100000000 // 4GB
 
 #define DBCHECKER_DEBUG 0
+#define MAX_DBTE_TABLE_SIZE 4096 // log2 = 12, offset = 52
 
 static void __iomem *dbchecker_rf;
 static struct timer_list dbchecker_timer;
+static uint32_t dbte_table[MAX_DBTE_TABLE_SIZE];
 
 int dbchecker_command(uint64_t type, uint64_t imm){
     uint64_t validated_cmd = (0x1UL << 62) | ((type & 0x3) << 60) | (imm & 0x0FFFFFFFFFFFFFFF);
@@ -72,9 +74,10 @@ dma_addr_t dbchecker_alloc_mtdt(dma_addr_t addr, size_t size, enum dma_data_dire
         metadata = (addr & 0xFFFFFFFF) | ((size-1) << 32) | (rw << 48);
     }
     if (!dbchecker_command(0x1UL, metadata)) {
-        uint64_t cmd_res = ioread32(dbchecker_rf + DBCHECKER_RES_OFFSET + 4);
-        alloc_addr = (addr & 0xFFFFFFFF) | (cmd_res << 32);
-        if (DBCHECKER_DEBUG) printk("DBCHECKER: alloc addr: 0x%llx\n", alloc_addr);
+        uint64_t cmd_res = ioread64_lo_hi(dbchecker_rf + DBCHECKER_RES_OFFSET);
+        alloc_addr = (addr & 0xFFFFFFFF) | (cmd_res & 0xFFFFFFFF00000000); // new addr
+        dbte_table[cmd_res >> 52] = cmd_res & 0xFFFFFFFF; // store for free
+        if (DBCHECKER_DEBUG) printk("DBCHECKER: alloc addr: 0x%llx, save metadata 0x%x\n", alloc_addr, (uint32_t)(cmd_res & 0xFFFFFFFF));
         return alloc_addr;
     }
     else return -1;
@@ -82,8 +85,10 @@ dma_addr_t dbchecker_alloc_mtdt(dma_addr_t addr, size_t size, enum dma_data_dire
 EXPORT_SYMBOL(dbchecker_alloc_mtdt);
 
 dma_addr_t dbchecker_free_mtdt(dma_addr_t addr){
-        if (DBCHECKER_DEBUG) printk("DBCHECKER: free addr: 0x%llx\n", addr);
-    dbchecker_command(0x0UL, addr >> 32);
+    uint64_t free_imm = (addr >> 12 & 0xFFFFFFFF00000000) | dbte_table[addr >> 52];
+    if (DBCHECKER_DEBUG) printk("DBCHECKER: free addr: 0x%llx\n", addr);
+    dbte_table[addr >> 52] = 0; // clear entry
+    dbchecker_command(0x0UL, free_imm);
     return addr & 0xFFFFFFFF; // orig addr
 }
 EXPORT_SYMBOL(dbchecker_free_mtdt);
