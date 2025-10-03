@@ -262,31 +262,36 @@ static struct xilinx_pcie_port *xilinx_pcie_find_port(struct pci_bus *bus,
 static int xilinx_pcie_config_read(struct pci_bus *bus, unsigned int devfn,
 				int where, int size, u32 *val)
 {
-	struct xilinx_pcie_port *port;
+       struct xilinx_pcie_port *port;
+       int relbus;
+       void __iomem* addr;
 
-	int relbus;
+       /* 只允许 function 0，其它 function 跳过 */
+       if (PCI_FUNC(devfn) != 0) {
+	       if (val)
+		       *val = ~0;
+	       return PCIBIOS_DEVICE_NOT_FOUND;
+       }
 
-	void __iomem* addr;
+       port = xilinx_pcie_find_port(bus, devfn);
+       if (!port) {
+	       *val = ~0;
+	       return PCIBIOS_DEVICE_NOT_FOUND;
+       }
 
-	port = xilinx_pcie_find_port(bus, devfn);
-	if (!port) {
-		*val = ~0;
-		return PCIBIOS_DEVICE_NOT_FOUND;
-	}
+       relbus = (bus->number << ECAM_BUS_NUM_SHIFT) |
+	       ((bus->number ? devfn : 0) << ECAM_DEV_NUM_SHIFT);
 
-	relbus = (bus->number << ECAM_BUS_NUM_SHIFT) | 
-			((bus->number ? devfn : 0) << ECAM_DEV_NUM_SHIFT);
+       addr = port->reg_base + relbus + where;
 
-	addr = port->reg_base + relbus + where;
+       if (size == 1)
+	       *val = readb(addr);
+       else if (size == 2)
+	       *val = readw(addr);
+       else
+	       *val = readl(addr);
 
-	if (size == 1)
-		*val = readb(addr);
-	else if (size == 2)
-		*val = readw(addr);
-	else
-		*val = readl(addr);
-
-	return PCIBIOS_SUCCESSFUL;
+       return PCIBIOS_SUCCESSFUL;
 }
 
 /* xilinx_pcie_config_write - PCI RP/EP write operation
@@ -301,28 +306,31 @@ static int xilinx_pcie_config_read(struct pci_bus *bus, unsigned int devfn,
 static int xilinx_pcie_config_write(struct pci_bus *bus, unsigned int devfn,
 				 int where, int size, u32 val)
 {
-	struct xilinx_pcie_port *port;
-	int relbus;
+       struct xilinx_pcie_port *port;
+       int relbus;
+       void __iomem* addr;
 
-	void __iomem* addr;
+       /* 只允许 function 0，其它 function 跳过 */
+       if (PCI_FUNC(devfn) != 0)
+	       return PCIBIOS_DEVICE_NOT_FOUND;
 
-	port = xilinx_pcie_find_port(bus, devfn);
-	if (!port)
-		return PCIBIOS_DEVICE_NOT_FOUND;
+       port = xilinx_pcie_find_port(bus, devfn);
+       if (!port)
+	       return PCIBIOS_DEVICE_NOT_FOUND;
 
-	relbus = (bus->number << ECAM_BUS_NUM_SHIFT) | 
-			((bus->number ? devfn : 0) << ECAM_DEV_NUM_SHIFT);
+       relbus = (bus->number << ECAM_BUS_NUM_SHIFT) |
+	       ((bus->number ? devfn : 0) << ECAM_DEV_NUM_SHIFT);
 
-	addr = port->reg_base + relbus + where;
+       addr = port->reg_base + relbus + where;
 
-	if (size == 1)
-		writeb(val, addr);
-	else if (size == 2)
-		writew(val, addr);
-	else
-		writel(val, addr);
+       if (size == 1)
+	       writeb(val, addr);
+       else if (size == 2)
+	       writew(val, addr);
+       else
+	       writel(val, addr);
 
-	return PCIBIOS_SUCCESSFUL;
+       return PCIBIOS_SUCCESSFUL;
 }
 
 /* PCIe operations */
