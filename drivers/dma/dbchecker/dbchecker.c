@@ -45,11 +45,15 @@ int dbchecker_command(uint64_t type, uint64_t imm){
     return 0;
 }
 
-void dbchecker_en_set(int a){
+void dbchecker_en_set(uint32_t a){
     iowrite32(a, dbchecker_rf + DBCHECKER_EN_OFFSET);
+}
+uint32_t dbchecker_en_get(void){
+    return ioread32(dbchecker_rf + DBCHECKER_EN_OFFSET);
 }
 
 dma_addr_t dbchecker_alloc_mtdt(dma_addr_t addr, size_t size, enum dma_data_direction dir){
+    if (!(dbchecker_en_get() & 0x1)) return addr; // not enabled
     uint64_t metadata = 0;
     uint64_t rw = (dir == DMA_BIDIRECTIONAL)? 0x3 : // RW
                   (dir == DMA_FROM_DEVICE)? 0x2 : // WO
@@ -85,6 +89,7 @@ dma_addr_t dbchecker_alloc_mtdt(dma_addr_t addr, size_t size, enum dma_data_dire
 EXPORT_SYMBOL(dbchecker_alloc_mtdt);
 
 dma_addr_t dbchecker_free_mtdt(dma_addr_t addr){
+    if (!(dbchecker_en_get() & 0x1)) return addr; // not enabled
     uint64_t free_imm = (addr >> 12 & 0xFFFFFFFF00000000) | dbte_table[addr >> 52];
     if (DBCHECKER_DEBUG) printk("DBCHECKER: free addr: 0x%llx\n", addr);
     dbte_table[addr >> 52] = 0; // clear entry
