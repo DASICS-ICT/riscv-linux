@@ -194,7 +194,7 @@ int is_valid_bugaddr(unsigned long pc)
  *
  * Handles software-check exceptions (scause=18) from Zicfilp.
  * Simple implementation: just print error information for debugging.
- * Note: Zicfilp is already disabled in trap entry, so we just log the fault.
+ * Clears SPELP bit in mstatus to disable landing pad checking.
  */
 asmlinkage void do_trap_software_check(struct pt_regs *regs)
 {
@@ -204,14 +204,16 @@ asmlinkage void do_trap_software_check(struct pt_regs *regs)
 	if (stval == LANDING_PAD_FAULT_CODE) {
 		pr_info("========== Zicfilp Landing Pad Fault ==========\n");
 		pr_info("Process: %s (PID: %d)\n", current->comm, task_pid_nr(current));
-		pr_info("  PC (sepc):    0x%016lx (missing LPAD)\n", regs->epc);
+		pr_info("  PC (sepc):    0x%016lx\n", regs->epc);
 		pr_info("  Cause:        %ld (Software Check)\n", regs->cause);
 		pr_info("  stval:        %ld (Landing Pad Fault)\n", stval);
 		pr_info("  Mode:         %s\n", user_mode(regs) ? "User" : "Kernel");
-		pr_info("  Note:         Zicfilp already disabled in trap entry\n");
 		pr_info("===============================================\n");
 
-		/* Continue execution - Zicfilp is already disabled in trap entry */
+		/* Clear SPELP bit in mstatus to disable landing pad checking */
+		regs->status &= ~SR_SPELP;
+
+		/* Continue execution with landing pad checking disabled */
 		return;
 	}
 

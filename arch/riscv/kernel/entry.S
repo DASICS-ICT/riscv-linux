@@ -285,15 +285,6 @@ _save_dasics:
 	SAVE_UCSR
 	SAVE_DASICS
 _save_end:
-#ifdef CONFIG_RISCV_ZICFILP
-	/*
-	 * Save senvcfg and disable Zicfilp in S-mode.
-	 * This prevents kernel from triggering landing pad faults.
-	 * The senvcfg will be restored on trap exit.
-	 */
-	SAVE_ZICFILP
-	csrci CSR_SENVCFG, ENVCFG_LPE
-#endif
 	.endm
 
 	.macro RESTORE_DASICS
@@ -480,13 +471,6 @@ _restore_dasics:
 	RESTORE_DASICS
 	RESTORE_UCSR
 _restore_general:
-#ifdef CONFIG_RISCV_ZICFILP
-	/*
-	 * Restore senvcfg before returning to userspace.
-	 * This restores the per-process Zicfilp state.
-	 */
-	RESTORE_ZICFILP
-#endif
 	/* restore general regs */
 
 	REG_L x1,  PT_RA(sp)
