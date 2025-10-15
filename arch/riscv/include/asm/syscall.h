@@ -82,4 +82,9 @@ static inline int syscall_get_arch(struct task_struct *task)
 #endif
 }
 
+#ifdef CONFIG_RISCV_ZICFILP
+/* Zicfilp prctl handler */
+int riscv_handle_zicfilp(unsigned long op, unsigned long val);
+#endif
+
 #endif	/* _ASM_RISCV_SYSCALL_H */

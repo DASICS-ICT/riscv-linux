@@ -71,6 +71,9 @@
 #include <linux/uaccess.h>
 #include <asm/io.h>
 #include <asm/unistd.h>
+#ifdef CONFIG_RISCV
+#include <asm/syscall.h>
+#endif
 
 #include "uid16.h"
 
