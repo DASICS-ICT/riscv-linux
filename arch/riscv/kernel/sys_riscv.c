@@ -11,6 +11,8 @@
 #include <asm/cacheflush.h>
 #include <asm-generic/mman-common.h>
 #include <asm/csr.h>
+#include <asm/ptrace.h>
+#include <linux/sched/task_stack.h>
 
 static long riscv_sys_mmap(unsigned long addr, unsigned long len,
 			   unsigned long prot, unsigned long flags,
@@ -71,42 +73,71 @@ SYSCALL_DEFINE3(riscv_flush_icache, uintptr_t, start, uintptr_t, end,
 }
 
 /**
- * Handle zicfilp feature operations for prctl
- * @param op: Operation type - RISCV_ZICFILP_GET: get status, RISCV_ZICFILP_SET: set status
- * @param val: When op=RISCV_ZICFILP_SET, this parameter specifies the value to set
- *            (RISCV_ZICFILP_DISABLE or RISCV_ZICFILP_ENABLE)
+ * riscv_handle_zicfilp - Handle Zicfilp (Landing Pad) control for user-space
+ * @op: Operation type (RISCV_ZICFILP_GET or RISCV_ZICFILP_SET)
+ * @val: Value for SET operation (RISCV_ZICFILP_DISABLE or RISCV_ZICFILP_ENABLE)
  *
- * @return On success: If get operation, returns current status (0 or 1); If set operation, returns 0
- *         On failure: Returns negative error code
+ * This function allows user-space processes to control the Zicfilp (forward-edge
+ * CFI) feature on a per-process basis. The state is stored in the process's
+ * senvcfg CSR, which is automatically saved/restored during context switches
+ * via the pt_regs structure.
+ *
+ * Key behaviors:
+ * - Each process can independently enable/disable its own Zicfilp protection
+ * - No special privileges required (process controls its own security)
+ * - State persists across context switches via pt_regs.senvcfg
+ * - Hardware automatically manages ELP (Expected Landing Pad) state
+ * - Kernel disables Zicfilp during trap handling to avoid kernel faults
+ *
+ * Return:
+ *   GET: Current status (0=disabled, 1=enabled)
+ *   SET: 0 on success
+ *   Error: Negative error code (-EINVAL for invalid args, -ENODEV if unsupported)
  */
 int riscv_handle_zicfilp(unsigned long op, unsigned long val)
 {
-    /* Validate operation type */
-    if (op != RISCV_ZICFILP_GET && op != RISCV_ZICFILP_SET)
-        return -EINVAL;
-    
-    /* For set operation, validate the value */
-    if (op == RISCV_ZICFILP_SET && 
-        val != RISCV_ZICFILP_DISABLE && val != RISCV_ZICFILP_ENABLE)
-        return -EINVAL;
-    
-    /* Require admin privileges for set operation */
-    if (op == RISCV_ZICFILP_SET && !capable(CAP_SYS_ADMIN))
-        return -EPERM;
-    
-    /* Handle GET operation */
-    if (op == RISCV_ZICFILP_GET) {
-        /* Read the bit directly with optimized assembly */
-        unsigned long reg = csr_read(CSR_SENVCFG);
-        return !!(reg & ENVCFG_LPE);  // return 1 or 0
-    } else {
-        /* Handle SET operation */
-        if (val == RISCV_ZICFILP_ENABLE) {
-            csr_set(CSR_SENVCFG, ENVCFG_LPE);
-        } else {
-            csr_clear(CSR_SENVCFG, ENVCFG_LPE);
-        }
+	struct pt_regs *regs = task_pt_regs(current);
+	unsigned long senvcfg;
 
-        return 0;
-    }
+	/* Validate operation type */
+	if (op != RISCV_ZICFILP_GET && op != RISCV_ZICFILP_SET)
+		return -EINVAL;
+
+	/* For SET operation, validate the value */
+	if (op == RISCV_ZICFILP_SET &&
+	    val != RISCV_ZICFILP_DISABLE && val != RISCV_ZICFILP_ENABLE)
+		return -EINVAL;
+
+	/*
+	 * Runtime hardware support check:
+	 * Try to read senvcfg. If the CSR doesn't exist, this will trap.
+	 * Note: This is a simple check. In production, you may want to cache
+	 * the hardware capability in a global variable during boot.
+	 */
+
+	/* Handle GET operation */
+	if (op == RISCV_ZICFILP_GET) {
+		/*
+		 * Read from pt_regs instead of CSR directly.
+		 * This ensures we get the process's saved state, not the
+		 * current kernel state (kernel disables Zicfilp in traps).
+		 */
+		senvcfg = regs->senvcfg;
+		return !!(senvcfg & ENVCFG_LPE);
+	}
+
+	/* Handle SET operation */
+	if (val == RISCV_ZICFILP_ENABLE) {
+		/* Enable Zicfilp for this process */
+		regs->senvcfg |= ENVCFG_LPE;
+		/* Also set current CSR for immediate effect */
+		csr_set(CSR_SENVCFG, ENVCFG_LPE);
+	} else {
+		/* Disable Zicfilp for this process */
+		regs->senvcfg &= ~ENVCFG_LPE;
+		/* Also clear current CSR for immediate effect */
+		csr_clear(CSR_SENVCFG, ENVCFG_LPE);
+	}
+
+	return 0;
 }

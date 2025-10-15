@@ -259,8 +259,6 @@ struct prctl_mm_map {
 #define RISCV_ZICFILP_DISABLE 0
 #define RISCV_ZICFILP_ENABLE  1
 
-int riscv_handle_zicfilp(unsigned long op, unsigned long val);
-
-#endif // __riscv
+#endif /* __riscv */
 
 #endif /* _LINUX_PRCTL_H */
