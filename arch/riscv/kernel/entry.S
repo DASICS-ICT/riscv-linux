@@ -143,22 +143,46 @@
   	csrr t0, CSR_USTATUS
   	REG_S t0, PT_USTATUS(sp)
  	csrr t1, CSR_UEPC
-  	REG_S t1, PT_UEPC(sp) 
+  	REG_S t1, PT_UEPC(sp)
   	csrr t0, CSR_UTVAL
-  	REG_S t0, PT_UBADADDR(sp) 
+  	REG_S t0, PT_UBADADDR(sp)
   	csrr t1, CSR_UCAUSE
   	REG_S t1, PT_UCAUSE(sp)
 	csrr t0, CSR_UTVEC
   	REG_S t0, PT_UTVEC(sp)
-  	csrr t1, CSR_UIE  	
-  	REG_S t1, PT_UIE(sp)	  
+  	csrr t1, CSR_UIE
+  	REG_S t1, PT_UIE(sp)
 	csrr t0, CSR_UIP
   	REG_S t0, PT_UIP(sp)
 	csrr t1, CSR_USCRATCH
  	REG_S t1, PT_USCRATCH(sp)
 	csrr t0, CSR_UTIMER
  	REG_S t0, PT_UTIMER(sp)
-	.endm 
+	.endm
+
+#ifdef CONFIG_RISCV_ZICFILP
+	/*
+	 * Save Zicfilp senvcfg register
+	 * Note: ELP state is hardware-managed and doesn't need software save/restore
+	 */
+	.macro SAVE_ZICFILP
+	csrr t0, CSR_SENVCFG
+	REG_S t0, PT_SENVCFG(sp)
+	.endm
+
+	/*
+	 * Restore Zicfilp senvcfg register
+	 */
+	.macro RESTORE_ZICFILP
+	REG_L t0, PT_SENVCFG(sp)
+	csrw CSR_SENVCFG, t0
+	.endm
+#else
+	.macro SAVE_ZICFILP
+	.endm
+	.macro RESTORE_ZICFILP
+	.endm
+#endif 
 
 /*
  * Prepares to enter a system call or exception by saving all registers to the
@@ -260,7 +284,16 @@ _check_dasics:
 _save_dasics:
 	SAVE_UCSR
 	SAVE_DASICS
-_save_end:	
+_save_end:
+#ifdef CONFIG_RISCV_ZICFILP
+	/*
+	 * Save senvcfg and disable Zicfilp in S-mode.
+	 * This prevents kernel from triggering landing pad faults.
+	 * The senvcfg will be restored on trap exit.
+	 */
+	SAVE_ZICFILP
+	csrci CSR_SENVCFG, ENVCFG_LPE
+#endif
 	.endm
 
 	.macro RESTORE_DASICS
@@ -447,6 +480,13 @@ _restore_dasics:
 	RESTORE_DASICS
 	RESTORE_UCSR
 _restore_general:
+#ifdef CONFIG_RISCV_ZICFILP
+	/*
+	 * Restore senvcfg before returning to userspace.
+	 * This restores the per-process Zicfilp state.
+	 */
+	RESTORE_ZICFILP
+#endif
 	/* restore general regs */
 
 	REG_L x1,  PT_RA(sp)

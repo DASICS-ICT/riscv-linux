@@ -73,10 +73,7 @@
 #define EXC_INST_PAGE_FAULT	12
 #define EXC_LOAD_PAGE_FAULT	13
 #define EXC_STORE_PAGE_FAULT	15
-#define EXC_SOFTWARE_CHECK  18
-
-/*zicfilp sw_check code*/
-#define EXC_SW_CHECK_FCFI_TVAL 2
+#define EXC_SOFTWARE_CHECK	18	/* Zicfilp software-check exception */
 
 /* PMP configuration */
 #define PMP_R			0x01
@@ -253,10 +250,29 @@
 #define DASICS_JUMPCFG_V    	0x1UL
 #endif /* CONFIG_DASICS */
 
+/* Zicfilp (Landing Pad) Extension */
 #ifdef CONFIG_RISCV_ZICFILP
-#define CSR_SENVCFG 0X10a
-#define ZICFILP_BIT 0x4
+/* CSR Addresses */
+#define CSR_SENVCFG		0x10a
+#define CSR_MENVCFG		0x30a
+#define CSR_MSECCFG		0x747
+
+/* ENVCFG bits for Zicfilp */
+#define ENVCFG_LPE		_AC(0x00000004, UL) /* Landing Pad Enable (bit 2) */
+
+/* MSECCFG bits for Zicfilp */
+#define MSECCFG_MLPE		_AC(0x00000004, UL) /* Machine Landing Pad Enable (bit 2) */
+
+/* Status register SPELP bits - Previous ELP state saved by hardware during traps */
+#define SR_SPELP		_AC(0x00800000, UL) /* Supervisor Previous ELP (bit 23) */
+#ifdef CONFIG_64BIT
+#define SR_MPELP		_AC(0x0000020000000000, UL) /* Machine Previous ELP (bit 41) */
 #endif
+
+/* Landing Pad Fault Code in stval */
+#define LANDING_PAD_FAULT_CODE	2
+
+#endif /* CONFIG_RISCV_ZICFILP */
 
 #ifndef __ASSEMBLY__
 

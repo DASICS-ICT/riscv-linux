@@ -98,15 +98,15 @@ int riscv_handle_zicfilp(unsigned long op, unsigned long val)
     if (op == RISCV_ZICFILP_GET) {
         /* Read the bit directly with optimized assembly */
         unsigned long reg = csr_read(CSR_SENVCFG);
-        return !!(reg & ZICFILP_BIT);  // return 1 or 0
+        return !!(reg & ENVCFG_LPE);  // return 1 or 0
     } else {
         /* Handle SET operation */
         if (val == RISCV_ZICFILP_ENABLE) {
-            csr_set(CSR_SENVCFG, ZICFILP_BIT);
+            csr_set(CSR_SENVCFG, ENVCFG_LPE);
         } else {
-            csr_clear(CSR_SENVCFG, ZICFILP_BIT);
+            csr_clear(CSR_SENVCFG, ENVCFG_LPE);
         }
-        
+
         return 0;
     }
 }

@@ -187,23 +187,47 @@ int is_valid_bugaddr(unsigned long pc)
 }
 #endif /* CONFIG_GENERIC_BUG */
 
+#ifdef CONFIG_RISCV_ZICFILP
+/**
+ * do_trap_software_check - Handle software-check exceptions (Zicfilp)
+ * @regs: Pointer to pt_regs containing exception context
+ *
+ * Handles software-check exceptions (scause=18) from Zicfilp.
+ * Simple implementation: just print error information for debugging.
+ * Note: Zicfilp is already disabled in trap entry, so we just log the fault.
+ */
 asmlinkage void do_trap_software_check(struct pt_regs *regs)
 {
-	pr_info("Raised a Software Check exception.");
+	unsigned long stval = regs->badaddr;
 
-	if (regs->badaddr == EXC_SW_CHECK_FCFI_TVAL){
-		/* Zicfilp Software check exception raised*/
-		pr_err("ZICFILP EXCEPTION: process %s (pid: %d)\n",
-               current->comm, task_pid_nr(current));
-		
-		pr_err("  epc: 0x" REG_FMT ", cause: 0x" REG_FMT "\n",
-				regs->epc, regs->cause);
-		// Disable Zicfilp in U-mode
-		csr_clear(CSR_SENVCFG, ZICFILP_BIT);
-		// Kill 
-		do_exit(SIGKILL);
+	/* Check if this is a Zicfilp landing pad fault */
+	if (stval == LANDING_PAD_FAULT_CODE) {
+		pr_info("========== Zicfilp Landing Pad Fault ==========\n");
+		pr_info("Process: %s (PID: %d)\n", current->comm, task_pid_nr(current));
+		pr_info("  PC (sepc):    0x%016lx (missing LPAD)\n", regs->epc);
+		pr_info("  Cause:        %ld (Software Check)\n", regs->cause);
+		pr_info("  stval:        %ld (Landing Pad Fault)\n", stval);
+		pr_info("  Mode:         %s\n", user_mode(regs) ? "User" : "Kernel");
+		pr_info("  Note:         Zicfilp already disabled in trap entry\n");
+		pr_info("===============================================\n");
+
+		/* Continue execution - Zicfilp is already disabled in trap entry */
+		return;
 	}
+
+	/* Unknown software-check exception */
+	pr_warn("Unknown software-check exception: stval=%ld at PC=0x%lx\n",
+		stval, regs->epc);
+	do_trap_error(regs, SIGILL, ILL_ILLTRP, regs->epc,
+		      "Oops - unknown software-check");
 }
+#else
+asmlinkage void do_trap_software_check(struct pt_regs *regs)
+{
+	do_trap_error(regs, SIGILL, ILL_ILLTRP, regs->epc,
+		      "Oops - software-check exception");
+}
+#endif /* CONFIG_RISCV_ZICFILP */
 
 /* This function may handle dasics exceptions in another way in future. */
 asmlinkage void do_trap_dasics(struct pt_regs *regs) 

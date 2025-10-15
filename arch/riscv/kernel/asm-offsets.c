@@ -175,7 +175,12 @@ void asm_offsets(void)
 
 	OFFSET(PT_DJCFG, pt_regs, dasicsJumpCfg);
 
-#endif 
+#endif
+
+#ifdef CONFIG_RISCV_ZICFILP
+	/* Zicfilp senvcfg register */
+	OFFSET(PT_SENVCFG, pt_regs, senvcfg);
+#endif
 
 	/*
 	 * THREAD_{F,X}* might be larger than a S-type offset can handle, but

@@ -78,7 +78,12 @@ struct pt_regs {
 	unsigned long dasicsFaultReason;
     unsigned long dasicsJumpBounds[4][2];
     unsigned long dasicsJumpCfg;
-#endif 	
+#endif
+
+#ifdef CONFIG_RISCV_ZICFILP
+	/* Zicfilp senvcfg register (for per-process CFI state) */
+	unsigned long senvcfg;
+#endif
 
 };
 
