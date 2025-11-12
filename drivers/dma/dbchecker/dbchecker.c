@@ -68,6 +68,8 @@ struct dbchecker_cmd {
 };
 
 struct dbchecker_en_ctrl {
+  uint16_t dev_byp_bm : 16;
+  uint16_t padding    : 42;
   bool func_en;
   bool intr_en;
   bool intr_clr;
@@ -208,12 +210,13 @@ static int __init dbchecker_module_init(void)
     timer_setup(&dbchecker_timer, dbchecker_timer_func, 0);
     mod_timer(&dbchecker_timer, jiffies + msecs_to_jiffies(100));
     struct dbchecker_en_ctrl ctrl = {
+        .dev_byp_bm = 0xFFFE,
         .func_en = true,
         .intr_en = false,
         .intr_clr = false,
-        .stall_mode = true,
+        .stall_mode = false,
         .err_byp = false,
-        .err_rpt = true
+        .err_rpt = false
     };
     dbchecker_en_set(&ctrl);
     printk("DBCHECKER: init\n");
