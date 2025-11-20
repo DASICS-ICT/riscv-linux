@@ -1644,13 +1644,16 @@ out_free_interp:
     elf_shtmp = find_sec(secstrs, elf_ex, elf_shdata, ".text");
 	hi = elf_shtmp->sh_addr + elf_shtmp->sh_size + load_bias;
 	lo = elf_shtmp->sh_addr + load_bias;
+	elf_shtmp = find_sec(secstrs, elf_ex, elf_shdata, ".plt");
+	// lo = elf_shtmp->sh_addr + load_bias;
+	lo = TRUST_BASE;
 #ifdef CONFIG_DASICS_DEBUG
 	pr_info("text start: 0x%lx, end: 0x%lx\n", lo, hi);
 #endif
 
-	lo = DASICS_LINKER_BASE;
 	if (likely(current->dasics_state == DASICS_DYNAMIC))
 	{
+		lo = DASICS_LINKER_BASE;
 		// the dasics will always go to the elf entry but not the dynamic linker
 		elf_entry = e_entry;
 	}

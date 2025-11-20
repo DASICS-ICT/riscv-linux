@@ -227,7 +227,7 @@ static int __setup_additional_pages(struct mm_struct *mm,
 	vdso_mapping_len = vdso_text_len + VVAR_SIZE;
 
 #ifdef CONFIG_DASICS
-	if (unlikely(current->dasics_state == DASICS_DYNAMIC))
+	if (unlikely(current->dasics_state == DASICS_DYNAMIC || current->dasics_state == DASICS_STATIC))
 	{
 		vdso_base = DASICS_VDSO_BASE;
 	} else 
