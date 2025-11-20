@@ -71,7 +71,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm,
 
 
 #ifdef CONFIG_DASICS
-	if (unlikely(current->dasics_state == DASICS_DYNAMIC))
+	if (unlikely(current->dasics_state == DASICS_DYNAMIC || current->dasics_state == DASICS_STATIC))
 	{
 		vdso_base = DASICS_VDSO_BASE;
 	} else 
