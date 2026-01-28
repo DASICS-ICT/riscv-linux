@@ -1585,8 +1585,8 @@ out_free_interp:
 
 		/* get read-only datas. */
 		/* This area contains some other codes, however, lib text should not execute them. */
-		regs->dasicsLibBounds[dasics_libidx][0] = align8down(hi);
-		regs->dasicsLibBounds[dasics_libidx++][1] = align8up(start_data);
+		// regs->dasicsLibBounds[dasics_libidx][0] = align8down(hi);
+		// regs->dasicsLibBounds[dasics_libidx++][1] = align8up(start_data);
 		regs->dasicsLibCfg0 |= ((DASICS_LIBCFG_V | DASICS_LIBCFG_R) << (dasics_libidx - 1) * 4) ;
 
 		regs->dasicsJumpBounds[dasics_jumpidx][0] = align8down(lo);
@@ -1606,7 +1606,7 @@ out_free_interp:
 	/* Following mapping is related to vm_mmap blocks. */
 	/* This should be updated in future.*/
 #ifdef CONFIG_DASICS_DEBUG
-	struct vm_area_struct *vmaptr;
+	// struct vm_area_struct *vmaptr;
 	for (vmaptr = current->mm->mmap; vmaptr != NULL; vmaptr = vmaptr->vm_next) {
 		pr_info("vm start: 0x%lx, vm end: 0x%lx, vm flag: 0x%lx\n", 
 				vmaptr->vm_start, vmaptr->vm_end, vmaptr->vm_flags);
@@ -1615,8 +1615,8 @@ out_free_interp:
 
 	/* protect data */
 	/* currently protact heap\mmap\stack together */	
-	regs->dasicsLibBounds[dasics_libidx][0] = align8down(current->mm->start_brk);
-	regs->dasicsLibBounds[dasics_libidx++][1] = align8up(current->mm->start_stack);
+	// regs->dasicsLibBounds[dasics_libidx][0] = align8down(current->mm->start_brk);
+	// regs->dasicsLibBounds[dasics_libidx++][1] = align8up(current->mm->start_stack);
 
 	//jbound0: lib code jump enable     
 	//mbound0: v  | r  | hi -- start_data - 0x2UL
