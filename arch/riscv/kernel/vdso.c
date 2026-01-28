@@ -21,6 +21,7 @@
 struct vdso_data {
 };
 #endif
+#include <asm/kdasics.h>
 
 extern char vdso_start[], vdso_end[];
 
@@ -225,7 +226,18 @@ static int __setup_additional_pages(struct mm_struct *mm,
 	/* Be sure to map the data page */
 	vdso_mapping_len = vdso_text_len + VVAR_SIZE;
 
+#ifdef CONFIG_DASICS
+	if (unlikely(current->dasics_state == DASICS_DYNAMIC))
+	{
+		vdso_base = DASICS_VDSO_BASE;
+	} else 
+	{
+		vdso_base = get_unmapped_area(NULL, 0, vdso_mapping_len, 0, 0);
+	}	
+#else
 	vdso_base = get_unmapped_area(NULL, 0, vdso_mapping_len, 0, 0);
+#endif
+
 	if (IS_ERR_VALUE(vdso_base)) {
 		ret = ERR_PTR(vdso_base);
 		goto up_fail;
