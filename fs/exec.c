@@ -1950,7 +1950,7 @@ static int do_execveat_common(int fd, struct filename *filename,
 	copy_from_user(dasics_buffer, str, length);
 	if (!strcmp(dasics_buffer, DASICS_COMMAND))
 	{
-		pr_info("check the dasics option!\n");
+		pr_info("[DASICS] enabled via -dasics option\n");
 		bprm->argc -= 1;
 		current->dasics_state = DASICS_STATIC;
 	}

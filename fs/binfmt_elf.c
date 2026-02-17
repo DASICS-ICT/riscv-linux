@@ -998,7 +998,9 @@ static int load_elf_binary(struct linux_binprm *bprm)
 	struct elf_shdr *elf_shdata, *elf_shtmp;
 	char *secstrs = NULL;
 	unsigned long hi = 0, lo = 0;
+#ifdef CONFIG_DASICS_DEBUG
 	struct vm_area_struct *vmaptr;
+#endif
 	int dasics_libidx = 0;
 	int dasics_jumpidx = 0;                 
 	unsigned long interp_entry;
@@ -1630,7 +1632,9 @@ out_free_interp:
 		regs->dasicsJumpBounds[dasics_jumpidx++][1] = align8up(hi);  
 		regs->dasicsJumpCfg |= (DASICS_JUMPCFG_V << (dasics_jumpidx - 1) * 16);
 
-	    pr_info("free zone text start: 0x%lx, end: 0x%lx\n", lo, hi);
+#ifdef CONFIG_DASICS_DEBUG
+		pr_info("free zone text start: 0x%lx, end: 0x%lx\n", lo, hi);
+#endif
 	}
 
 	/* get main text */
@@ -1693,6 +1697,9 @@ out_free_interp:
 		regs->dasicsMaincall, regs->dasicsReturnPC, regs->dasicsFreezoneRet, regs->dasicsFaultReason);
 	pr_info("finish dasics initialization.\n");
 #endif /* CONFIG_DASICS_DEBUG */
+
+	pr_info("[DASICS] init done: state=%ld entry=0x%lx\n",
+		(long)current->dasics_state, elf_entry);
 
 out_free_secstrs:
 	kfree(secstrs);
