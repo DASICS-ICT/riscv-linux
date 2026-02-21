@@ -13,6 +13,16 @@
 // judge the dasics option
 #define DASICS_COMMAND "-dasics"
 #define DASICS_LENGTH 8
+#define DASICS_SREG_OPEN_COMMAND "-sreg-open"
+#define DASICS_SREG_OPEN_LENGTH 11
+#define DASICS_SREG_CLOSE_COMMAND "-sreg-close"
+#define DASICS_SREG_CLOSE_LENGTH 12
+
+enum dasics_sreg_policy {
+	DASICS_SREG_POLICY_DEFAULT = 0,
+	DASICS_SREG_POLICY_OPEN,
+	DASICS_SREG_POLICY_CLOSE,
+};
 
 // dasics dynamic elf base
 #define DASICS_LINKER_BASE 0x1000 

@@ -1652,7 +1652,12 @@ out_free_interp:
 		elf_entry = e_entry;
 	}
 
-	regs->dasicsUmainCfg = DASICS_UCFG_ENA; 
+	regs->dasicsUmainCfg = DASICS_UCFG_ENA;
+	if (current->dasics_sreg_policy == DASICS_SREG_POLICY_CLOSE)
+		regs->dasicsUmainCfg |= DASICS_UCFG_CUSRG;
+	else if (current->dasics_sreg_policy == DASICS_SREG_POLICY_OPEN)
+		regs->dasicsUmainCfg &= ~DASICS_UCFG_CUSRG;
+
 	regs->dasicsUMainBoundLo = align8down(lo);
 	regs->dasicsUMainBoundHi = align8up(hi);
 

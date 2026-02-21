@@ -661,6 +661,8 @@ struct task_struct {
 #ifdef CONFIG_DASICS
 	/* 0 normal, 1 dasics statis, 2 dasics dynamic */
 	volatile long 			dasics_state;
+	/* 0 default, 1 force sreg open, 2 force sreg close */
+	volatile long			dasics_sreg_policy;
 #endif
 
 	void				*stack;

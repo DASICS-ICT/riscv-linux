@@ -1918,44 +1918,91 @@ static int do_execveat_common(int fd, struct filename *filename,
 		goto out_free;
 
 #ifdef CONFIG_DASICS
-	/* try to find the -dasics argc */
-	current->dasics_state = NO_DASICS;
-	
-	if (likely(bprm->argc < 2)) 
-		goto no_need_dasics;
-
-	const char __user *name_str = get_user_arg_ptr(argv, 0);
-
-	int name_length = strnlen_user(name_str, MAX_ARG_STRLEN);
-
-	char *name_buffer = kmalloc(name_length, GFP_KERNEL);	
-
-	copy_from_user(name_buffer, name_str, name_length);	
-
-	if (!strcmp(name_buffer, "time") || !strcmp(name_buffer, "strace")  || !strcmp(name_buffer, "sudo"))
+	/* Parse DASICS control suffix args from tail: -dasics/-sreg-open/-sreg-close. */
 	{
+		const char __user *name_str;
+		const char __user *arg_str;
+		char *name_buffer;
+		char *arg_buffer;
+		int name_length;
+		int user_length;
+		int arg_idx;
+		bool sreg_policy_seen;
+
+		current->dasics_state = NO_DASICS;
+		current->dasics_sreg_policy = DASICS_SREG_POLICY_DEFAULT;
+		sreg_policy_seen = false;
+
+		if (likely(bprm->argc < 2))
+			goto no_need_dasics;
+
+		name_str = get_user_arg_ptr(argv, 0);
+		if (!name_str)
+			goto no_need_dasics;
+
+		name_length = strnlen_user(name_str, MAX_ARG_STRLEN);
+		if (name_length <= 0 || name_length > MAX_ARG_STRLEN)
+			goto no_need_dasics;
+
+		name_buffer = kmalloc(name_length, GFP_KERNEL);
+		if (!name_buffer)
+			goto no_need_dasics;
+		if (copy_from_user(name_buffer, name_str, name_length)) {
+			kfree(name_buffer);
+			goto no_need_dasics;
+		}
+
+		if (!strcmp(name_buffer, "time") || !strcmp(name_buffer, "strace") ||
+		    !strcmp(name_buffer, "sudo")) {
+			kfree(name_buffer);
+			goto no_need_dasics;
+		}
 		kfree(name_buffer);
-		goto no_need_dasics;
+
+		arg_idx = bprm->argc - 1;
+		while (arg_idx > 0) {
+			arg_str = get_user_arg_ptr(argv, arg_idx);
+			if (!arg_str)
+				break;
+
+			user_length = strnlen_user(arg_str, MAX_ARG_STRLEN);
+			if (user_length <= 0 || user_length > MAX_ARG_STRLEN)
+				break;
+
+			arg_buffer = kmalloc(user_length, GFP_KERNEL);
+			if (!arg_buffer)
+				break;
+			if (copy_from_user(arg_buffer, arg_str, user_length)) {
+				kfree(arg_buffer);
+				break;
+			}
+
+			if (!strcmp(arg_buffer, DASICS_COMMAND)) {
+				current->dasics_state = DASICS_STATIC;
+			} else if (!strcmp(arg_buffer, DASICS_SREG_OPEN_COMMAND)) {
+				if (!sreg_policy_seen) {
+					current->dasics_sreg_policy = DASICS_SREG_POLICY_OPEN;
+					sreg_policy_seen = true;
+				}
+			} else if (!strcmp(arg_buffer, DASICS_SREG_CLOSE_COMMAND)) {
+				if (!sreg_policy_seen) {
+					current->dasics_sreg_policy = DASICS_SREG_POLICY_CLOSE;
+					sreg_policy_seen = true;
+				}
+			} else {
+				kfree(arg_buffer);
+				break;
+			}
+
+			kfree(arg_buffer);
+			bprm->argc -= 1;
+			arg_idx -= 1;
+		}
+
+		if (current->dasics_state == DASICS_STATIC)
+			pr_info("[DASICS] enabled via -dasics option\n");
 	}
-	kfree(name_buffer);
 
-	int length = DASICS_LENGTH;
-	const char __user *str = get_user_arg_ptr(argv, bprm->argc - 1);
-
-	int user_length = strnlen_user(str, MAX_ARG_STRLEN);
-	if (user_length != length) goto no_need_dasics;
-
-	char *dasics_buffer = kmalloc(length, GFP_KERNEL);
-	
-	copy_from_user(dasics_buffer, str, length);
-	if (!strcmp(dasics_buffer, DASICS_COMMAND))
-	{
-		pr_info("[DASICS] enabled via -dasics option\n");
-		bprm->argc -= 1;
-		current->dasics_state = DASICS_STATIC;
-	}
-	kfree(dasics_buffer);
-	
 no_need_dasics:	
 #endif
 
