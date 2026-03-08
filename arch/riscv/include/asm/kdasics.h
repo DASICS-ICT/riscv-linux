@@ -13,6 +13,8 @@
 // judge the dasics option
 #define DASICS_COMMAND "-dasics"
 #define DASICS_LENGTH 8
+#define DMBOX_COMMAND "-dmbox"
+#define DMBOX_LENGTH 7
 
 // dasics dynamic elf base
 #define DASICS_LINKER_BASE 0x1000 

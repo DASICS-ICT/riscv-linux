@@ -2069,6 +2069,7 @@ static __latent_entropy struct task_struct *copy_process(
 
 #ifdef CONFIG_DASICS
 	p->dasics_state = current->dasics_state;
+	p->dmbox_enabled = current->dmbox_enabled;
 #endif
 
 	p->pagefault_disabled = 0;

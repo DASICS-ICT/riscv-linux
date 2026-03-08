@@ -1920,6 +1920,7 @@ static int do_execveat_common(int fd, struct filename *filename,
 #ifdef CONFIG_DASICS
 	/* try to find the -dasics argc */
 	current->dasics_state = NO_DASICS;
+	current->dmbox_enabled = 0;
 	
 	if (likely(bprm->argc < 2)) 
 		goto no_need_dasics;
@@ -1939,22 +1940,44 @@ static int do_execveat_common(int fd, struct filename *filename,
 	}
 	kfree(name_buffer);
 
-	int length = DASICS_LENGTH;
-	const char __user *str = get_user_arg_ptr(argv, bprm->argc - 1);
+	while (bprm->argc > 1) {
+		const char __user *str = get_user_arg_ptr(argv, bprm->argc - 1);
+		int user_length = strnlen_user(str, MAX_ARG_STRLEN);
 
-	int user_length = strnlen_user(str, MAX_ARG_STRLEN);
-	if (user_length != length) goto no_need_dasics;
+		if (user_length == DASICS_LENGTH) {
+			char *dasics_buffer = kmalloc(DASICS_LENGTH, GFP_KERNEL);
 
-	char *dasics_buffer = kmalloc(length, GFP_KERNEL);
-	
-	copy_from_user(dasics_buffer, str, length);
-	if (!strcmp(dasics_buffer, DASICS_COMMAND))
-	{
-		pr_info("check the dasics option!\n");
-		bprm->argc -= 1;
-		current->dasics_state = DASICS_STATIC;
+			if (!dasics_buffer)
+				goto no_need_dasics;
+			copy_from_user(dasics_buffer, str, DASICS_LENGTH);
+			if (!strcmp(dasics_buffer, DASICS_COMMAND)) {
+				pr_info("check the dasics option!\n");
+				bprm->argc -= 1;
+				current->dasics_state = DASICS_STATIC;
+				kfree(dasics_buffer);
+				continue;
+			}
+			kfree(dasics_buffer);
+		}
+
+		if (user_length == DMBOX_LENGTH) {
+			char *dmbox_buffer = kmalloc(DMBOX_LENGTH, GFP_KERNEL);
+
+			if (!dmbox_buffer)
+				goto no_need_dasics;
+			copy_from_user(dmbox_buffer, str, DMBOX_LENGTH);
+			if (!strcmp(dmbox_buffer, DMBOX_COMMAND)) {
+				pr_info("check the dmbox option!\n");
+				bprm->argc -= 1;
+				current->dmbox_enabled = 1;
+				kfree(dmbox_buffer);
+				continue;
+			}
+			kfree(dmbox_buffer);
+		}
+
+		break;
 	}
-	kfree(dasics_buffer);
 	
 no_need_dasics:	
 #endif

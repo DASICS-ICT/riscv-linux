@@ -39,6 +39,7 @@
 #define AT_DASICS 57
 #define AT_LINKER_COPY 58
 #define AT_TRUST_BASE 59
+#define AT_DMBOX_ENABLED 60
 #endif
  
 #endif /* _UAPI_LINUX_AUXVEC_H */

@@ -661,6 +661,8 @@ struct task_struct {
 #ifdef CONFIG_DASICS
 	/* 0 normal, 1 dasics statis, 2 dasics dynamic */
 	volatile long 			dasics_state;
+	/* 0 disabled, 1 enabled */
+	volatile long			dmbox_enabled;
 #endif
 
 	void				*stack;

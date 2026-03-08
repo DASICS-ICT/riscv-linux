@@ -96,7 +96,7 @@ struct pt_regs {
 #define user_mode(regs) (((regs)->status & SR_PP) == 0)
 
 #ifdef CONFIG_DASICS
-#define dasics_uena(regs) (((regs)->dasicsUmainCfg & DASICS_UCFG_ENA) != 0)
+#define dasics_uena(regs) (((regs)->dasicsUmainCfg & DASICS_MAINCFG_UENA) != 0)
 #define dasics_uopen(regs) (user_mode(regs) && dasics_uena(regs))
 #endif
 

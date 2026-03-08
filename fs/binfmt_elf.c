@@ -289,6 +289,8 @@ create_elf_tables(struct linux_binprm *bprm, const struct elfhdr *exec,
 		NEW_AUX_ENT(AT_DASICS, 0);
 	NEW_AUX_ENT(AT_LINKER_COPY, copy_interp_entry);
 	NEW_AUX_ENT(AT_TRUST_BASE, TRUST_LIB_BASE);
+	if (current->dmbox_enabled)
+		NEW_AUX_ENT(AT_DMBOX_ENABLED, 1);
 #endif
 
 #ifdef ELF_HWCAP2
@@ -1530,11 +1532,17 @@ out_free_interp:
 #ifdef CONFIG_DASICS
 
 	/* clear dasics csrs */
-    regs->dasicsUmainCfg = 0;
+	regs->dasicsUmainCfg = 0;
+	regs->dasicsUMainBoundLo = 0;
+	regs->dasicsUMainBoundHi = 0;
 	regs->dasicsLibCfg0 = 0;
 	regs->dasicsLibCfg1 = 0;
+	regs->dasicsJumpCfg = 0;
+	memset(regs->dasicsLibBounds, 0, sizeof(regs->dasicsLibBounds));
+	memset(regs->dasicsJumpBounds, 0, sizeof(regs->dasicsJumpBounds));
 
-	if (current->dasics_state == NO_DASICS) goto final_exec;
+	if (current->dasics_state == NO_DASICS && !current->dmbox_enabled)
+		goto final_exec;
 
 	/* TODO: if .ulibtext exists, set dasics user main boundary registers. */
 	elf_shdata = load_elf_shdrs(elf_ex, bprm->file);
@@ -1543,6 +1551,51 @@ out_free_interp:
 	secstrs = load_secstrs(elf_ex, bprm->file, elf_shdata);
 	if (!secstrs)
 		goto out_free_shdata;
+
+	if (current->dmbox_enabled) {
+		elf_shtmp = find_sec(secstrs, elf_ex, elf_shdata, ".text");
+		if (!elf_shtmp)
+			goto out_free_secstrs;
+
+		hi = elf_shtmp->sh_addr + elf_shtmp->sh_size + load_bias;
+		lo = DASICS_LINKER_BASE;
+
+		/* Temporarily disable U-mode ECALL check (CUET) for DMBox path. */
+		regs->dasicsUmainCfg = DASICS_MAINCFG_UENA | DASICS_MAINCFG_CUET | DASICS_MAINCFG_CUST | DASICS_MAINCFG_CULT | DASICS_MAINCFG_CUFT;
+		regs->dasicsUMainBoundLo = lo & ~0x7UL;
+		regs->dasicsUMainBoundHi = (hi + 0x7UL) & ~0x7UL;
+
+		regs->dasicsLibCfg0 = DASICS_LIBCFG_V | DASICS_LIBCFG_R | DASICS_LIBCFG_W;
+		regs->dasicsLibBounds[0][0] = 0;
+		regs->dasicsLibBounds[0][1] = (TASK_SIZE + 0x7UL) & ~0x7UL;
+
+		regs->dasicsJumpCfg = DASICS_JUMPCFG_V;
+		regs->dasicsJumpBounds[0][0] = 0;
+		regs->dasicsJumpBounds[0][1] = (TASK_SIZE + 0x7UL) & ~0x7UL;
+#ifdef CONFIG_DASICS_DEBUG
+		{
+			int cnt;
+
+			pr_info("\033[34m[DMBOX] DASICS User Main Registers:\033[0m\n");
+			pr_info("\033[34m[DMBOX] config: " REG_FMT " bound hi: " REG_FMT " bound lo: " REG_FMT "\033[0m\n",
+				regs->dasicsUmainCfg, regs->dasicsUMainBoundHi, regs->dasicsUMainBoundLo);
+			pr_info("\033[34m[DMBOX] DASICS Lib Registers:\033[0m\n");
+			pr_info("\033[34m[DMBOX] config0: " REG_FMT " config1: " REG_FMT "\033[0m\n",
+				regs->dasicsLibCfg0, regs->dasicsLibCfg1);
+			for (cnt = 0; cnt < 16; cnt++) {
+				pr_info("\033[34m[DMBOX] (%d) mem bound lo: " REG_FMT " mem bound hi: " REG_FMT "\033[0m\n",
+					cnt, regs->dasicsLibBounds[cnt][0], regs->dasicsLibBounds[cnt][1]);
+			}
+			pr_info("\033[34m[DMBOX] jump cfg: " REG_FMT "\033[0m\n", regs->dasicsJumpCfg);
+			for (cnt = 0; cnt < 4; cnt++) {
+				pr_info("\033[34m[DMBOX] (%d) jump bound lo: " REG_FMT " jump bound hi: " REG_FMT "\033[0m\n",
+					cnt, regs->dasicsJumpBounds[cnt][0], regs->dasicsJumpBounds[cnt][1]);
+			}
+		}
+#endif
+		goto out_free_secstrs;
+	}
+
 	elf_shtmp = find_sec(secstrs, elf_ex, elf_shdata, ".ulibtext");
 	// if no command line "-dasics" but ".ulibtext" section exits, set to DASICS_STATIC
 	if (elf_shtmp && current->dasics_state == NO_DASICS)
@@ -1648,7 +1701,7 @@ out_free_interp:
 		elf_entry = e_entry;
 	}
 
-	regs->dasicsUmainCfg = DASICS_UCFG_ENA; 
+	regs->dasicsUmainCfg = DASICS_MAINCFG_UENA; 
 	regs->dasicsUMainBoundLo = align8down(lo);
 	regs->dasicsUMainBoundHi = align8up(hi);
 
