@@ -92,6 +92,266 @@
 	REG_L	a0, TASK_TI_A0(tp)
 .endm
 
+#ifdef CONFIG_DASICS
+.macro SAVE_DASICS
+	/* Save DASICS main context. */
+	csrrw t0, CSR_DUMCFG, zero
+	REG_S t0, PT_DUMCFG(sp)
+	csrr t1, CSR_DUMBOUNDLO
+	REG_S t1, PT_DUMBOUNDLO(sp)
+	csrr t0, CSR_DUMBOUNDHI
+	REG_S t0, PT_DUMBOUNDHI(sp)
+
+	csrr t0, CSR_DLCFG0
+	REG_S t0, PT_DLCFG0(sp)
+
+	csrr t0, CSR_DLBOUND0LO
+	csrr t1, CSR_DLBOUND0HI
+	REG_S t0, PT_DLBOUND0LO(sp)
+	REG_S t1, PT_DLBOUND0HI(sp)
+	csrr t0, CSR_DLBOUND1LO
+	csrr t1, CSR_DLBOUND1HI
+	REG_S t0, PT_DLBOUND1LO(sp)
+	REG_S t1, PT_DLBOUND1HI(sp)
+	csrr t0, CSR_DLBOUND2LO
+	csrr t1, CSR_DLBOUND2HI
+	REG_S t0, PT_DLBOUND2LO(sp)
+	REG_S t1, PT_DLBOUND2HI(sp)
+	csrr t0, CSR_DLBOUND3LO
+	csrr t1, CSR_DLBOUND3HI
+	REG_S t0, PT_DLBOUND3LO(sp)
+	REG_S t1, PT_DLBOUND3HI(sp)
+	csrr t0, CSR_DLBOUND4LO
+	csrr t1, CSR_DLBOUND4HI
+	REG_S t0, PT_DLBOUND4LO(sp)
+	REG_S t1, PT_DLBOUND4HI(sp)
+	csrr t0, CSR_DLBOUND5LO
+	csrr t1, CSR_DLBOUND5HI
+	REG_S t0, PT_DLBOUND5LO(sp)
+	REG_S t1, PT_DLBOUND5HI(sp)
+	csrr t0, CSR_DLBOUND6LO
+	csrr t1, CSR_DLBOUND6HI
+	REG_S t0, PT_DLBOUND6LO(sp)
+	REG_S t1, PT_DLBOUND6HI(sp)
+	csrr t0, CSR_DLBOUND7LO
+	csrr t1, CSR_DLBOUND7HI
+	REG_S t0, PT_DLBOUND7LO(sp)
+	REG_S t1, PT_DLBOUND7HI(sp)
+	csrr t0, CSR_DLBOUND8LO
+	csrr t1, CSR_DLBOUND8HI
+	REG_S t0, PT_DLBOUND8LO(sp)
+	REG_S t1, PT_DLBOUND8HI(sp)
+	csrr t0, CSR_DLBOUND9LO
+	csrr t1, CSR_DLBOUND9HI
+	REG_S t0, PT_DLBOUND9LO(sp)
+	REG_S t1, PT_DLBOUND9HI(sp)
+	csrr t0, CSR_DLBOUND10LO
+	csrr t1, CSR_DLBOUND10HI
+	REG_S t0, PT_DLBOUND10LO(sp)
+	REG_S t1, PT_DLBOUND10HI(sp)
+	csrr t0, CSR_DLBOUND11LO
+	csrr t1, CSR_DLBOUND11HI
+	REG_S t0, PT_DLBOUND11LO(sp)
+	REG_S t1, PT_DLBOUND11HI(sp)
+	csrr t0, CSR_DLBOUND12LO
+	csrr t1, CSR_DLBOUND12HI
+	REG_S t0, PT_DLBOUND12LO(sp)
+	REG_S t1, PT_DLBOUND12HI(sp)
+	csrr t0, CSR_DLBOUND13LO
+	csrr t1, CSR_DLBOUND13HI
+	REG_S t0, PT_DLBOUND13LO(sp)
+	REG_S t1, PT_DLBOUND13HI(sp)
+	csrr t0, CSR_DLBOUND14LO
+	csrr t1, CSR_DLBOUND14HI
+	REG_S t0, PT_DLBOUND14LO(sp)
+	REG_S t1, PT_DLBOUND14HI(sp)
+	csrr t0, CSR_DLBOUND15LO
+	csrr t1, CSR_DLBOUND15HI
+	REG_S t0, PT_DLBOUND15LO(sp)
+	REG_S t1, PT_DLBOUND15HI(sp)
+
+	csrr t0, CSR_DMAINCALL
+	REG_S t0, PT_DMAINCALL(sp)
+	csrr t1, CSR_DRETURNPC
+	REG_S t1, PT_DRETURNPC(sp)
+	csrr t0, CSR_DFZRETURN
+	REG_S t0, PT_DFZRETURN(sp)
+	csrr t1, CSR_DFREASON
+	REG_S t1, PT_DFREASON(sp)
+
+	csrr t0, CSR_DJBOUND0LO
+	csrr t1, CSR_DJBOUND0HI
+	REG_S t0, PT_DJBOUND0LO(sp)
+	REG_S t1, PT_DJBOUND0HI(sp)
+	csrr t0, CSR_DJBOUND1LO
+	csrr t1, CSR_DJBOUND1HI
+	REG_S t0, PT_DJBOUND1LO(sp)
+	REG_S t1, PT_DJBOUND1HI(sp)
+	csrr t0, CSR_DJBOUND2LO
+	csrr t1, CSR_DJBOUND2HI
+	REG_S t0, PT_DJBOUND2LO(sp)
+	REG_S t1, PT_DJBOUND2HI(sp)
+	csrr t0, CSR_DJBOUND3LO
+	csrr t1, CSR_DJBOUND3HI
+	REG_S t0, PT_DJBOUND3LO(sp)
+	REG_S t1, PT_DJBOUND3HI(sp)
+
+	csrr t0, CSR_DJCFG
+	REG_S t0, PT_DJCFG(sp)
+.endm
+
+.macro SAVE_UCSR
+	/* Save N extension user CSRs. */
+	csrr t0, CSR_USTATUS
+	REG_S t0, PT_USTATUS(sp)
+	csrr t1, CSR_UEPC
+	REG_S t1, PT_UEPC(sp)
+	csrr t0, CSR_UTVAL
+	REG_S t0, PT_UBADADDR(sp)
+	csrr t1, CSR_UCAUSE
+	REG_S t1, PT_UCAUSE(sp)
+	csrr t0, CSR_UTVEC
+	REG_S t0, PT_UTVEC(sp)
+	csrr t1, CSR_UIE
+	REG_S t1, PT_UIE(sp)
+	csrr t0, CSR_UIP
+	REG_S t0, PT_UIP(sp)
+	csrr t1, CSR_USCRATCH
+	REG_S t1, PT_USCRATCH(sp)
+	csrr t0, CSR_UTIMER
+	REG_S t0, PT_UTIMER(sp)
+.endm
+
+.macro RESTORE_DASICS
+	/* Restore DASICS main context. */
+	REG_L t0, PT_DUMCFG(sp)
+	csrw CSR_DUMCFG, t0
+	REG_L t1, PT_DUMBOUNDLO(sp)
+	csrw CSR_DUMBOUNDLO, t1
+	REG_L t0, PT_DUMBOUNDHI(sp)
+	csrw CSR_DUMBOUNDHI, t0
+
+	REG_L t0, PT_DLCFG0(sp)
+	csrw CSR_DLCFG0, t0
+
+	REG_L t0, PT_DLBOUND0LO(sp)
+	REG_L t1, PT_DLBOUND0HI(sp)
+	csrw CSR_DLBOUND0LO, t0
+	csrw CSR_DLBOUND0HI, t1
+	REG_L t0, PT_DLBOUND1LO(sp)
+	REG_L t1, PT_DLBOUND1HI(sp)
+	csrw CSR_DLBOUND1LO, t0
+	csrw CSR_DLBOUND1HI, t1
+	REG_L t0, PT_DLBOUND2LO(sp)
+	REG_L t1, PT_DLBOUND2HI(sp)
+	csrw CSR_DLBOUND2LO, t0
+	csrw CSR_DLBOUND2HI, t1
+	REG_L t0, PT_DLBOUND3LO(sp)
+	REG_L t1, PT_DLBOUND3HI(sp)
+	csrw CSR_DLBOUND3LO, t0
+	csrw CSR_DLBOUND3HI, t1
+	REG_L t0, PT_DLBOUND4LO(sp)
+	REG_L t1, PT_DLBOUND4HI(sp)
+	csrw CSR_DLBOUND4LO, t0
+	csrw CSR_DLBOUND4HI, t1
+	REG_L t0, PT_DLBOUND5LO(sp)
+	REG_L t1, PT_DLBOUND5HI(sp)
+	csrw CSR_DLBOUND5LO, t0
+	csrw CSR_DLBOUND5HI, t1
+	REG_L t0, PT_DLBOUND6LO(sp)
+	REG_L t1, PT_DLBOUND6HI(sp)
+	csrw CSR_DLBOUND6LO, t0
+	csrw CSR_DLBOUND6HI, t1
+	REG_L t0, PT_DLBOUND7LO(sp)
+	REG_L t1, PT_DLBOUND7HI(sp)
+	csrw CSR_DLBOUND7LO, t0
+	csrw CSR_DLBOUND7HI, t1
+	REG_L t0, PT_DLBOUND8LO(sp)
+	REG_L t1, PT_DLBOUND8HI(sp)
+	csrw CSR_DLBOUND8LO, t0
+	csrw CSR_DLBOUND8HI, t1
+	REG_L t0, PT_DLBOUND9LO(sp)
+	REG_L t1, PT_DLBOUND9HI(sp)
+	csrw CSR_DLBOUND9LO, t0
+	csrw CSR_DLBOUND9HI, t1
+	REG_L t0, PT_DLBOUND10LO(sp)
+	REG_L t1, PT_DLBOUND10HI(sp)
+	csrw CSR_DLBOUND10LO, t0
+	csrw CSR_DLBOUND10HI, t1
+	REG_L t0, PT_DLBOUND11LO(sp)
+	REG_L t1, PT_DLBOUND11HI(sp)
+	csrw CSR_DLBOUND11LO, t0
+	csrw CSR_DLBOUND11HI, t1
+	REG_L t0, PT_DLBOUND12LO(sp)
+	REG_L t1, PT_DLBOUND12HI(sp)
+	csrw CSR_DLBOUND12LO, t0
+	csrw CSR_DLBOUND12HI, t1
+	REG_L t0, PT_DLBOUND13LO(sp)
+	REG_L t1, PT_DLBOUND13HI(sp)
+	csrw CSR_DLBOUND13LO, t0
+	csrw CSR_DLBOUND13HI, t1
+	REG_L t0, PT_DLBOUND14LO(sp)
+	REG_L t1, PT_DLBOUND14HI(sp)
+	csrw CSR_DLBOUND14LO, t0
+	csrw CSR_DLBOUND14HI, t1
+	REG_L t0, PT_DLBOUND15LO(sp)
+	REG_L t1, PT_DLBOUND15HI(sp)
+	csrw CSR_DLBOUND15LO, t0
+	csrw CSR_DLBOUND15HI, t1
+
+	REG_L t0, PT_DMAINCALL(sp)
+	csrw CSR_DMAINCALL, t0
+	REG_L t1, PT_DRETURNPC(sp)
+	csrw CSR_DRETURNPC, t1
+	REG_L t0, PT_DFZRETURN(sp)
+	csrw CSR_DFZRETURN, t0
+	REG_L t1, PT_DFREASON(sp)
+	csrw CSR_DFREASON, t1
+
+	REG_L t0, PT_DJBOUND0LO(sp)
+	REG_L t1, PT_DJBOUND0HI(sp)
+	csrw CSR_DJBOUND0LO, t0
+	csrw CSR_DJBOUND0HI, t1
+	REG_L t0, PT_DJBOUND1LO(sp)
+	REG_L t1, PT_DJBOUND1HI(sp)
+	csrw CSR_DJBOUND1LO, t0
+	csrw CSR_DJBOUND1HI, t1
+	REG_L t0, PT_DJBOUND2LO(sp)
+	REG_L t1, PT_DJBOUND2HI(sp)
+	csrw CSR_DJBOUND2LO, t0
+	csrw CSR_DJBOUND2HI, t1
+	REG_L t0, PT_DJBOUND3LO(sp)
+	REG_L t1, PT_DJBOUND3HI(sp)
+	csrw CSR_DJBOUND3LO, t0
+	csrw CSR_DJBOUND3HI, t1
+
+	REG_L t0, PT_DJCFG(sp)
+	csrw CSR_DJCFG, t0
+.endm
+
+.macro RESTORE_UCSR
+	/* Restore N extension user CSRs. */
+	REG_L t0, PT_USTATUS(sp)
+	csrw CSR_USTATUS, t0
+	REG_L t1, PT_UEPC(sp)
+	csrw CSR_UEPC, t1
+	REG_L t0, PT_UBADADDR(sp)
+	csrw CSR_UTVAL, t0
+	REG_L t1, PT_UCAUSE(sp)
+	csrw CSR_UCAUSE, t1
+	REG_L t0, PT_UTVEC(sp)
+	csrw CSR_UTVEC, t0
+	REG_L t1, PT_UIE(sp)
+	csrw CSR_UIE, t1
+	REG_L t0, PT_UIP(sp)
+	csrw CSR_UIP, t0
+	REG_L t1, PT_USCRATCH(sp)
+	csrw CSR_USCRATCH, t1
+	REG_L t0, PT_UTIMER(sp)
+	csrw CSR_UTIMER, t0
+.endm
+#endif /* CONFIG_DASICS */
+
 
 SYM_CODE_START(handle_exception)
 	/*
@@ -158,6 +418,18 @@ SYM_CODE_START(handle_exception)
 	REG_S s3, PT_BADADDR(sp)
 	REG_S s4, PT_CAUSE(sp)
 	REG_S s5, PT_TP(sp)
+
+#ifdef CONFIG_DASICS
+	/* Save DASICS/UGSR state only when DASICS is active for current thread. */
+	csrr t0, CSR_DUMCFG
+	bnez t0, .Lsave_dasics_context
+	REG_S zero, PT_DUMCFG(sp)
+	j .Lsave_dasics_done
+.Lsave_dasics_context:
+	SAVE_UCSR
+	SAVE_DASICS
+.Lsave_dasics_done:
+#endif
 
 	/*
 	 * Set the scratch register to 0, so that if a recursive exception
@@ -265,6 +537,16 @@ SYM_CODE_START_NOALIGN(ret_from_exception)
 
 	csrw CSR_STATUS, a0
 	csrw CSR_EPC, a2
+
+#ifdef CONFIG_DASICS
+	/* Restore DASICS/UCSR state only when it has been saved. */
+	REG_L t0, PT_DUMCFG(sp)
+	csrw CSR_DUMCFG, t0
+	beqz t0, .Lskip_restore_dasics
+	RESTORE_DASICS
+	RESTORE_UCSR
+.Lskip_restore_dasics:
+#endif
 
 	REG_L x1,  PT_RA(sp)
 	REG_L x3,  PT_GP(sp)
@@ -460,6 +742,18 @@ SYM_DATA_START_LOCAL(excp_vect_table)
 	RISCV_PTR do_page_fault   /* load page fault */
 	RISCV_PTR do_trap_unknown
 	RISCV_PTR do_page_fault   /* store page fault */
+#ifdef CONFIG_DASICS
+	RISCV_PTR do_trap_unknown
+	RISCV_PTR do_trap_unknown
+	RISCV_PTR do_trap_unknown
+	RISCV_PTR do_trap_unknown
+	RISCV_PTR do_trap_unknown
+	RISCV_PTR do_trap_unknown
+	RISCV_PTR do_trap_unknown
+	RISCV_PTR do_trap_unknown
+	RISCV_PTR do_trap_dasics  /* DASICS ucheck fault */
+	RISCV_PTR do_trap_dasics  /* DASICS scheck fault */
+#endif
 SYM_DATA_END_LABEL(excp_vect_table, SYM_L_LOCAL, excp_vect_table_end)
 
 #ifndef CONFIG_MMU

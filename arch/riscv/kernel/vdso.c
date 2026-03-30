@@ -17,6 +17,10 @@
 #include <vdso/datapage.h>
 #include <vdso/vsyscall.h>
 
+#ifdef CONFIG_DASICS
+#include <asm/kdasics.h>
+#endif
+
 #define VVAR_SIZE  (VDSO_NR_PAGES << PAGE_SHIFT)
 
 struct __vdso_info {
@@ -121,7 +125,18 @@ static int __setup_additional_pages(struct mm_struct *mm,
 	/* Be sure to map the data page */
 	vdso_mapping_len = vdso_text_len + VVAR_SIZE;
 
+#ifdef CONFIG_DASICS
+        if (current->dasics_state)
+        {
+                vdso_base = DASICS_VDSO_BASE;
+        } else
+        {
+                vdso_base = get_unmapped_area(NULL, 0, vdso_mapping_len, 0, 0);
+        }
+#else
 	vdso_base = get_unmapped_area(NULL, 0, vdso_mapping_len, 0, 0);
+#endif
+
 	if (IS_ERR_VALUE(vdso_base)) {
 		ret = ERR_PTR(vdso_base);
 		goto up_fail;

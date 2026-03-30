@@ -41,4 +41,12 @@
 #define AT_MINSIGSTKSZ	51	/* minimal stack size for signal delivery */
 #endif
 
+#ifdef CONFIG_DASICS
+#define AT_LINKER 55
+#define AT_FIXUP 56
+#define AT_DASICS 57
+#define AT_LINKER_COPY 58
+#define AT_TRUST_BASE 59
+#endif
+
 #endif /* _UAPI_LINUX_AUXVEC_H */

@@ -120,6 +120,37 @@ struct __riscv_v_regset_state {
 	char vreg[];
 };
 
+#ifdef CONFIG_DASICS
+struct user_ext_regs_struct {
+        /* N-extension user registers */
+        unsigned long ustatus;
+        unsigned long uepc;
+        unsigned long ubadaddr;
+        unsigned long ucause;
+        unsigned long utvec;
+        unsigned long uie;
+        unsigned long uip;
+        unsigned long uscratch;
+        unsigned long utimer;
+
+        /* dasics supervisor registers */
+        unsigned long dasicsUmainCfg;           /* initialize should be zero */
+        unsigned long dasicsUMainBoundLo;
+        unsigned long dasicsUMainBoundHi;
+
+    	/* Saved DASICS user registers */
+    	unsigned long dasicsLibCfg0;
+    	unsigned long dasicsLibCfg1;    // reserved
+    	unsigned long dasicsLibBounds[16][2];
+    	unsigned long dasicsMaincall;
+    	unsigned long dasicsReturnPC;
+    	unsigned long dasicsFreezoneRet;
+        unsigned long dasicsFaultReason;
+    	unsigned long dasicsJumpBounds[4][2];
+    	unsigned long dasicsJumpCfg;
+};
+#endif
+
 /*
  * According to spec: The number of bits in a single vector register,
  * VLEN >= ELEN, which must be a power of 2, and must be no greater than

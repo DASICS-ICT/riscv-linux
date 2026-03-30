@@ -33,6 +33,10 @@ struct sigcontext {
 		union __riscv_fp_state sc_fpregs;
 		struct __riscv_extra_ext_header sc_extdesc;
 	};
+
+	#ifdef CONFIG_DASICS
+        	struct user_ext_regs_struct sc_ext_regs;
+	#endif
 };
 
 #endif /*!__ASSEMBLER__*/

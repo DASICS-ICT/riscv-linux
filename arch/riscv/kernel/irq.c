@@ -15,6 +15,7 @@
 #include <asm/smp.h>
 #include <asm/softirq_stack.h>
 #include <asm/stacktrace.h>
+#include <asm/bug.h>
 
 static struct fwnode_handle *(*__get_intc_node)(void);
 

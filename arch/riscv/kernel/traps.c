@@ -93,6 +93,10 @@ void die(struct pt_regs *regs, const char *str)
 		dump_instr(KERN_EMERG, regs);
 	}
 
+#ifdef CONFIG_DASICS
+        show_ext_regs(regs);
+#endif
+
 	cause = regs ? regs->cause : -1;
 	ret = notify_die(DIE_OOPS, str, regs, 0, cause, SIGSEGV);
 
@@ -123,6 +127,9 @@ void do_trap(struct pt_regs *regs, int signo, int code, unsigned long addr)
 		print_vma_addr(KERN_CONT " in ", instruction_pointer(regs));
 		pr_cont("\n");
 		__show_regs(regs);
+		#ifdef CONFIG_DASICS
+		__show_ext_regs(regs);
+		#endif
 		dump_instr(KERN_INFO, regs);
 	}
 
@@ -444,3 +451,22 @@ asmlinkage void handle_bad_stack(struct pt_regs *regs)
 		wait_for_interrupt();
 }
 #endif
+
+/* This function may handle dasics exceptions in another way in future. */
+asmlinkage void do_trap_dasics(struct pt_regs *regs)
+{
+        pr_info("Raised a dasics %ld exception.", regs->cause);
+
+        __show_regs(regs);
+        __show_ext_regs(regs);
+        pr_info("ra: 0x" REG_FMT " sbadaddr: 0x" REG_FMT " scause: 0x" REG_FMT "dfreason: 0x%lx",
+                                                                        regs->ra, regs->badaddr, regs->cause, csr_read(0x8b3));
+
+        // currently just skip error pc.
+           regs->epc += 4;
+        // rvc will compress jump/branch inst.
+        //if (regs->scause == EXC_DASICS_UFETCH_FAULT || regs->scause == EXC_DASICS_SFETCH_FAULT)
+        //      regs->epc += 2;
+        //else
+        //      regs->epc += 4;
+}

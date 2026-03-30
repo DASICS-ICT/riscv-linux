@@ -116,6 +116,10 @@
 
 #include <kunit/test.h>
 
+#ifdef CONFIG_DASICS
+#include <asm/kdasics.h>
+#endif 
+
 static int kernel_init(void *);
 
 /*
@@ -1496,6 +1500,10 @@ static int run_init_process(const char *init_filename)
 	pr_debug("  with environment:\n");
 	for (p = envp_init; *p; p++)
 		pr_debug("    %s\n", *p);
+#ifdef CONFIG_DASICS
+        /* init thread close daiscs check, maybe need mutual exclusion access */
+        current->dasics_state = NO_DASICS;
+#endif
 	return kernel_execve(init_filename, argv_init, envp_init);
 }
 

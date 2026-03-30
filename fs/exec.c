@@ -78,6 +78,10 @@
 
 #include <trace/events/sched.h>
 
+#ifdef CONFIG_DASICS
+#include <asm/kdasics.h>
+#endif 
+
 /* For vma exec functions. */
 #include "../mm/internal.h"
 
@@ -1830,6 +1834,49 @@ static int do_execveat_common(int fd, struct filename *filename,
 	retval = copy_string_kernel(bprm->filename, bprm);
 	if (retval < 0)
 		goto out_free;
+
+#ifdef CONFIG_DASICS
+        /* try to find the -dasics argc */
+        current->dasics_state = NO_DASICS;
+
+        if (likely(bprm->argc < 2))
+                goto no_need_dasics;
+
+        const char __user *name_str = get_user_arg_ptr(argv, 0);
+
+        int name_length = strnlen_user(name_str, MAX_ARG_STRLEN);
+
+        char *name_buffer = kmalloc(name_length, GFP_KERNEL);
+
+        copy_from_user(name_buffer, name_str, name_length);
+
+        if (!strcmp(name_buffer, "time") || !strcmp(name_buffer, "strace")  || !strcmp(name_buffer, "sudo"))
+        {
+                kfree(name_buffer);
+                goto no_need_dasics;
+        }
+        kfree(name_buffer);
+
+        int length = DASICS_LENGTH;
+        const char __user *str = get_user_arg_ptr(argv, bprm->argc - 1);
+
+        int user_length = strnlen_user(str, MAX_ARG_STRLEN);
+        if (user_length != length) goto no_need_dasics;
+
+        char *dasics_buffer = kmalloc(length, GFP_KERNEL);
+
+        copy_from_user(dasics_buffer, str, length);
+        if (!strcmp(dasics_buffer, DASICS_COMMAND))
+        {
+                pr_info("check the dasics option!\n");
+                bprm->argc -= 1;
+                current->dasics_state = DASICS_STATIC;
+        }
+        kfree(dasics_buffer);
+
+no_need_dasics:
+#endif
+
 	bprm->exec = bprm->p;
 
 	retval = copy_strings(bprm->envc, envp, bprm);

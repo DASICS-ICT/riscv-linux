@@ -2170,6 +2170,10 @@ __latent_entropy struct task_struct *copy_process(
 	p->softirq_context		= 0;
 #endif
 
+#ifdef CONFIG_DASICS
+        p->dasics_state = current->dasics_state;
+#endif
+
 	p->pagefault_disabled = 0;
 
 	lockdep_init_task(p);
