@@ -181,11 +181,12 @@
 #define CSR_DUMBOUNDHI      0x9e3
 
 /* DASICS Main cfg */
-#define DASICS_MAINCFG_MASK 0xfUL
-#define DASICS_UCFG_CLS     0x8UL
-#define DASICS_SCFG_CLS     0x4UL
-#define DASICS_UCFG_ENA     0x2UL
-#define DASICS_SCFG_ENA     0x1UL
+#define DASICS_MAINCFG_MASK 0xffUL
+#define DASICS_UCFG_ENA     	0x2UL
+#define DASICS_UCFG_CUET     0x4UL
+#define DASICS_UCFG_CUST     0x8UL
+#define DASICS_UCFG_CULT     0x10UL
+#define DASICS_UCFG_CUFT     0x20UL
 
 #define CSR_DLCFG0          0x880
 
