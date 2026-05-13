@@ -11,6 +11,11 @@
 
 #include <asm/pgtable-bits.h>
 
+#if defined(CONFIG_RISCV_ISA_ZIMT) && !defined(__ASSEMBLY__)
+#include <asm/page.h>
+#include <asm/zimt.h>
+#endif
+
 #ifndef CONFIG_MMU
 #ifdef CONFIG_RELOCATABLE
 #define KERNEL_LINK_ADDR	UL(0)
@@ -183,6 +188,14 @@ extern struct pt_alloc_ops pt_ops __meminitdata;
 #define PAGE_COPY_EXEC		PAGE_READ_EXEC
 #define PAGE_SHARED		PAGE_WRITE
 #define PAGE_SHARED_EXEC	PAGE_WRITE_EXEC
+
+#ifdef CONFIG_RISCV_ISA_ZIMT
+#define PAGE_MTAG_READ		__pgprot(_PAGE_BASE | _PAGE_READ | _PAGE_MTAG)
+#define PAGE_MTAG_WRITE		__pgprot(_PAGE_BASE | _PAGE_READ | _PAGE_WRITE | _PAGE_MTAG)
+#define PAGE_MTAG_EXEC		__pgprot(_PAGE_BASE | _PAGE_READ | _PAGE_EXEC | _PAGE_MTAG)
+#define PAGE_MTAG_WRITE_EXEC	__pgprot(_PAGE_BASE | _PAGE_READ | _PAGE_WRITE | _PAGE_EXEC | \
+					 _PAGE_MTAG)
+#endif
 
 #define _PAGE_KERNEL		(_PAGE_READ \
 				| _PAGE_WRITE \
@@ -375,6 +388,23 @@ static inline int pte_write(pte_t pte)
 {
 	return pte_val(pte) & _PAGE_WRITE;
 }
+
+#ifdef CONFIG_RISCV_ISA_ZIMT
+static inline int pte_tagged(pte_t pte)
+{
+	return !!(pte_val(pte) & _PAGE_MTAG);
+}
+
+static inline pte_t pte_mktagged(pte_t pte)
+{
+	return __pte(pte_val(pte) | _PAGE_MTAG);
+}
+
+static inline pte_t pte_cleartagged(pte_t pte)
+{
+	return __pte(pte_val(pte) & ~_PAGE_MTAG);
+}
+#endif
 
 static inline int pte_exec(pte_t pte)
 {
@@ -616,6 +646,14 @@ void flush_icache_pte(struct mm_struct *mm, pte_t pte);
 
 static inline void __set_pte_at(struct mm_struct *mm, pte_t *ptep, pte_t pteval)
 {
+#if defined(CONFIG_RISCV_ISA_ZIMT) && !defined(__ASSEMBLY__)
+	if (pte_present(pteval) && pte_tagged(pteval)) {
+		pte_t old_pte = READ_ONCE(*ptep);
+
+		if (!pte_present(old_pte) || !pte_tagged(old_pte))
+			zimt_clear_page_tags(pfn_to_virt(pte_pfn(pteval)));
+	}
+#endif
 	if (pte_present(pteval) && pte_exec(pteval))
 		flush_icache_pte(mm, pteval);
 
@@ -1171,6 +1209,27 @@ static inline pud_t pud_modify(pud_t pud, pgprot_t newprot)
 
 #define __pte_to_swp_entry(pte)	((swp_entry_t) { pte_val(pte) })
 #define __swp_entry_to_pte(x)	((pte_t) { (x).val })
+
+#ifdef CONFIG_RISCV_ISA_ZIMT
+#define __HAVE_ARCH_PREPARE_TO_SWAP
+extern int arch_prepare_to_swap(struct folio *folio);
+
+#define __HAVE_ARCH_SWAP_INVALIDATE
+static inline void arch_swap_invalidate_page(int type, pgoff_t offset)
+{
+	if (riscv_has_extension_unlikely(RISCV_ISA_EXT_ZIMT))
+		zimt_invalidate_swap_tags(type, offset);
+}
+
+static inline void arch_swap_invalidate_area(int type)
+{
+	if (riscv_has_extension_unlikely(RISCV_ISA_EXT_ZIMT))
+		zimt_invalidate_swap_tags_area(type);
+}
+
+#define __HAVE_ARCH_SWAP_RESTORE
+extern void arch_swap_restore(swp_entry_t entry, struct folio *folio);
+#endif
 
 static inline bool pte_swp_exclusive(pte_t pte)
 {

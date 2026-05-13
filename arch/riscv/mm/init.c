@@ -29,6 +29,7 @@
 #include <asm/kasan.h>
 #include <asm/module.h>
 #include <asm/numa.h>
+#include <asm/mman.h>
 #include <asm/pgtable.h>
 #include <asm/sections.h>
 #include <asm/soc.h>
@@ -391,7 +392,19 @@ static const pgprot_t protection_map[16] = {
 	[VM_SHARED | VM_EXEC | VM_WRITE]		= PAGE_SHARED_EXEC,
 	[VM_SHARED | VM_EXEC | VM_WRITE | VM_READ]	= PAGE_SHARED_EXEC
 };
-DECLARE_VM_GET_PAGE_PROT
+
+pgprot_t vm_get_page_prot(vm_flags_t vm_flags)
+{
+	pgprot_t prot = protection_map[vm_flags &
+				      (VM_READ | VM_WRITE | VM_EXEC | VM_SHARED)];
+
+#ifdef CONFIG_RISCV_ISA_ZIMT
+	if (vm_flags & VM_ARCH_1)
+		prot = __pgprot(pgprot_val(prot) | _PAGE_MTAG);
+#endif
+	return prot;
+}
+EXPORT_SYMBOL(vm_get_page_prot);
 
 void __set_fixmap(enum fixed_addresses idx, phys_addr_t phys, pgprot_t prot)
 {

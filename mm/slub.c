@@ -49,6 +49,10 @@
 #include <linux/debugfs.h>
 #include <trace/events/kmem.h>
 
+#ifdef CONFIG_RISCV_ISA_ZIMT
+#include <asm/zimt.h>
+#endif
+
 #include "internal.h"
 
 /*
@@ -2482,6 +2486,10 @@ bool slab_free_hook(struct kmem_cache *s, void *x, bool init,
 	 * Give KASAN a chance to notice an invalid free operation before we
 	 * modify the object.
 	 */
+#ifdef CONFIG_RISCV_ISA_ZIMT
+	if (s->flags & SLAB_ZIMT_TAGGED)
+		zimt_kfree_pre_free(x, s->object_size);
+#endif
 	if (kasan_slab_pre_free(s, x))
 		return false;
 
@@ -4951,6 +4959,10 @@ bool slab_post_alloc_hook(struct kmem_cache *s, struct list_lru *lru,
 	 */
 	for (i = 0; i < size; i++) {
 		p[i] = kasan_slab_alloc(s, p[i], init_flags, kasan_init);
+#ifdef CONFIG_RISCV_ISA_ZIMT
+		if (p[i] && (s->flags & SLAB_ZIMT_TAGGED))
+			p[i] = zimt_kmalloc_post_alloc(p[i], s->object_size, init_flags);
+#endif
 		if (p[i] && init && (!kasan_init ||
 				     !kasan_has_integrated_init()))
 			memset(p[i], 0, zero_size);

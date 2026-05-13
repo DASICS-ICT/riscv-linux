@@ -12,7 +12,10 @@
 #include <asm/cpufeature.h>
 #include <asm/pgtable.h>		/* for TASK_SIZE */
 
+
 #ifdef CONFIG_RISCV_ISA_SUPM
+#pragma GCC push_options
+#pragma GCC optimize("O0")
 static inline unsigned long __untagged_addr_remote(struct mm_struct *mm, unsigned long addr)
 {
 	if (riscv_has_extension_unlikely(RISCV_ISA_EXT_SUPM)) {
@@ -27,6 +30,7 @@ static inline unsigned long __untagged_addr_remote(struct mm_struct *mm, unsigne
 
 	return addr;
 }
+#pragma GCC pop_options
 
 #define untagged_addr(addr) ({							\
 	unsigned long __addr = (__force unsigned long)(addr);			\
