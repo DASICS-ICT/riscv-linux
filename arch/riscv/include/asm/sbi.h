@@ -38,6 +38,7 @@ enum sbi_ext_id {
 	SBI_EXT_FWFT = 0x46574654,
 	SBI_EXT_MPXY = 0x4D505859,
 	SBI_EXT_DBTR = 0x44425452,
+	SBI_EXT_ZIMT = 0x5A494D54, /* "ZIMT" */
 
 	/* Experimentals extensions must lie within this range */
 	SBI_EXT_EXPERIMENTAL_START = 0x08000000,
@@ -123,6 +124,13 @@ enum sbi_srst_reset_reason {
 
 enum sbi_ext_susp_fid {
 	SBI_EXT_SUSP_SYSTEM_SUSPEND = 0,
+};
+
+enum sbi_ext_zimt_fid {
+	SBI_EXT_ZIMT_ENABLE = 0,
+	SBI_EXT_ZIMT_DISABLE,
+	SBI_EXT_ZIMT_GET_TAG_BITS,
+	SBI_EXT_ZIMT_SET_TAG_MASK,
 };
 
 enum sbi_ext_susp_sleep_type {

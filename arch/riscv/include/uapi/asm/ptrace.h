@@ -11,6 +11,8 @@
 #include <linux/types.h>
 
 #define PTRACE_GETFDPIC		33
+#define PTRACE_GETTAG		34
+#define PTRACE_SETTAG		35
 
 #define PTRACE_GETFDPIC_EXEC	0
 #define PTRACE_GETFDPIC_INTERP	1

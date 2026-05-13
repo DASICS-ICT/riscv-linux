@@ -590,6 +590,33 @@ config RISCV_ISA_SUPM
 	  If this option is disabled, userspace will be unable to use
 	  the prctl(PR_{SET,GET}_TAGGED_ADDR_CTRL) API.
 
+config RISCV_ISA_SVUKTE
+	bool "Svukte extension (User Kernel Trap Enable)"
+	depends on 64BIT && MMU
+	default y
+	help
+	  Enables support for the Svukte extension. Required by SVATAG.
+
+config RISCV_ISA_SVATAG
+	bool "Svatag extension for supervisor virtual address tagging"
+	depends on 64BIT && MMU
+	depends on RISCV_ISA_SVUKTE
+	default y
+	help
+	  Supervisor Virtual Address Tagging (SVATAG): additional senvcfg
+	  fields for tagged user addresses. Requires Svukte.
+
+config RISCV_ISA_ZIMT
+	bool "Zimt extension for tagged memory (RISC-V MTE-style)"
+	depends on 64BIT && MMU
+	depends on RISCV_ISA_SVATAG
+	select RISCV_ISA_SUPM
+	select RISCV_ISA_ZIMOP
+	default y
+	help
+	  Hardware memory tagging (ZIMT): pointer tags checked against Tag
+	  Memory. Requires SVATAG, pointer masking (SUPM), and Zimop.
+
 config RISCV_ISA_SVNAPOT
 	bool "Svnapot extension support for supervisor mode NAPOT pages"
 	depends on 64BIT && MMU
