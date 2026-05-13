@@ -5,6 +5,13 @@
 #include <asm/kattr.h>
 #include <asm/csr.h>
 
+struct task_struct;
+
+struct dasics_libbound {
+	unsigned long lo;
+	unsigned long hi;
+};
+
 // dasics elf type
 #define NO_DASICS 0
 #define DASICS_STATIC 1
@@ -33,5 +40,7 @@ uint32_t dasics_libcfg_kget(int32_t idx);
 int32_t  dasics_jumpcfg_kalloc(uint64_t lo, uint64_t hi);
 int32_t  dasics_jumpcfg_kfree(int32_t idx);
 uint32_t dasics_jumpcfg_kget(int32_t idx);
+int dasics_get_libbounds(struct task_struct *t, struct dasics_libbound *out,
+			 int max);
 
 #endif

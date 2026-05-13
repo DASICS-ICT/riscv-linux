@@ -18,6 +18,7 @@
 #include <linux/entry-common.h>
 
 #include <asm/ptrace.h>
+#include <asm/uaccess.h>
 #include <asm/tlbflush.h>
 
 #define CREATE_TRACE_POINTS
@@ -290,6 +291,12 @@ void handle_page_fault(struct pt_regs *regs)
 
 	tsk = current;
 	mm = tsk->mm;
+
+#ifdef CONFIG_RISCV_ISA_ZIMT
+	/* Strip SVATAG pointer tags before VMA / page table lookup */
+	if (mm)
+		addr = untagged_addr(addr);
+#endif
 
 	if (kprobe_page_fault(regs, cause))
 		return;

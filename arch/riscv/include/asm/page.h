@@ -43,11 +43,15 @@
 
 #ifndef __ASSEMBLER__
 
+struct page;
+void copy_highpage(struct page *to, struct page *from);
+
 #ifdef CONFIG_RISCV_ISA_ZICBOZ
 void clear_page(void *page);
 #else
 #define clear_page(pgaddr)			memset((pgaddr), 0, PAGE_SIZE)
 #endif
+#define __HAVE_ARCH_COPY_HIGHPAGE
 #define copy_page(to, from)			memcpy((to), (from), PAGE_SIZE)
 
 #define clear_user_page(pgaddr, vaddr, page)	clear_page(pgaddr)

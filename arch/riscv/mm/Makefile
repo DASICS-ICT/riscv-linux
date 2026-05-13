@@ -14,6 +14,8 @@ KCOV_INSTRUMENT_init.o := n
 
 obj-y += init.o
 obj-$(CONFIG_MMU) += extable.o fault.o pageattr.o pgtable.o tlbflush.o
+obj-$(CONFIG_MMU) += copypage.o
+obj-$(CONFIG_RISCV_ISA_ZIMT) += zimtswap.o
 obj-y += cacheflush.o
 obj-y += context.o
 obj-y += pmem.o

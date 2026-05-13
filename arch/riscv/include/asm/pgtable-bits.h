@@ -56,6 +56,13 @@
 #define _PAGE_SWP_UFFD_WP	0
 #endif
 
+#ifdef CONFIG_RISCV_ISA_ZIMT
+/* PTE MTAG (ZIMT): data page = tag checking; exec page = tag-check exempt */
+#define _PAGE_MTAG		(1ULL << 58)
+#else
+#define _PAGE_MTAG		0
+#endif
+
 #define _PAGE_TABLE     _PAGE_PRESENT
 
 /*

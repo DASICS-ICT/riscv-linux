@@ -1,8 +1,11 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/sched.h>
+#include <linux/sched/task_stack.h>
 
 #include <asm/csr.h>    
 #include <asm/kdasics.h>
+#include <asm/processor.h>
 
 #ifdef CONFIG_64BIT
 #define STEP 8
@@ -235,7 +238,7 @@ int32_t ATTR_SMAIN_TEXT dasics_jumpcfg_kfree(int32_t idx) {
     return 0;
 }
 
-uint32_t dasics_jumpcfg_get(int32_t idx) {
+uint32_t dasics_jumpcfg_kget(int32_t idx) {
     if (idx < 0 || idx >= DASICS_JUMPCFG_WIDTH) {
         return -1;
     }
@@ -244,4 +247,37 @@ uint32_t dasics_jumpcfg_get(int32_t idx) {
     uint64_t jumpcfg = csr_read(0x8c8);    // DasicsJumpCfg
 
     return (jumpcfg >> (idx * step)) & DASICS_JUMPCFG_MASK;
+}
+
+int dasics_get_libbounds(struct task_struct *t, struct dasics_libbound *out,
+                         int max)
+{
+    struct pt_regs *regs;
+    uint64_t libcfg;
+    int count = 0;
+
+    if (!t || !out || max <= 0)
+        return 0;
+
+    regs = task_pt_regs(t);
+    libcfg = regs->dasicsLibCfg0;
+
+    for (int idx = 0; idx < DASICS_LIBCFG_WIDTH && count < max; ++idx) {
+        uint64_t curr_cfg = (libcfg >> (idx * 4)) & DASICS_LIBCFG_MASK;
+        unsigned long lo, hi;
+
+        if ((curr_cfg & DASICS_LIBCFG_V) == 0)
+            continue;
+
+        lo = regs->dasicsLibBounds[idx][0];
+        hi = regs->dasicsLibBounds[idx][1];
+        if (lo >= hi)
+            continue;
+
+        out[count].lo = lo;
+        out[count].hi = hi;
+        count++;
+    }
+
+    return count;
 }

@@ -136,7 +136,7 @@ static int padzero(unsigned long address)
 	nbyte = ELF_PAGEOFFSET(address);
 	if (nbyte) {
 		nbyte = ELF_MIN_ALIGN - nbyte;
-		if (clear_user((void __user *)address, nbyte))
+		if (clear_user((void __user *)address, nbyte) != 0)
 			return -EFAULT;
 	}
 	return 0;
@@ -368,6 +368,7 @@ create_elf_tables(struct linux_binprm *bprm, const struct elfhdr *exec,
 	mm->env_end = mm->env_start = p;
 	while (envc-- > 0) {
 		size_t len;
+		// FIX_BUG: this put_user envp will cause the stack to be corrupted
 		if (put_user((elf_addr_t)p, sp++))
 			return -EFAULT;
 		len = strnlen_user((void __user *)p, MAX_ARG_STRLEN);

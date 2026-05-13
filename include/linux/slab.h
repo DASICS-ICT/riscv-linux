@@ -60,6 +60,9 @@ enum _slab_flag_bits {
 #ifdef CONFIG_SLAB_OBJ_EXT
 	_SLAB_NO_OBJ_EXT,
 #endif
+#ifdef CONFIG_RISCV_ISA_ZIMT
+	_SLAB_ZIMT_TAGGED,
+#endif
 	_SLAB_FLAGS_LAST_BIT
 };
 
@@ -220,6 +223,12 @@ enum _slab_flag_bits {
 #define SLAB_SKIP_KFENCE	__SLAB_FLAG_BIT(_SLAB_SKIP_KFENCE)
 #else
 #define SLAB_SKIP_KFENCE	__SLAB_FLAG_UNUSED
+#endif
+
+#ifdef CONFIG_RISCV_ISA_ZIMT
+#define SLAB_ZIMT_TAGGED	__SLAB_FLAG_BIT(_SLAB_ZIMT_TAGGED)
+#else
+#define SLAB_ZIMT_TAGGED	__SLAB_FLAG_UNUSED
 #endif
 
 /* The following flags affect the page allocator grouping pages by mobility */
