@@ -33,6 +33,11 @@
 #include <asm/thread_info.h>
 #include <asm/vector.h>
 #include <asm/irq_stack.h>
+#include <asm/hwcap.h>
+
+#if IS_ENABLED(CONFIG_RISCV_ISA_ZIMT)
+#include <asm/zimt.h>
+#endif
 
 int show_unhandled_signals = 1;
 
@@ -380,6 +385,38 @@ asmlinkage __visible noinstr void do_page_fault(struct pt_regs *regs)
 	irqentry_exit(regs, state);
 }
 #endif
+
+#if IS_ENABLED(CONFIG_RISCV_ISA_ZIMT)
+asmlinkage __visible __trap_section void do_trap_software_check(struct pt_regs *regs)
+{
+	unsigned long tval = regs->badaddr;
+	if (user_mode(regs)) {
+		irqentry_enter_from_user_mode(regs);
+		local_irq_enable();
+
+		if (tval == EXC_SOFTWARE_CHECK_MTE &&
+		    riscv_has_extension_unlikely(RISCV_ISA_EXT_ZIMT))
+			zimt_handle_tag_fault(regs);
+		else
+			do_trap_error(regs, SIGILL, ILL_ILLOPC, regs->epc,
+				      "Oops - software check exception");
+
+		local_irq_disable();
+		irqentry_exit_to_user_mode(regs);
+	} else {
+		irqentry_state_t state = irqentry_nmi_enter(regs);
+
+		if (tval == EXC_SOFTWARE_CHECK_MTE &&
+		    riscv_has_extension_unlikely(RISCV_ISA_EXT_ZIMT))
+			die(regs, "Kernel software check (ZIMT)");
+		else
+			do_trap_error(regs, SIGILL, ILL_ILLOPC, regs->epc,
+				      "Oops - software check exception");
+
+		irqentry_nmi_exit(regs, state);
+	}
+}
+#endif /* CONFIG_RISCV_ISA_ZIMT */
 
 static void noinstr handle_riscv_irq(struct pt_regs *regs)
 {

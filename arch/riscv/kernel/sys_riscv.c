@@ -7,6 +7,8 @@
 
 #include <linux/syscalls.h>
 #include <asm/cacheflush.h>
+#include <asm/hwcap.h>
+#include <uapi/asm/mman.h>
 
 static long riscv_sys_mmap(unsigned long addr, unsigned long len,
 			   unsigned long prot, unsigned long flags,
@@ -15,6 +17,12 @@ static long riscv_sys_mmap(unsigned long addr, unsigned long len,
 {
 	if (unlikely(offset & (~PAGE_MASK >> page_shift_offset)))
 		return -EINVAL;
+
+#ifdef CONFIG_RISCV_ISA_ZIMT
+	if (unlikely(prot & PROT_ZIMT) &&
+	    !riscv_has_extension_unlikely(RISCV_ISA_EXT_ZIMT))
+		return -EINVAL;
+#endif
 
 	return ksys_mmap_pgoff(addr, len, prot, flags, fd,
 			       offset >> (PAGE_SHIFT - page_shift_offset));

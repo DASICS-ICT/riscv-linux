@@ -32,6 +32,13 @@
 #include <asm/cpufeature.h>
 #include <asm/exec.h>
 
+#if IS_ENABLED(CONFIG_RISCV_ISA_ZIMT)
+#include <asm/zimt.h>
+#if IS_ENABLED(CONFIG_RISCV_SBI)
+#include <asm/sbi.h>
+#endif
+#endif
+
 #if defined(CONFIG_STACKPROTECTOR) && !defined(CONFIG_STACKPROTECTOR_PER_TASK)
 #include <linux/stackprotector.h>
 unsigned long __stack_chk_guard __read_mostly;
@@ -188,6 +195,13 @@ void flush_thread(void)
 	if (riscv_has_extension_unlikely(RISCV_ISA_EXT_SUPM))
 		envcfg_update_bits(current, ENVCFG_PMM, ENVCFG_PMM_PMLEN_0);
 #endif
+#ifdef CONFIG_RISCV_ISA_ZIMT
+	current->thread.zimt_tag_mask = 0;
+	current->thread.zimt_vitt_base = 0;
+	current->thread.zimt_excl_tags = 0;
+	if (riscv_has_extension_unlikely(RISCV_ISA_EXT_ZIMT))
+		envcfg_update_bits(current, ENVCFG_MT_MODE, ENVCFG_MT_MODE_OFF);
+#endif
 }
 
 void arch_release_task_struct(struct task_struct *tsk)
@@ -231,6 +245,8 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 	/* Ensure all threads in this mm have the same pointer masking mode. */
 	if (IS_ENABLED(CONFIG_RISCV_ISA_SUPM) && p->mm && (clone_flags & CLONE_VM))
 		set_bit(MM_CONTEXT_LOCK_PMLEN, &p->mm->context.flags);
+	if (IS_ENABLED(CONFIG_RISCV_ISA_ZIMT) && p->mm && (clone_flags & CLONE_VM))
+		set_bit(MM_CONTEXT_LOCK_ZIMT, &p->mm->context.flags);
 
 	memset(&p->thread.s, 0, sizeof(p->thread.s));
 
@@ -240,6 +256,10 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 		memset(childregs, 0, sizeof(struct pt_regs));
 		/* Supervisor/Machine, irqs on: */
 		childregs->status = SR_PP | SR_PIE;
+#ifdef CONFIG_RISCV_ISA_ZIMT
+		p->thread.zimt_tag_mask = 0;
+		p->thread.zimt_excl_tags = 0;
+#endif
 
 		p->thread.s[0] = (unsigned long)args->fn;
 		p->thread.s[1] = (unsigned long)args->fn_arg;
@@ -336,9 +356,24 @@ long set_tagged_addr_ctrl(struct task_struct *task, unsigned long arg)
 	}
 
 	envcfg_update_bits(task, ENVCFG_PMM, pmm);
+#ifdef CONFIG_RISCV_ISA_ZIMT
+	if (riscv_has_extension_unlikely(RISCV_ISA_EXT_ZIMT)) {
+		if (pmlen)
+			envcfg_update_bits(task, ENVCFG_MT_MODE,
+					   ENVCFG_MT_MODE_4BIT);
+		else
+			envcfg_update_bits(task, ENVCFG_MT_MODE,
+					   ENVCFG_MT_MODE_OFF);
+	}
+#endif
 	mm->context.pmlen = pmlen;
 
 	mmap_write_unlock(mm);
+
+#ifdef CONFIG_RISCV_ISA_ZIMT
+	if (pmlen && riscv_has_extension_unlikely(RISCV_ISA_EXT_ZIMT))
+		zimt_setup_vitt(mm);
+#endif
 
 	return 0;
 }
@@ -417,3 +452,40 @@ static int __init tagged_addr_init(void)
 }
 core_initcall(tagged_addr_init);
 #endif	/* CONFIG_RISCV_ISA_SUPM */
+
+#if IS_ENABLED(CONFIG_RISCV_ISA_ZIMT) && IS_ENABLED(CONFIG_RISCV_SBI)
+static int __init zimt_init(void)
+{
+	struct sbiret ret;
+
+	if (!riscv_has_extension_unlikely(RISCV_ISA_EXT_ZIMT))
+		return 0;
+
+	ret = sbi_ecall(SBI_EXT_BASE, SBI_EXT_BASE_PROBE_EXT,
+			SBI_EXT_ZIMT, 0, 0, 0, 0, 0);
+	if (ret.error || !ret.value) {
+		pr_warn("ZIMT: firmware does not advertise SBI_EXT_ZIMT\n");
+		return 0;
+	}
+
+	/*
+	 * Skip kernel VITT (svitts) setup: S-mode is treated as trusted
+	 * and does not perform tag checking.  svitts stays 0 so that
+	 * helper_zimt_check_ls returns early for S-mode accesses.
+	 *
+	 * Only enable menvcfg.MT_MODE via SBI so that U-mode tag
+	 * checking can be activated per-process through senvcfg.
+	 */
+	csr_write(CSR_SVITTU, 0);
+
+	ret = sbi_ecall(SBI_EXT_ZIMT, SBI_EXT_ZIMT_ENABLE,
+			ENVCFG_MT_MODE_4BIT >> 34, 0, 0, 0, 0, 0);
+	if (ret.error)
+		pr_warn("ZIMT: SBI enable failed (error %ld)\n", (long)ret.error);
+	else
+		pr_info("ZIMT: enabled via SBI (U-mode only, svitts=0)\n");
+
+	return 0;
+}
+core_initcall(zimt_init);
+#endif
