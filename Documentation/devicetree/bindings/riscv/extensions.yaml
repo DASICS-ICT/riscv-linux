@@ -230,6 +230,13 @@ properties:
             as ratified at commit 4a69197e5617 ("Update to ratified state") of
             riscv-svvptc.
 
+        - const: svukte
+          description:
+            The standard Svukte supervisor-level extensions for making user-mode
+            accesses to supervisor memory raise page faults in constant time,
+            mitigating attacks that attempt to discover the supervisor
+            software's address-space layout, as PR#1564 of riscv-isa-manual.
+
         - const: zaamo
           description: |
             The standard Zaamo extension for atomic memory operations as

@@ -323,6 +323,41 @@
 	INSN_I(OPCODE_MISC_MEM, FUNC3(2), __RD(0),		\
 	       RS1(base), SIMM12(4))
 
+#ifdef CONFIG_RISCV_ISA_ZIMT
+/*
+ * ZIMT instructions:
+ * - gentag rd:            SYSTEM, funct3=4, rs1=x0, imm12=0x860
+ * - addtag rd, rs1, imm4: SYSTEM, funct3=4, rs1=src, imm12=0x860|imm4
+ * - settag rs1, count:    SYSTEM, funct3=4, rd=x0,  imm12=0x820|count
+ * - checktag rs1, count:  SYSTEM, funct3=4, rd=x0,  imm12=0x860|count
+ *
+ * Use signed 12-bit immediates so both .insn and .4byte paths work.
+ */
+#define ZIMT_SIMM12_GENTAG_VAL		(-1952) /* 0x860 */
+#define ZIMT_SIMM12_ADDTAG_VAL(imm4)	(-1952 + (imm4))
+#define ZIMT_SIMM12_SETTAG_VAL(imm4)	(-2016 + (imm4)) /* 0x820 + imm4 */
+
+#define ZIMT_GENTAG(rd)					\
+	INSN_I(OPCODE_SYSTEM, FUNC3(4), RD(rd),	\
+	       __RS1(0), SIMM12(ZIMT_SIMM12_GENTAG_VAL))
+
+#define ZIMT_ADDTAG(rd, rs1, imm4)				\
+	INSN_I(OPCODE_SYSTEM, FUNC3(4), RD(rd), RS1(rs1),	\
+	       SIMM12(ZIMT_SIMM12_ADDTAG_VAL(imm4)))
+
+#define ZIMT_SETTAG_1(rs1)					\
+	INSN_I(OPCODE_SYSTEM, FUNC3(4), __RD(0), RS1(rs1),	\
+	       SIMM12(ZIMT_SIMM12_SETTAG_VAL(0)))
+
+#define ZIMT_SETTAG_16(rs1)					\
+	INSN_I(OPCODE_SYSTEM, FUNC3(4), __RD(0), RS1(rs1),	\
+	       SIMM12(ZIMT_SIMM12_SETTAG_VAL(15)))
+
+#define ZIMT_CHECKTAG_1(rs1)					\
+	INSN_I(OPCODE_SYSTEM, FUNC3(4), __RD(0), RS1(rs1),	\
+	       SIMM12(ZIMT_SIMM12_ADDTAG_VAL(0)))
+#endif
+
 #define PREFETCH_I(base, offset)				\
 	INSN_S(OPCODE_OP_IMM, FUNC3(6), __RS2(0),		\
 	       SIMM12((offset) & 0xfe0), RS1(base))
