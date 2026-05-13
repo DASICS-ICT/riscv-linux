@@ -12,8 +12,16 @@
 #include <asm/syscall.h>
 #include <asm/thread_info.h>
 #include <asm/switch_to.h>
+#include <asm/hwcap.h>
+#include <asm/mmu.h>
+#include <asm/uaccess.h>
+#include <asm/csr.h>
+#if IS_ENABLED(CONFIG_RISCV_ISA_ZIMT)
+#include <asm/zimt.h>
+#endif
 #include <linux/audit.h>
 #include <linux/compat.h>
+#include <linux/elf.h>
 #include <linux/ptrace.h>
 #include <linux/elf.h>
 #include <linux/regset.h>
@@ -30,6 +38,9 @@ enum riscv_regset {
 #endif
 #ifdef CONFIG_RISCV_ISA_SUPM
 	REGSET_TAGGED_ADDR_CTRL,
+#endif
+#ifdef CONFIG_RISCV_ISA_ZIMT
+	REGSET_ZIMT,
 #endif
 };
 
@@ -195,6 +206,50 @@ static int tagged_addr_ctrl_set(struct task_struct *target,
 }
 #endif
 
+#ifdef CONFIG_RISCV_ISA_ZIMT
+struct riscv_zimt_ctrl {
+	unsigned long tag_mask;
+	__u16 excl_tags;
+} __packed;
+
+static int riscv_zimt_get(struct task_struct *target,
+			  const struct user_regset *regset,
+			  struct membuf to)
+{
+	struct riscv_zimt_ctrl ctrl = {
+		.tag_mask = target->thread.zimt_tag_mask,
+		.excl_tags = target->thread.zimt_excl_tags,
+	};
+
+	return membuf_write(&to, &ctrl, sizeof(ctrl));
+}
+
+static int riscv_zimt_set(struct task_struct *target,
+			  const struct user_regset *regset,
+			  unsigned int pos, unsigned int count,
+			  const void *kbuf, const void __user *ubuf)
+{
+	struct riscv_zimt_ctrl ctrl;
+	int ret;
+
+	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, &ctrl, 0, sizeof(ctrl));
+	if (ret)
+		return ret;
+
+	if (target->mm &&
+	    test_bit(MM_CONTEXT_LOCK_ZIMT, &target->mm->context.flags) &&
+	    (target->thread.zimt_tag_mask != ctrl.tag_mask ||
+	     target->thread.zimt_excl_tags != ctrl.excl_tags))
+		return -EBUSY;
+
+	target->thread.zimt_tag_mask = ctrl.tag_mask;
+	target->thread.zimt_excl_tags = ctrl.excl_tags;
+	if (target == current && riscv_has_extension_unlikely(RISCV_ISA_EXT_ZIMT))
+		csr_write(CSR_STVAL_MASK, current->thread.zimt_tag_mask);
+	return 0;
+}
+#endif
+
 static struct user_regset riscv_user_regset[] __ro_after_init = {
 	[REGSET_X] = {
 		USER_REGSET_NOTE_TYPE(PRSTATUS),
@@ -232,6 +287,16 @@ static struct user_regset riscv_user_regset[] __ro_after_init = {
 		.align = sizeof(long),
 		.regset_get = tagged_addr_ctrl_get,
 		.set = tagged_addr_ctrl_set,
+	},
+#endif
+#ifdef CONFIG_RISCV_ISA_ZIMT
+	[REGSET_ZIMT] = {
+		USER_REGSET_NOTE_TYPE(RISCV_ZIMT),
+		.n = sizeof(struct riscv_zimt_ctrl) / sizeof(__u32),
+		.size = sizeof(__u32),
+		.align = sizeof(__u32),
+		.regset_get = riscv_zimt_get,
+		.set = riscv_zimt_set,
 	},
 #endif
 };
@@ -360,6 +425,33 @@ long arch_ptrace(struct task_struct *child, long request,
 	long ret = -EIO;
 
 	switch (request) {
+#ifdef CONFIG_RISCV_ISA_ZIMT
+	case PTRACE_GETTAG: {
+		u8 tag;
+		unsigned long uaddr = addr;
+
+		if (!riscv_has_extension_unlikely(RISCV_ISA_EXT_ZIMT))
+			return -ENODEV;
+		if (child != current)
+			return -EOPNOTSUPP;
+		tag = zimt_get_mem_tag((void __force *)untagged_addr(uaddr));
+		return put_user(tag, (u8 __user *)data);
+	}
+	case PTRACE_SETTAG: {
+		u8 tag;
+		unsigned long uaddr = addr;
+
+		if (!riscv_has_extension_unlikely(RISCV_ISA_EXT_ZIMT))
+			return -ENODEV;
+		if (child != current)
+			return -EOPNOTSUPP;
+		ret = get_user(tag, (u8 __user *)data);
+		if (ret)
+			return ret;
+		zimt_set_mem_tag((void *)untagged_addr(uaddr), tag, 1);
+		return 0;
+	}
+#endif
 	default:
 		ret = ptrace_request(child, request, addr, data);
 		break;

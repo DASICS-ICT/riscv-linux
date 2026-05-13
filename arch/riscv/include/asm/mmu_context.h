@@ -35,6 +35,8 @@ static inline int init_new_context(struct task_struct *tsk,
 #endif
 	if (IS_ENABLED(CONFIG_RISCV_ISA_SUPM))
 		clear_bit(MM_CONTEXT_LOCK_PMLEN, &mm->context.flags);
+	if (IS_ENABLED(CONFIG_RISCV_ISA_ZIMT))
+		clear_bit(MM_CONTEXT_LOCK_ZIMT, &mm->context.flags);
 	return 0;
 }
 

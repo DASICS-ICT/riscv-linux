@@ -14,6 +14,9 @@
 #include <asm/processor.h>
 #include <asm/ptrace.h>
 #include <asm/csr.h>
+#ifdef CONFIG_RISCV_ISA_ZIMT
+#include <asm/zimt.h>
+#endif
 
 #ifdef CONFIG_FPU
 extern void __fstate_save(struct task_struct *save_to);
@@ -88,6 +91,18 @@ static inline void __switch_to_envcfg(struct task_struct *next)
 			:: "r" (next->thread.envcfg) : "memory");
 }
 
+#ifdef CONFIG_RISCV_ISA_ZIMT
+static inline void __switch_to_zimt(struct task_struct *next)
+{
+	if (riscv_has_extension_unlikely(RISCV_ISA_EXT_ZIMT)) {
+		csr_write(CSR_STVAL_MASK, next->thread.zimt_tag_mask);
+		csr_write(CSR_SVITTU, next->thread.zimt_vitt_base);
+	}
+}
+#else
+static inline void __switch_to_zimt(struct task_struct *next) { }
+#endif
+
 extern struct task_struct *__switch_to(struct task_struct *,
 				       struct task_struct *);
 
@@ -122,6 +137,7 @@ do {							\
 	if (switch_to_should_flush_icache(__next))	\
 		local_flush_icache_all();		\
 	__switch_to_envcfg(__next);			\
+	__switch_to_zimt(__next);			\
 	((last) = __switch_to(__prev, __next));		\
 } while (0)
 

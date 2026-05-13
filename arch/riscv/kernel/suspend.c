@@ -9,6 +9,7 @@
 #include <linux/ftrace.h>
 #include <linux/suspend.h>
 #include <asm/csr.h>
+#include <asm/hwcap.h>
 #include <asm/sbi.h>
 #include <asm/suspend.h>
 
@@ -16,6 +17,10 @@ void suspend_save_csrs(struct suspend_context *context)
 {
 	if (riscv_has_extension_unlikely(RISCV_ISA_EXT_XLINUXENVCFG))
 		context->envcfg = csr_read(CSR_ENVCFG);
+#ifdef CONFIG_RISCV_ISA_ZIMT
+	if (riscv_has_extension_unlikely(RISCV_ISA_EXT_ZIMT))
+		context->stval_mask = csr_read(CSR_STVAL_MASK);
+#endif
 	context->tvec = csr_read(CSR_TVEC);
 	context->ie = csr_read(CSR_IE);
 
@@ -46,6 +51,10 @@ void suspend_restore_csrs(struct suspend_context *context)
 	csr_write(CSR_SCRATCH, 0);
 	if (riscv_has_extension_unlikely(RISCV_ISA_EXT_XLINUXENVCFG))
 		csr_write(CSR_ENVCFG, context->envcfg);
+#ifdef CONFIG_RISCV_ISA_ZIMT
+	if (riscv_has_extension_unlikely(RISCV_ISA_EXT_ZIMT))
+		csr_write(CSR_STVAL_MASK, context->stval_mask);
+#endif
 	csr_write(CSR_TVEC, context->tvec);
 	csr_write(CSR_IE, context->ie);
 

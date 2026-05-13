@@ -16,6 +16,9 @@ struct suspend_context {
 	unsigned long envcfg;
 	unsigned long tvec;
 	unsigned long ie;
+#ifdef CONFIG_RISCV_ISA_ZIMT
+	unsigned long stval_mask;
+#endif
 #ifdef CONFIG_MMU
 	unsigned long satp;
 	unsigned long stimecmp;

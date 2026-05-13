@@ -110,6 +110,11 @@ struct thread_struct {
 	struct __riscv_d_ext_state fstate;
 	unsigned long bad_cause;
 	unsigned long envcfg;
+#ifdef CONFIG_RISCV_ISA_ZIMT
+	unsigned long zimt_tag_mask;
+	unsigned long zimt_vitt_base;
+	u16 zimt_excl_tags;
+#endif
 	unsigned long sum;
 	u32 riscv_v_flags;
 	u32 vstate_ctrl;
