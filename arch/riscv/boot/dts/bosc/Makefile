@@ -10,6 +10,8 @@ dtb-$(CONFIG_SOC_XIANGSHAN) += \
 	nanhu-v3-1core.dtb \
 	nemu-platform.dtb \
 	nemu-platform-initramfs.dtb \
+	nemu-platform-initramfs-64m.dtb \
+	nemu-platform-initramfs-128m.dtb \
 	emu.dtb \
 	kmh-v2-1core.dtb \
 	kmh-v2-2core.dtb \
@@ -25,6 +27,8 @@ dtb-$(CONFIG_SOC_XIANGSHAN) += \
 	kmh-v2-16core-uartlite.dtb \
 	kmh-v2-nemu.dtb \
 	nanhu-v5-1core.dtb \
+	nanhu-v5-1core-64m.dtb \
+	nanhu-v5-1core-128m.dtb \
 	nanhu-v5-2core.dtb \
 	nanhu-v5-4core.dtb \
 	nanhu-v5-8core.dtb \
