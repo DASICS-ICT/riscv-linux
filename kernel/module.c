@@ -3952,6 +3952,10 @@ static int unknown_module_param_cb(char *param, char *val, const char *modname,
 	struct module *mod = arg;
 	int ret;
 
+	/* The loader consumes this before allocating the module. */
+	if (strcmp(param, "trust") == 0)
+		return 0;
+
 	if (strcmp(param, "async_probe") == 0) {
 		mod->async_probe_requested = true;
 		return 0;
@@ -3964,6 +3968,59 @@ static int unknown_module_param_cb(char *param, char *val, const char *modname,
 	return 0;
 }
 
+struct module_trust_arg {
+	bool found;
+	int value;
+};
+
+static int parse_module_trust_arg(char *param, char *val,
+				  const char *modname, void *arg)
+{
+	struct module_trust_arg *trust = arg;
+
+	if (strcmp(param, "trust"))
+		return 0;
+
+	if (trust->found) {
+		pr_err("%s: duplicate trust parameter\n", modname);
+		return -EINVAL;
+	}
+
+	if (!val || (strcmp(val, "0") && strcmp(val, "1"))) {
+		pr_err("%s: trust must be either 0 or 1\n", modname);
+		return -EINVAL;
+	}
+
+	trust->found = true;
+	trust->value = val[0] - '0';
+	return 0;
+}
+
+static int get_module_trust(const char *modname, char *args, int *value)
+{
+	struct module_trust_arg trust = {
+		.value = 1,
+	};
+	char *parse_buf, *ret;
+	int err = 0;
+
+	parse_buf = kstrdup(args, GFP_KERNEL);
+	if (!parse_buf)
+		return -ENOMEM;
+
+	ret = parse_args(modname, parse_buf, NULL, 0, -32768, 32767,
+			 &trust, parse_module_trust_arg);
+	if (IS_ERR(ret)) {
+		err = PTR_ERR(ret);
+		goto out;
+	}
+
+	*value = trust.value;
+out:
+	kfree(parse_buf);
+	return err;
+}
+
 /* Allocate and load the module: note that size of section 0 is always
    zero, and we rely on this for optional sections. */
 static int load_module(struct load_info *info, const char __user *uargs,
@@ -3972,6 +4029,8 @@ static int load_module(struct load_info *info, const char __user *uargs,
 	struct module *mod;
 	long err = 0;
 	char *after_dashes;
+	char *args = NULL;
+	int trust;
 
 	/*
 	 * Do the signature check (if any) first. All that
@@ -4027,13 +4086,17 @@ static int load_module(struct load_info *info, const char __user *uargs,
 		goto free_copy;
 	}
 
-	/* Figure out module layout, and allocate all the memory. */
-    char *param = kmalloc(10, GFP_KERNEL);
-    memset(param, 'A', 9);
-    param[9] = 0;
-	if (copy_from_user(param, uargs, 9))
-		pr_err("copy from user failed\n");
-	int trust = param[8] - '0';
+	/* Trust decides which module address range is used, so parse it first. */
+	args = strndup_user(uargs, ~0UL >> 1);
+	if (IS_ERR(args)) {
+		err = PTR_ERR(args);
+		args = NULL;
+		goto free_copy;
+	}
+
+	err = get_module_trust(info->name, args, &trust);
+	if (err)
+		goto free_copy;
 
 	mod = layout_and_allocate(info, flags, trust);
 	if (IS_ERR(mod)) {
@@ -4098,12 +4161,9 @@ static int load_module(struct load_info *info, const char __user *uargs,
 
 	flush_module_icache(mod);
 
-	/* Now copy in args */
-	mod->args = strndup_user(uargs, ~0UL >> 1);
-	if (IS_ERR(mod->args)) {
-		err = PTR_ERR(mod->args);
-		goto free_arch_cleanup;
-	}
+	/* Reuse the validated snapshot instead of reading user memory twice. */
+	mod->args = args;
+	args = NULL;
 
 	dynamic_debug_setup(mod, info->debug, info->num_debug);
 
@@ -4170,7 +4230,6 @@ static int load_module(struct load_info *info, const char __user *uargs,
 	dynamic_debug_remove(mod, info->debug);
 	synchronize_rcu();
 	kfree(mod->args);
- free_arch_cleanup:
 	module_arch_cleanup(mod);
  free_modinfo:
 	free_modinfo(mod);
@@ -4191,6 +4250,7 @@ static int load_module(struct load_info *info, const char __user *uargs,
 
 	module_deallocate(mod, info);
  free_copy:
+	kfree(args);
 	free_copy(info);
 	return err;
 }
