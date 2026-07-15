@@ -1,5 +1,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/errno.h>
+#include <linux/preempt.h>
 
 #include <asm/csr.h>    
 #include <asm/kdasics.h>
@@ -14,6 +16,143 @@ static_assert(ARRAY_SIZE(((struct dasics_hw_state *)0)->jump_lo) ==
 	      DASICS_MAX_JUMP_BOUNDS);
 static_assert(ARRAY_SIZE(((struct dasics_hw_state *)0)->jump_hi) ==
 	      DASICS_MAX_JUMP_BOUNDS);
+
+static int dasics_hw_read_data_bound(unsigned int idx, unsigned long *lo,
+				     unsigned long *hi)
+{
+	switch (idx) {
+	case 0:
+		*lo = csr_read(CSR_DLBOUND0LO);
+		*hi = csr_read(CSR_DLBOUND0HI);
+		break;
+	case 1:
+		*lo = csr_read(CSR_DLBOUND1LO);
+		*hi = csr_read(CSR_DLBOUND1HI);
+		break;
+	case 2:
+		*lo = csr_read(CSR_DLBOUND2LO);
+		*hi = csr_read(CSR_DLBOUND2HI);
+		break;
+	case 3:
+		*lo = csr_read(CSR_DLBOUND3LO);
+		*hi = csr_read(CSR_DLBOUND3HI);
+		break;
+	case 4:
+		*lo = csr_read(CSR_DLBOUND4LO);
+		*hi = csr_read(CSR_DLBOUND4HI);
+		break;
+	case 5:
+		*lo = csr_read(CSR_DLBOUND5LO);
+		*hi = csr_read(CSR_DLBOUND5HI);
+		break;
+	case 6:
+		*lo = csr_read(CSR_DLBOUND6LO);
+		*hi = csr_read(CSR_DLBOUND6HI);
+		break;
+	case 7:
+		*lo = csr_read(CSR_DLBOUND7LO);
+		*hi = csr_read(CSR_DLBOUND7HI);
+		break;
+	case 8:
+		*lo = csr_read(CSR_DLBOUND8LO);
+		*hi = csr_read(CSR_DLBOUND8HI);
+		break;
+	case 9:
+		*lo = csr_read(CSR_DLBOUND9LO);
+		*hi = csr_read(CSR_DLBOUND9HI);
+		break;
+	case 10:
+		*lo = csr_read(CSR_DLBOUND10LO);
+		*hi = csr_read(CSR_DLBOUND10HI);
+		break;
+	case 11:
+		*lo = csr_read(CSR_DLBOUND11LO);
+		*hi = csr_read(CSR_DLBOUND11HI);
+		break;
+	case 12:
+		*lo = csr_read(CSR_DLBOUND12LO);
+		*hi = csr_read(CSR_DLBOUND12HI);
+		break;
+	case 13:
+		*lo = csr_read(CSR_DLBOUND13LO);
+		*hi = csr_read(CSR_DLBOUND13HI);
+		break;
+	case 14:
+		*lo = csr_read(CSR_DLBOUND14LO);
+		*hi = csr_read(CSR_DLBOUND14HI);
+		break;
+	case 15:
+		*lo = csr_read(CSR_DLBOUND15LO);
+		*hi = csr_read(CSR_DLBOUND15HI);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int dasics_hw_read_jump_bound(unsigned int idx, unsigned long *lo,
+				     unsigned long *hi)
+{
+	switch (idx) {
+	case 0:
+		*lo = csr_read(CSR_DJBOUND0LO);
+		*hi = csr_read(CSR_DJBOUND0HI);
+		break;
+	case 1:
+		*lo = csr_read(CSR_DJBOUND1LO);
+		*hi = csr_read(CSR_DJBOUND1HI);
+		break;
+	case 2:
+		*lo = csr_read(CSR_DJBOUND2LO);
+		*hi = csr_read(CSR_DJBOUND2HI);
+		break;
+	case 3:
+		*lo = csr_read(CSR_DJBOUND3LO);
+		*hi = csr_read(CSR_DJBOUND3HI);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+int dasics_hw_save(struct dasics_hw_state *state)
+{
+	unsigned int idx;
+	int ret = 0;
+
+	if (!state)
+		return -EINVAL;
+
+	preempt_disable();
+	state->libcfg = csr_read(CSR_DLCFG0);
+	for (idx = 0; idx < DASICS_MAX_DATA_BOUNDS; idx++) {
+		ret = dasics_hw_read_data_bound(idx, &state->lib_lo[idx],
+						&state->lib_hi[idx]);
+		if (ret)
+			goto out;
+	}
+
+	state->jumpcfg = csr_read(CSR_DJCFG);
+	for (idx = 0; idx < DASICS_MAX_JUMP_BOUNDS; idx++) {
+		ret = dasics_hw_read_jump_bound(idx, &state->jump_lo[idx],
+						&state->jump_hi[idx]);
+		if (ret)
+			goto out;
+	}
+
+	state->dmaincall = csr_read(CSR_DMAINCALL);
+	state->dretpc = csr_read(CSR_DRETPC);
+	state->dretpcactz = csr_read(CSR_DRETPCACTZ);
+
+out:
+	preempt_enable();
+	return ret;
+}
+EXPORT_SYMBOL_GPL(dasics_hw_save);
 
 #ifdef CONFIG_64BIT
 #define STEP 8

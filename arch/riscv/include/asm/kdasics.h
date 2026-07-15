@@ -36,6 +36,8 @@ struct dasics_hw_state {
 	unsigned long dretpcactz;
 };
 
+int dasics_hw_save(struct dasics_hw_state *state);
+
 /* smaincall used */
 #define OFFSET_SMAINCALL_T0     (8*0)
 #define OFFSET_SMAINCALL_T1     (8*1)
