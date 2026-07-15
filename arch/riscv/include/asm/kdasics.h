@@ -24,15 +24,17 @@ typedef enum {
     Smaincall_PRINT = 1
 } SmaincallTypes;
 
-#define DASICS_LIBCFG_WIDTH 16
-#define DASICS_LIBCFG_MASK  0xfUL
-#define DASICS_LIBCFG_V     0x8UL
-#define DASICS_LIBCFG_R     0x2UL
-#define DASICS_LIBCFG_W     0x1UL
-
-#define DASICS_JUMPCFG_WIDTH 	4
-#define DASICS_JUMPCFG_MASK 	0xffffUL
-#define DASICS_JUMPCFG_V    	0x1UL
+struct dasics_hw_state {
+	unsigned long libcfg;
+	unsigned long lib_lo[DASICS_MAX_DATA_BOUNDS];
+	unsigned long lib_hi[DASICS_MAX_DATA_BOUNDS];
+	unsigned long jumpcfg;
+	unsigned long jump_lo[DASICS_MAX_JUMP_BOUNDS];
+	unsigned long jump_hi[DASICS_MAX_JUMP_BOUNDS];
+	unsigned long dmaincall;
+	unsigned long dretpc;
+	unsigned long dretpcactz;
+};
 
 /* smaincall used */
 #define OFFSET_SMAINCALL_T0     (8*0)

@@ -223,9 +223,13 @@
 #define CSR_DLBOUND15HI     0x8af
 
 #define CSR_DMAINCALL       0x8b0
-#define CSR_DRETURNPC       0x8b1
-#define CSR_DFZRETURN       0x8b2
+#define CSR_DRETPC          0x8b1
+#define CSR_DRETPCACTZ      0x8b2
 #define CSR_DFREASON        0x8b3
+
+/* Compatibility names used by the existing exception entry code. */
+#define CSR_DRETURNPC       CSR_DRETPC
+#define CSR_DFZRETURN       CSR_DRETPCACTZ
 
 #define CSR_DJBOUND0LO      0x8c0
 #define CSR_DJBOUND0HI      0x8c1
@@ -237,16 +241,20 @@
 #define CSR_DJBOUND3HI      0x8c7
 #define CSR_DJCFG           0x8c8
 
-/* DASICS Lib cfg */
-#define DASICS_LIBCFG_WIDTH 16
+/* DASICS bound counts and packed configuration fields. */
+#define DASICS_MAX_DATA_BOUNDS 16
+#define DASICS_LIBCFG_BITS  4
+#define DASICS_LIBCFG_WIDTH DASICS_MAX_DATA_BOUNDS
 #define DASICS_LIBCFG_MASK  0xfUL
 #define DASICS_LIBCFG_V     0x8UL
 #define DASICS_LIBCFG_R     0x2UL
 #define DASICS_LIBCFG_W     0x1UL
 
-#define DASICS_JUMPCFG_WIDTH 	4
-#define DASICS_JUMPCFG_MASK 	0xffffUL
-#define DASICS_JUMPCFG_V    	0x1UL
+#define DASICS_MAX_JUMP_BOUNDS 4
+#define DASICS_JUMPCFG_BITS 16
+#define DASICS_JUMPCFG_WIDTH DASICS_MAX_JUMP_BOUNDS
+#define DASICS_JUMPCFG_MASK 0xffffUL
+#define DASICS_JUMPCFG_V    0x1UL
 #endif /* CONFIG_DASICS */
 
 #ifndef __ASSEMBLY__
