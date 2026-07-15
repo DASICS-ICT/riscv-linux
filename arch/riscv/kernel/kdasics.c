@@ -386,74 +386,8 @@ int32_t dasics_libcfg_kalloc(uint64_t cfg, uint64_t hi, uint64_t lo)
 
         if ((curr_cfg & DASICS_LIBCFG_V) == 0)  // Find avaliable cfg
         {
-            // Write DASICS boundary csrs
-            switch (idx)
-            {
-                case 0:
-			csr_write(CSR_DLBOUND0LO, lo);
-			csr_write(CSR_DLBOUND0HI, hi);
-                    break;
-                case 1:
-			csr_write(CSR_DLBOUND1LO, lo);
-			csr_write(CSR_DLBOUND1HI, hi);
-                    break;
-                case 2:
-			csr_write(CSR_DLBOUND2LO, lo);
-			csr_write(CSR_DLBOUND2HI, hi);
-                    break;
-                case 3:
-			csr_write(CSR_DLBOUND3LO, lo);
-			csr_write(CSR_DLBOUND3HI, hi);
-                    break;
-                case 4:
-			csr_write(CSR_DLBOUND4LO, lo);
-			csr_write(CSR_DLBOUND4HI, hi);
-                    break;
-                case 5:
-			csr_write(CSR_DLBOUND5LO, lo);
-			csr_write(CSR_DLBOUND5HI, hi);
-                    break;
-                case 6:
-			csr_write(CSR_DLBOUND6LO, lo);
-			csr_write(CSR_DLBOUND6HI, hi);
-                    break;
-                case 7:
-			csr_write(CSR_DLBOUND7LO, lo);
-			csr_write(CSR_DLBOUND7HI, hi);
-                    break;
-                case 8:
-			csr_write(CSR_DLBOUND8LO, lo);
-			csr_write(CSR_DLBOUND8HI, hi);
-                    break;
-                case 9:
-			csr_write(CSR_DLBOUND9LO, lo);
-			csr_write(CSR_DLBOUND9HI, hi);
-                    break;
-                case 10:
-			csr_write(CSR_DLBOUND10LO, lo);
-			csr_write(CSR_DLBOUND10HI, hi);
-                    break;
-                case 11:
-			csr_write(CSR_DLBOUND11LO, lo);
-			csr_write(CSR_DLBOUND11HI, hi);
-                    break;
-                case 12:
-			csr_write(CSR_DLBOUND12LO, lo);
-			csr_write(CSR_DLBOUND12HI, hi);
-                    break;
-                case 13:
-			csr_write(CSR_DLBOUND13LO, lo);
-			csr_write(CSR_DLBOUND13HI, hi);
-                    break;
-                case 14:
-			csr_write(CSR_DLBOUND14LO, lo);
-			csr_write(CSR_DLBOUND14HI, hi);
-                    break;
-                default:
-			csr_write(CSR_DLBOUND15LO, lo);
-			csr_write(CSR_DLBOUND15HI, hi);
-                    break;
-            }
+			if (dasics_hw_write_data_bound(idx, lo, hi))
+				return -1;
 
             libcfg0 &= ~(DASICS_LIBCFG_MASK << (idx * step));
             libcfg0 |= ((cfg | DASICS_LIBCFG_V) & DASICS_LIBCFG_MASK) << (idx * step);
@@ -511,27 +445,8 @@ int32_t ATTR_SMAIN_TEXT dasics_jumpcfg_kalloc(uint64_t lo, uint64_t hi)
         uint64_t curr_cfg = (jumpcfg >> (idx * step)) & DASICS_JUMPCFG_MASK;
         if ((curr_cfg & DASICS_JUMPCFG_V) == 0) // found available cfg
         {
-            // Write DASICS jump boundary CSRs
-            switch (idx) {
-                case 0:
-			csr_write(CSR_DJBOUND0LO, lo);
-			csr_write(CSR_DJBOUND0HI, hi);
-                    break;
-                case 1:
-			csr_write(CSR_DJBOUND1LO, lo);
-			csr_write(CSR_DJBOUND1HI, hi);
-                    break;
-                case 2:
-			csr_write(CSR_DJBOUND2LO, lo);
-			csr_write(CSR_DJBOUND2HI, hi);
-                    break;
-                case 3:
-			csr_write(CSR_DJBOUND3LO, lo);
-			csr_write(CSR_DJBOUND3HI, hi);
-                    break;
-                default:
-                    break;
-            }
+			if (dasics_hw_write_jump_bound(idx, lo, hi))
+				return -1;
 
             jumpcfg &= ~(DASICS_JUMPCFG_MASK << (idx * step));
             jumpcfg |= DASICS_JUMPCFG_V << (idx * step);
