@@ -42,6 +42,8 @@ static_assert(offsetof(struct dasics_call_regs, ret_a1) ==
 	      10 * sizeof(unsigned long));
 static_assert(sizeof(struct dasics_call_regs) == 11 * sizeof(unsigned long));
 
+asmlinkage long __dasics_hw_call(struct dasics_call_regs *regs);
+
 static int dasics_hw_read_data_bound(unsigned int idx, unsigned long *lo,
 				     unsigned long *hi)
 {
@@ -342,6 +344,21 @@ out:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(dasics_hw_restore);
+
+long dasics_hw_call(struct dasics_call_regs *regs)
+{
+	long ret;
+
+	if (!regs || !regs->target)
+		return -EINVAL;
+
+	preempt_disable();
+	ret = __dasics_hw_call(regs);
+	preempt_enable();
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(dasics_hw_call);
 
 #ifdef CONFIG_64BIT
 #define STEP 8
