@@ -3,6 +3,7 @@
 #include <linux/errno.h>
 #include <linux/preempt.h>
 
+#include <asm/barrier.h>
 #include <asm/csr.h>    
 #include <asm/kdasics.h>
 
@@ -119,6 +120,121 @@ static int dasics_hw_read_jump_bound(unsigned int idx, unsigned long *lo,
 	return 0;
 }
 
+static int dasics_hw_write_data_bound(unsigned int idx, unsigned long lo,
+				      unsigned long hi)
+{
+	switch (idx) {
+	case 0:
+		csr_write(CSR_DLBOUND0LO, lo);
+		csr_write(CSR_DLBOUND0HI, hi);
+		break;
+	case 1:
+		csr_write(CSR_DLBOUND1LO, lo);
+		csr_write(CSR_DLBOUND1HI, hi);
+		break;
+	case 2:
+		csr_write(CSR_DLBOUND2LO, lo);
+		csr_write(CSR_DLBOUND2HI, hi);
+		break;
+	case 3:
+		csr_write(CSR_DLBOUND3LO, lo);
+		csr_write(CSR_DLBOUND3HI, hi);
+		break;
+	case 4:
+		csr_write(CSR_DLBOUND4LO, lo);
+		csr_write(CSR_DLBOUND4HI, hi);
+		break;
+	case 5:
+		csr_write(CSR_DLBOUND5LO, lo);
+		csr_write(CSR_DLBOUND5HI, hi);
+		break;
+	case 6:
+		csr_write(CSR_DLBOUND6LO, lo);
+		csr_write(CSR_DLBOUND6HI, hi);
+		break;
+	case 7:
+		csr_write(CSR_DLBOUND7LO, lo);
+		csr_write(CSR_DLBOUND7HI, hi);
+		break;
+	case 8:
+		csr_write(CSR_DLBOUND8LO, lo);
+		csr_write(CSR_DLBOUND8HI, hi);
+		break;
+	case 9:
+		csr_write(CSR_DLBOUND9LO, lo);
+		csr_write(CSR_DLBOUND9HI, hi);
+		break;
+	case 10:
+		csr_write(CSR_DLBOUND10LO, lo);
+		csr_write(CSR_DLBOUND10HI, hi);
+		break;
+	case 11:
+		csr_write(CSR_DLBOUND11LO, lo);
+		csr_write(CSR_DLBOUND11HI, hi);
+		break;
+	case 12:
+		csr_write(CSR_DLBOUND12LO, lo);
+		csr_write(CSR_DLBOUND12HI, hi);
+		break;
+	case 13:
+		csr_write(CSR_DLBOUND13LO, lo);
+		csr_write(CSR_DLBOUND13HI, hi);
+		break;
+	case 14:
+		csr_write(CSR_DLBOUND14LO, lo);
+		csr_write(CSR_DLBOUND14HI, hi);
+		break;
+	case 15:
+		csr_write(CSR_DLBOUND15LO, lo);
+		csr_write(CSR_DLBOUND15HI, hi);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int dasics_hw_write_jump_bound(unsigned int idx, unsigned long lo,
+				      unsigned long hi)
+{
+	switch (idx) {
+	case 0:
+		csr_write(CSR_DJBOUND0LO, lo);
+		csr_write(CSR_DJBOUND0HI, hi);
+		break;
+	case 1:
+		csr_write(CSR_DJBOUND1LO, lo);
+		csr_write(CSR_DJBOUND1HI, hi);
+		break;
+	case 2:
+		csr_write(CSR_DJBOUND2LO, lo);
+		csr_write(CSR_DJBOUND2HI, hi);
+		break;
+	case 3:
+		csr_write(CSR_DJBOUND3LO, lo);
+		csr_write(CSR_DJBOUND3HI, hi);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static void __dasics_hw_clear_call_authority(void)
+{
+	/* Publish prior trusted state before revoking call authority. */
+	mb();
+	csr_write(CSR_DLCFG0, 0);
+	csr_write(CSR_DJCFG, 0);
+	csr_write(CSR_DMAINCALL, 0);
+	csr_write(CSR_DRETPC, 0);
+	csr_write(CSR_DRETPCACTZ, 0);
+	/* Complete revocation before trusted cleanup continues. */
+	mb();
+}
+
 int dasics_hw_save(struct dasics_hw_state *state)
 {
 	unsigned int idx;
@@ -153,6 +269,55 @@ out:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(dasics_hw_save);
+
+void dasics_hw_clear_call_authority(void)
+{
+	preempt_disable();
+	__dasics_hw_clear_call_authority();
+	preempt_enable();
+}
+EXPORT_SYMBOL_GPL(dasics_hw_clear_call_authority);
+
+int dasics_hw_restore(const struct dasics_hw_state *state)
+{
+	unsigned int idx;
+	int ret = 0;
+
+	if (!state)
+		return -EINVAL;
+
+	preempt_disable();
+	__dasics_hw_clear_call_authority();
+
+	for (idx = 0; idx < DASICS_MAX_DATA_BOUNDS; idx++) {
+		ret = dasics_hw_write_data_bound(idx, state->lib_lo[idx],
+						 state->lib_hi[idx]);
+		if (ret)
+			goto out;
+	}
+
+	for (idx = 0; idx < DASICS_MAX_JUMP_BOUNDS; idx++) {
+		ret = dasics_hw_write_jump_bound(idx, state->jump_lo[idx],
+						 state->jump_hi[idx]);
+		if (ret)
+			goto out;
+	}
+
+	csr_write(CSR_DMAINCALL, state->dmaincall);
+	csr_write(CSR_DRETPC, state->dretpc);
+	csr_write(CSR_DRETPCACTZ, state->dretpcactz);
+	/* Bounds and continuations must be visible before valid bits. */
+	mb();
+	csr_write(CSR_DLCFG0, state->libcfg);
+	csr_write(CSR_DJCFG, state->jumpcfg);
+	/* Complete authority restoration before returning to the caller. */
+	mb();
+
+out:
+	preempt_enable();
+	return ret;
+}
+EXPORT_SYMBOL_GPL(dasics_hw_restore);
 
 #ifdef CONFIG_64BIT
 #define STEP 8

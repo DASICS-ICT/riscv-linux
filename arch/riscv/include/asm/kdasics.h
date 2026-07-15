@@ -37,6 +37,8 @@ struct dasics_hw_state {
 };
 
 int dasics_hw_save(struct dasics_hw_state *state);
+int dasics_hw_restore(const struct dasics_hw_state *state);
+void dasics_hw_clear_call_authority(void);
 
 /* smaincall used */
 #define OFFSET_SMAINCALL_T0     (8*0)
