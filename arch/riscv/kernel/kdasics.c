@@ -17,6 +17,30 @@ static_assert(ARRAY_SIZE(((struct dasics_hw_state *)0)->jump_lo) ==
 	      DASICS_MAX_JUMP_BOUNDS);
 static_assert(ARRAY_SIZE(((struct dasics_hw_state *)0)->jump_hi) ==
 	      DASICS_MAX_JUMP_BOUNDS);
+static_assert(DASICS_CALL_MAX_ARGS == 8);
+static_assert(offsetof(struct dasics_call_regs, target) ==
+	      0 * sizeof(unsigned long));
+static_assert(offsetof(struct dasics_call_regs, a0) ==
+	      1 * sizeof(unsigned long));
+static_assert(offsetof(struct dasics_call_regs, a1) ==
+	      2 * sizeof(unsigned long));
+static_assert(offsetof(struct dasics_call_regs, a2) ==
+	      3 * sizeof(unsigned long));
+static_assert(offsetof(struct dasics_call_regs, a3) ==
+	      4 * sizeof(unsigned long));
+static_assert(offsetof(struct dasics_call_regs, a4) ==
+	      5 * sizeof(unsigned long));
+static_assert(offsetof(struct dasics_call_regs, a5) ==
+	      6 * sizeof(unsigned long));
+static_assert(offsetof(struct dasics_call_regs, a6) ==
+	      7 * sizeof(unsigned long));
+static_assert(offsetof(struct dasics_call_regs, a7) ==
+	      8 * sizeof(unsigned long));
+static_assert(offsetof(struct dasics_call_regs, ret_a0) ==
+	      9 * sizeof(unsigned long));
+static_assert(offsetof(struct dasics_call_regs, ret_a1) ==
+	      10 * sizeof(unsigned long));
+static_assert(sizeof(struct dasics_call_regs) == 11 * sizeof(unsigned long));
 
 static int dasics_hw_read_data_bound(unsigned int idx, unsigned long *lo,
 				     unsigned long *hi)

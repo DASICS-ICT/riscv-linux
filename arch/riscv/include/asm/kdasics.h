@@ -36,6 +36,27 @@ struct dasics_hw_state {
 	unsigned long dretpcactz;
 };
 
+#define DASICS_CALL_MAX_ARGS 8
+
+/*
+ * Fixed register frame for DASICS calls. Arguments and results are raw XLEN
+ * values. Stack arguments, floating-point/vector values, and aggregates must
+ * be lowered or rejected by typed wrappers.
+ */
+struct dasics_call_regs {
+	unsigned long target;
+	unsigned long a0;
+	unsigned long a1;
+	unsigned long a2;
+	unsigned long a3;
+	unsigned long a4;
+	unsigned long a5;
+	unsigned long a6;
+	unsigned long a7;
+	unsigned long ret_a0;
+	unsigned long ret_a1;
+};
+
 int dasics_hw_save(struct dasics_hw_state *state);
 int dasics_hw_restore(const struct dasics_hw_state *state);
 void dasics_hw_clear_call_authority(void);

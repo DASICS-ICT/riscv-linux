@@ -8,6 +8,7 @@
 
 #include <linux/kbuild.h>
 #include <linux/sched.h>
+#include <asm/kdasics.h>
 #include <asm/thread_info.h>
 #include <asm/ptrace.h>
 
@@ -118,6 +119,19 @@ void asm_offsets(void)
 	OFFSET(PT_UTIMER, pt_regs, utimer);
 
 #ifdef CONFIG_DASICS
+	DEFINE(DASICS_CALL_REGS_SIZE, sizeof(struct dasics_call_regs));
+	OFFSET(DASICS_CALL_TARGET, dasics_call_regs, target);
+	OFFSET(DASICS_CALL_A0, dasics_call_regs, a0);
+	OFFSET(DASICS_CALL_A1, dasics_call_regs, a1);
+	OFFSET(DASICS_CALL_A2, dasics_call_regs, a2);
+	OFFSET(DASICS_CALL_A3, dasics_call_regs, a3);
+	OFFSET(DASICS_CALL_A4, dasics_call_regs, a4);
+	OFFSET(DASICS_CALL_A5, dasics_call_regs, a5);
+	OFFSET(DASICS_CALL_A6, dasics_call_regs, a6);
+	OFFSET(DASICS_CALL_A7, dasics_call_regs, a7);
+	OFFSET(DASICS_CALL_RET_A0, dasics_call_regs, ret_a0);
+	OFFSET(DASICS_CALL_RET_A1, dasics_call_regs, ret_a1);
+
 	/* dasics supervisor registers */
 	OFFSET(PT_DUMCFG, pt_regs, dasicsUmainCfg);
 	OFFSET(PT_DUMBOUNDLO, pt_regs, dasicsUMainBoundLo);
