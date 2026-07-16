@@ -90,6 +90,22 @@ enum dasics_call_frame_state {
 	DASICS_CALL_FRAME_CLEANED,
 };
 
+enum dasics_fault_reason {
+	DASICS_FAULT_ECALL = 1,
+	DASICS_FAULT_LOAD,
+	DASICS_FAULT_STORE,
+	DASICS_FAULT_JUMP,
+};
+
+struct dasics_fault_record {
+	unsigned long pc;
+	unsigned long address;
+	unsigned long reason;
+	unsigned long cause;
+	const struct dasics_compartment *compartment;
+	bool valid;
+};
+
 /*
  * Call frames contain the complete software policy table and must live in
  * trusted preallocated storage, not in a function's kernel stack frame.
@@ -99,6 +115,7 @@ struct dasics_call_frame {
 	enum dasics_call_frame_state state;
 	struct dasics_hw_state parent_hw;
 	struct dasics_bound_table data_bounds;
+	struct dasics_fault_record fault;
 	struct dasics_region normalized[DASICS_POLICY_MAX_REGIONS];
 	const struct dasics_call_policy *policy;
 	dasics_bound_handle_t stack_handle;
@@ -154,6 +171,9 @@ int dasics_compartment_init_module(struct dasics_compartment *compartment,
 int dasics_call_prepare(struct dasics_call_frame *frame,
 			const struct dasics_call_policy *policy);
 int dasics_call_recover(int error);
+int dasics_call_record_fault(unsigned long pc, unsigned long address,
+			     unsigned long reason, unsigned long cause,
+			     const struct dasics_compartment **compartment);
 void dasics_call_finish(struct dasics_call_frame *frame);
 long dasics_call(struct dasics_call_frame *frame,
 		 const struct dasics_call_policy *policy,

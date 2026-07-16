@@ -360,6 +360,35 @@ int dasics_call_recover(int error)
 }
 EXPORT_SYMBOL_GPL(dasics_call_recover);
 
+int dasics_call_record_fault(unsigned long pc, unsigned long address,
+			     unsigned long reason, unsigned long cause,
+			     const struct dasics_compartment **compartment)
+{
+	struct dasics_call_frame *frame;
+	int ret;
+
+	frame = this_cpu_read(dasics_active_call_frame);
+	if (!frame || frame->magic != DASICS_CALL_FRAME_MAGIC)
+		return -ENOENT;
+	if (frame->state != DASICS_CALL_FRAME_ENTERED)
+		return dasics_call_fail_closed(frame, -EPROTO);
+	if (!frame->policy || !frame->policy->callee)
+		return dasics_call_fail_closed(frame, -EPROTO);
+
+	frame->fault.pc = pc;
+	frame->fault.address = address;
+	frame->fault.reason = reason;
+	frame->fault.cause = cause;
+	frame->fault.compartment = frame->policy->callee;
+	frame->fault.valid = true;
+	if (compartment)
+		*compartment = frame->fault.compartment;
+	ret = dasics_call_recover(-EFAULT);
+	if (ret)
+		frame->fault.valid = false;
+	return ret;
+}
+
 void dasics_call_finish(struct dasics_call_frame *frame)
 {
 	if (!frame || !frame->magic)

@@ -16,6 +16,7 @@
 #include <linux/module.h>
 #include <linux/irq.h>
 #include <linux/kexec.h>
+#include <linux/dasics.h>
 
 #include <asm/processor.h>
 #include <asm/ptrace.h>
@@ -187,23 +188,42 @@ int is_valid_bugaddr(unsigned long pc)
 }
 #endif /* CONFIG_GENERIC_BUG */
 
-/* This function may handle dasics exceptions in another way in future. */
-asmlinkage void do_trap_dasics(struct pt_regs *regs) 
+asmlinkage void do_trap_dasics(struct pt_regs *regs)
 {
-	pr_info("Raised a dasics %ld exception.", regs->cause);
+	const struct dasics_compartment *compartment = NULL;
+	unsigned long reason = csr_read(CSR_DFREASON);
+	int ret;
 
+	ret = dasics_call_record_fault(regs->epc, regs->badaddr, reason,
+				       regs->cause, &compartment);
+	if (!ret) {
+		const char *name = compartment->module ?
+			module_name(compartment->module) : "<anonymous>";
+
+		pr_info("DASICS fault: pc=%lx address=%lx reason=%lu cause=%lu compartment=%s\n",
+			regs->epc, regs->badaddr, reason, regs->cause,
+			name);
+	} else {
+		pr_err("DASICS fault without active frame: pc=%lx address=%lx reason=%lu cause=%lu error=%d\n",
+		       regs->epc, regs->badaddr, reason, regs->cause, ret);
+		if (ret != -ENOENT) {
+			die(regs, "invalid DASICS call frame state");
+			return;
+		}
+	}
+
+	pr_info("Raised a dasics %ld exception.", regs->cause);
 	show_regs(regs);
 	show_ext_regs(regs);
-	pr_info("ra: 0x" REG_FMT " sbadaddr: 0x" REG_FMT " scause: 0x" REG_FMT "dfreason: 0x%lx",
-									regs->ra, regs->badaddr, regs->cause, csr_read(0x8b3));
+	pr_info("ra: 0x" REG_FMT " sbadaddr: 0x" REG_FMT
+		" scause: 0x" REG_FMT " dfreason: 0x%lx\n",
+		regs->ra, regs->badaddr, regs->cause, reason);
 
-	// currently just skip error pc.
-	   regs->epc += 4;
-	// rvc will compress jump/branch inst.
-	//if (regs->scause == EXC_DASICS_UFETCH_FAULT || regs->scause == EXC_DASICS_SFETCH_FAULT) 
-	//	regs->epc += 2;
-	//else 
-	//	regs->epc += 4;
+#ifdef CONFIG_DASICS_POC_FAULT_CONTINUE
+	regs->epc += 4;
+#else
+	die(regs, "DASICS fault recovery unavailable");
+#endif
 }
 
 /* stvec & scratch is already set from head.S */
