@@ -4,6 +4,7 @@
 #include <linux/errno.h>
 #include <linux/export.h>
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/percpu.h>
 #include <linux/preempt.h>
 #include <linux/string.h>
@@ -11,6 +12,53 @@
 #include <asm/csr.h>
 
 static DEFINE_PER_CPU(struct dasics_call_frame *, dasics_active_call_frame);
+
+int dasics_compartment_init_module(struct dasics_compartment *compartment,
+				   void *target)
+{
+#ifdef CONFIG_MODULES
+	struct module *module;
+	unsigned long address = (unsigned long)target;
+	unsigned int nr_ranges = 0;
+
+	if (!compartment || !target)
+		return -EINVAL;
+
+	preempt_disable();
+	module = __module_text_address(address);
+	if (!module || !module_is_live(module)) {
+		preempt_enable();
+		return -ENOENT;
+	}
+
+	memset(compartment, 0, sizeof(*compartment));
+	compartment->module = module;
+	if (module->core_layout.text_size) {
+		compartment->loader_code_ranges[nr_ranges].base =
+			(unsigned long)module->core_layout.base;
+		compartment->loader_code_ranges[nr_ranges].size =
+			module->core_layout.text_size;
+		nr_ranges++;
+	}
+	if (module->init_layout.text_size) {
+		compartment->loader_code_ranges[nr_ranges].base =
+			(unsigned long)module->init_layout.base;
+		compartment->loader_code_ranges[nr_ranges].size =
+			module->init_layout.text_size;
+		nr_ranges++;
+	}
+	preempt_enable();
+
+	if (!nr_ranges)
+		return -ENOENT;
+	compartment->code_ranges = compartment->loader_code_ranges;
+	compartment->nr_code_ranges = nr_ranges;
+	return 0;
+#else
+	return -EOPNOTSUPP;
+#endif
+}
+EXPORT_SYMBOL_GPL(dasics_compartment_init_module);
 
 static int dasics_call_register_regions(struct dasics_call_frame *frame,
 					const struct dasics_call_policy *policy,
@@ -251,6 +299,28 @@ void dasics_call_finish(struct dasics_call_frame *frame)
 	dasics_call_restore_parent(frame);
 }
 EXPORT_SYMBOL_GPL(dasics_call_finish);
+
+long dasics_call(struct dasics_call_frame *frame,
+		 const struct dasics_call_policy *policy,
+		 struct dasics_call_regs *regs)
+{
+	long ret;
+
+	if (!frame || !policy || !regs)
+		return -EINVAL;
+
+	ret = dasics_call_prepare(frame, policy);
+	if (ret)
+		return ret;
+
+	regs->target = (unsigned long)policy->target;
+	ret = dasics_hw_call(regs);
+	dasics_call_finish(frame);
+	if (!ret && frame->finish_error)
+		ret = frame->finish_error;
+	return ret;
+}
+EXPORT_SYMBOL_GPL(dasics_call);
 
 #ifdef CONFIG_DASICS_DEBUG
 int dasics_call_test_fail_bound(struct dasics_call_frame *frame,

@@ -11,6 +11,8 @@
 #define DASICS_DATA_BOUND_SLOTS 16
 #define DASICS_JUMP_BOUND_SLOTS 4
 
+struct module;
+
 typedef u64 dasics_bound_handle_t;
 
 #define DASICS_BOUND_INVALID_HANDLE ((dasics_bound_handle_t)0)
@@ -40,10 +42,11 @@ struct dasics_code_range {
 	size_t size;
 };
 
-/* C3 only needs immutable executable ranges; lifecycle fields come later. */
 struct dasics_compartment {
+	struct module *module;
 	const struct dasics_code_range *code_ranges;
 	unsigned int nr_code_ranges;
+	struct dasics_code_range loader_code_ranges[2];
 };
 
 struct dasics_call_policy {
@@ -140,9 +143,15 @@ int dasics_bound_free(struct dasics_bound_table *table,
 		      dasics_bound_clear_slot_fn clear_slot, void *context);
 int dasics_jump_policy_validate(unsigned int nr_jump_regions);
 
+int dasics_compartment_init_module(struct dasics_compartment *compartment,
+				   void *target);
+
 int dasics_call_prepare(struct dasics_call_frame *frame,
 			const struct dasics_call_policy *policy);
 void dasics_call_finish(struct dasics_call_frame *frame);
+long dasics_call(struct dasics_call_frame *frame,
+		 const struct dasics_call_policy *policy,
+		 struct dasics_call_regs *regs);
 
 #ifdef CONFIG_DASICS_DEBUG
 int dasics_call_test_fail_bound(struct dasics_call_frame *frame,
