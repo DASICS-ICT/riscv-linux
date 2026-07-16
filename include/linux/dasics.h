@@ -82,9 +82,12 @@ struct dasics_bound_table {
 #define DASICS_CALL_FRAME_MAGIC 0x44415349U
 
 enum dasics_call_frame_state {
-	DASICS_CALL_FRAME_IDLE,
+	DASICS_CALL_FRAME_EMPTY,
 	DASICS_CALL_FRAME_PREPARED,
-	DASICS_CALL_FRAME_FINISHED,
+	DASICS_CALL_FRAME_ENTERED,
+	DASICS_CALL_FRAME_RETURNED,
+	DASICS_CALL_FRAME_FAULTED,
+	DASICS_CALL_FRAME_CLEANED,
 };
 
 /*
@@ -106,6 +109,8 @@ struct dasics_call_frame {
 	unsigned int test_fail_restore;
 	int prepare_error;
 	int finish_error;
+	int fault_error;
+	int state_error;
 	bool parent_saved;
 	bool preempt_held;
 };
@@ -148,6 +153,7 @@ int dasics_compartment_init_module(struct dasics_compartment *compartment,
 
 int dasics_call_prepare(struct dasics_call_frame *frame,
 			const struct dasics_call_policy *policy);
+int dasics_call_recover(int error);
 void dasics_call_finish(struct dasics_call_frame *frame);
 long dasics_call(struct dasics_call_frame *frame,
 		 const struct dasics_call_policy *policy,
@@ -157,6 +163,8 @@ long dasics_call(struct dasics_call_frame *frame,
 int dasics_call_test_fail_bound(struct dasics_call_frame *frame,
 				unsigned int bound);
 int dasics_call_test_fail_restore(struct dasics_call_frame *frame, bool fail);
+int dasics_call_test_transition(struct dasics_call_frame *frame,
+				enum dasics_call_frame_state next);
 #endif
 
 #endif /* _LINUX_DASICS_H */

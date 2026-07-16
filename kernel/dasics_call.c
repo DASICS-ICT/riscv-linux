@@ -13,6 +13,49 @@
 
 static DEFINE_PER_CPU(struct dasics_call_frame *, dasics_active_call_frame);
 
+static bool dasics_call_transition_valid(enum dasics_call_frame_state from,
+					 enum dasics_call_frame_state next)
+{
+	switch (from) {
+	case DASICS_CALL_FRAME_EMPTY:
+		return next == DASICS_CALL_FRAME_PREPARED ||
+		       next == DASICS_CALL_FRAME_CLEANED;
+	case DASICS_CALL_FRAME_PREPARED:
+		return next == DASICS_CALL_FRAME_ENTERED ||
+		       next == DASICS_CALL_FRAME_CLEANED;
+	case DASICS_CALL_FRAME_ENTERED:
+		return next == DASICS_CALL_FRAME_RETURNED ||
+		       next == DASICS_CALL_FRAME_FAULTED ||
+		       next == DASICS_CALL_FRAME_CLEANED;
+	case DASICS_CALL_FRAME_RETURNED:
+	case DASICS_CALL_FRAME_FAULTED:
+		return next == DASICS_CALL_FRAME_CLEANED;
+	case DASICS_CALL_FRAME_CLEANED:
+		return next == DASICS_CALL_FRAME_CLEANED;
+	default:
+		return false;
+	}
+}
+
+static int dasics_call_transition(struct dasics_call_frame *frame,
+				  enum dasics_call_frame_state next,
+				  bool warn)
+{
+	bool valid = frame && frame->magic == DASICS_CALL_FRAME_MAGIC &&
+		     dasics_call_transition_valid(frame->state, next);
+
+	if (!valid) {
+		if (frame && frame->magic == DASICS_CALL_FRAME_MAGIC)
+			frame->state_error = -EPROTO;
+		if (warn)
+			WARN_ON_ONCE(!valid);
+		return -EPROTO;
+	}
+
+	frame->state = next;
+	return 0;
+}
+
 int dasics_compartment_init_module(struct dasics_compartment *compartment,
 				   void *target)
 {
@@ -196,9 +239,8 @@ static int dasics_call_restore_parent(struct dasics_call_frame *frame)
 		if (ret) {
 			dasics_hw_clear_call_authority();
 			frame->finish_error = ret;
-		} else {
-			frame->parent_saved = false;
 		}
+		frame->parent_saved = false;
 	}
 
 	if (frame->preempt_held) {
@@ -207,8 +249,18 @@ static int dasics_call_restore_parent(struct dasics_call_frame *frame)
 		frame->preempt_held = false;
 		preempt_enable();
 	}
-	frame->state = DASICS_CALL_FRAME_FINISHED;
+	if (dasics_call_transition(frame, DASICS_CALL_FRAME_CLEANED, true))
+		frame->state = DASICS_CALL_FRAME_CLEANED;
 	return ret;
+}
+
+static int dasics_call_fail_closed(struct dasics_call_frame *frame, int error)
+{
+	if (frame && frame->magic == DASICS_CALL_FRAME_MAGIC) {
+		frame->state_error = error;
+		dasics_call_restore_parent(frame);
+	}
+	return error;
 }
 
 int dasics_call_prepare(struct dasics_call_frame *frame,
@@ -227,8 +279,9 @@ int dasics_call_prepare(struct dasics_call_frame *frame,
 	if (frame->magic && frame->magic != DASICS_CALL_FRAME_MAGIC)
 		return -EINVAL;
 	if (frame->magic == DASICS_CALL_FRAME_MAGIC &&
-	    frame->state == DASICS_CALL_FRAME_PREPARED)
-		return -EBUSY;
+	    frame->state != DASICS_CALL_FRAME_CLEANED &&
+	    frame->state != DASICS_CALL_FRAME_EMPTY)
+		return dasics_call_fail_closed(frame, -EBUSY);
 
 	fail_bound = frame->magic == DASICS_CALL_FRAME_MAGIC ?
 		     frame->test_fail_bound : 0;
@@ -236,6 +289,7 @@ int dasics_call_prepare(struct dasics_call_frame *frame,
 		       frame->test_fail_restore : 0;
 	memset(frame, 0, sizeof(*frame));
 	frame->magic = DASICS_CALL_FRAME_MAGIC;
+	frame->state = DASICS_CALL_FRAME_EMPTY;
 	frame->test_fail_bound = fail_bound;
 	frame->test_fail_restore = fail_restore;
 	frame->policy = policy;
@@ -276,8 +330,7 @@ int dasics_call_prepare(struct dasics_call_frame *frame,
 		goto fail;
 
 	frame->prepare_error = 0;
-	frame->state = DASICS_CALL_FRAME_PREPARED;
-	return 0;
+	return dasics_call_transition(frame, DASICS_CALL_FRAME_PREPARED, true);
 
 fail:
 	frame->prepare_error = ret;
@@ -286,13 +339,34 @@ fail:
 }
 EXPORT_SYMBOL_GPL(dasics_call_prepare);
 
+int dasics_call_recover(int error)
+{
+	struct dasics_call_frame *frame;
+	int ret;
+
+	frame = this_cpu_read(dasics_active_call_frame);
+	if (!frame || frame->magic != DASICS_CALL_FRAME_MAGIC)
+		return -ENOENT;
+	if (!error)
+		error = -EFAULT;
+	if (error > 0)
+		error = -error;
+
+	ret = dasics_call_transition(frame, DASICS_CALL_FRAME_FAULTED, true);
+	if (ret)
+		return dasics_call_fail_closed(frame, ret);
+	frame->fault_error = error;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(dasics_call_recover);
+
 void dasics_call_finish(struct dasics_call_frame *frame)
 {
 	if (!frame || !frame->magic)
 		return;
 	if (frame->magic != DASICS_CALL_FRAME_MAGIC)
 		return;
-	if (frame->state == DASICS_CALL_FRAME_FINISHED &&
+	if (frame->state == DASICS_CALL_FRAME_CLEANED &&
 	    !frame->parent_saved && !frame->preempt_held)
 		return;
 
@@ -314,7 +388,26 @@ long dasics_call(struct dasics_call_frame *frame,
 		return ret;
 
 	regs->target = (unsigned long)policy->target;
+	ret = dasics_call_transition(frame, DASICS_CALL_FRAME_ENTERED, true);
+	if (ret) {
+		dasics_call_fail_closed(frame, ret);
+		return ret;
+	}
 	ret = dasics_hw_call(regs);
+	if (frame->state == DASICS_CALL_FRAME_ENTERED) {
+		int state_ret;
+
+		state_ret = dasics_call_transition(frame,
+						   DASICS_CALL_FRAME_RETURNED,
+						   true);
+		if (!ret)
+			ret = state_ret;
+	} else if (frame->state == DASICS_CALL_FRAME_FAULTED) {
+		ret = frame->fault_error ?: -EFAULT;
+	} else if (!ret) {
+		ret = -EPROTO;
+		frame->state_error = ret;
+	}
 	dasics_call_finish(frame);
 	if (!ret && frame->finish_error)
 		ret = frame->finish_error;
@@ -331,7 +424,8 @@ int dasics_call_test_fail_bound(struct dasics_call_frame *frame,
 	if (frame->magic && frame->magic != DASICS_CALL_FRAME_MAGIC)
 		return -EINVAL;
 	if (frame->magic == DASICS_CALL_FRAME_MAGIC &&
-	    frame->state == DASICS_CALL_FRAME_PREPARED)
+	    frame->state != DASICS_CALL_FRAME_CLEANED &&
+	    frame->state != DASICS_CALL_FRAME_EMPTY)
 		return -EBUSY;
 	if (!frame->magic) {
 		memset(frame, 0, sizeof(*frame));
@@ -349,7 +443,8 @@ int dasics_call_test_fail_restore(struct dasics_call_frame *frame, bool fail)
 	if (frame->magic && frame->magic != DASICS_CALL_FRAME_MAGIC)
 		return -EINVAL;
 	if (frame->magic == DASICS_CALL_FRAME_MAGIC &&
-	    frame->state == DASICS_CALL_FRAME_PREPARED)
+	    frame->state != DASICS_CALL_FRAME_CLEANED &&
+	    frame->state != DASICS_CALL_FRAME_EMPTY)
 		return -EBUSY;
 	if (!frame->magic) {
 		memset(frame, 0, sizeof(*frame));
@@ -359,4 +454,18 @@ int dasics_call_test_fail_restore(struct dasics_call_frame *frame, bool fail)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(dasics_call_test_fail_restore);
+
+int dasics_call_test_transition(struct dasics_call_frame *frame,
+				enum dasics_call_frame_state next)
+{
+	int ret;
+
+	if (!frame || frame->magic != DASICS_CALL_FRAME_MAGIC)
+		return -EINVAL;
+	ret = dasics_call_transition(frame, next, false);
+	if (ret)
+		dasics_call_fail_closed(frame, ret);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(dasics_call_test_transition);
 #endif
