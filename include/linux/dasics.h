@@ -5,6 +5,8 @@
 #include <linux/bitops.h>
 #include <linux/types.h>
 
+#include <asm/kdasics.h>
+
 #define DASICS_POLICY_MAX_REGIONS 64
 #define DASICS_DATA_BOUND_SLOTS 16
 #define DASICS_JUMP_BOUND_SLOTS 4
@@ -74,6 +76,37 @@ struct dasics_bound_table {
 	unsigned int next_victim;
 };
 
+#define DASICS_CALL_FRAME_MAGIC 0x44415349U
+
+enum dasics_call_frame_state {
+	DASICS_CALL_FRAME_IDLE,
+	DASICS_CALL_FRAME_PREPARED,
+	DASICS_CALL_FRAME_FINISHED,
+};
+
+/*
+ * Call frames contain the complete software policy table and must live in
+ * trusted preallocated storage, not in a function's kernel stack frame.
+ */
+struct dasics_call_frame {
+	u32 magic;
+	enum dasics_call_frame_state state;
+	struct dasics_hw_state parent_hw;
+	struct dasics_bound_table data_bounds;
+	struct dasics_region normalized[DASICS_POLICY_MAX_REGIONS];
+	const struct dasics_call_policy *policy;
+	dasics_bound_handle_t stack_handle;
+	unsigned int nr_normalized;
+	unsigned int nr_resident;
+	unsigned int nr_jump_bounds;
+	unsigned int test_fail_bound;
+	unsigned int test_fail_restore;
+	int prepare_error;
+	int finish_error;
+	bool parent_saved;
+	bool preempt_held;
+};
+
 typedef int (*dasics_bound_clear_slot_fn)(unsigned int slot, void *context);
 
 int dasics_policy_normalize(const struct dasics_call_policy *policy,
@@ -106,5 +139,15 @@ int dasics_bound_free(struct dasics_bound_table *table,
 		      dasics_bound_handle_t handle,
 		      dasics_bound_clear_slot_fn clear_slot, void *context);
 int dasics_jump_policy_validate(unsigned int nr_jump_regions);
+
+int dasics_call_prepare(struct dasics_call_frame *frame,
+			const struct dasics_call_policy *policy);
+void dasics_call_finish(struct dasics_call_frame *frame);
+
+#ifdef CONFIG_DASICS_DEBUG
+int dasics_call_test_fail_bound(struct dasics_call_frame *frame,
+				unsigned int bound);
+int dasics_call_test_fail_restore(struct dasics_call_frame *frame, bool fail);
+#endif
 
 #endif /* _LINUX_DASICS_H */

@@ -345,6 +345,71 @@ out:
 }
 EXPORT_SYMBOL_GPL(dasics_hw_restore);
 
+int dasics_hw_install_call_authority(const struct dasics_hw_state *state,
+				     unsigned int fail_bound)
+{
+	unsigned int bound = 0;
+	unsigned int idx;
+	int ret;
+
+	if (!state)
+		return -EINVAL;
+
+	preempt_disable();
+	__dasics_hw_clear_call_authority();
+
+	for (idx = 0; idx < DASICS_MAX_DATA_BOUNDS; idx++) {
+		unsigned long cfg = (state->libcfg >>
+				     (idx * DASICS_LIBCFG_BITS)) &
+				    DASICS_LIBCFG_MASK;
+
+		if (cfg & DASICS_LIBCFG_V) {
+			bound++;
+			if (fail_bound == bound) {
+				ret = -EIO;
+				goto out;
+			}
+		}
+		ret = dasics_hw_write_data_bound(idx, state->lib_lo[idx],
+						 state->lib_hi[idx]);
+		if (ret)
+			goto out;
+	}
+
+	for (idx = 0; idx < DASICS_MAX_JUMP_BOUNDS; idx++) {
+		unsigned long cfg = (state->jumpcfg >>
+				     (idx * DASICS_JUMPCFG_BITS)) &
+				    DASICS_JUMPCFG_MASK;
+
+		if (cfg & DASICS_JUMPCFG_V) {
+			bound++;
+			if (fail_bound == bound) {
+				ret = -EIO;
+				goto out;
+			}
+		}
+		ret = dasics_hw_write_jump_bound(idx, state->jump_lo[idx],
+						 state->jump_hi[idx]);
+		if (ret)
+			goto out;
+	}
+
+	csr_write(CSR_DMAINCALL, state->dmaincall);
+	csr_write(CSR_DRETPC, state->dretpc);
+	csr_write(CSR_DRETPCACTZ, state->dretpcactz);
+	/* Bounds and continuations must be visible before valid bits. */
+	mb();
+	csr_write(CSR_DLCFG0, state->libcfg);
+	csr_write(CSR_DJCFG, state->jumpcfg);
+	/* Complete authority installation before returning to the caller. */
+	mb();
+	ret = 0;
+
+out:
+	preempt_enable();
+	return ret;
+}
+
 long dasics_hw_call(struct dasics_call_regs *regs)
 {
 	long ret;

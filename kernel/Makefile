@@ -12,7 +12,7 @@ obj-y     = fork.o exec_domain.o panic.o \
 	    notifier.o ksysfs.o cred.o reboot.o \
 	    async.o range.o smpboot.o ucount.o regset.o
 
-obj-$(CONFIG_DASICS) += dasics_policy.o dasics_bound.o
+obj-$(CONFIG_DASICS) += dasics_policy.o dasics_bound.o dasics_call.o
 
 obj-$(CONFIG_USERMODE_DRIVER) += usermode_driver.o
 obj-$(CONFIG_MODULES) += kmod.o
