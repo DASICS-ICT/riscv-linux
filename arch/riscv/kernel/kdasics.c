@@ -42,10 +42,27 @@ static_assert(offsetof(struct dasics_call_regs, ret_a0) ==
 static_assert(offsetof(struct dasics_call_regs, ret_a1) ==
 	      10 * sizeof(unsigned long));
 static_assert(sizeof(struct dasics_call_regs) == 11 * sizeof(unsigned long));
+static_assert(DASICS_MAINCALL_MAX_ARGS == 7);
+static_assert(offsetof(struct dasics_maincall_request, service_id) == 0);
+static_assert(offsetof(struct dasics_maincall_request, args) ==
+	      sizeof(unsigned long));
+static_assert(offsetof(struct dasics_maincall_request, return_pc) ==
+	      8 * sizeof(unsigned long));
+static_assert(offsetof(struct dasics_maincall_request, untrusted_sp) ==
+	      9 * sizeof(unsigned long));
+static_assert(offsetof(struct dasics_maincall_request, irq_status) ==
+	      10 * sizeof(unsigned long));
+static_assert(offsetof(struct dasics_maincall_request, status) ==
+	      11 * sizeof(unsigned long));
+static_assert(offsetof(struct dasics_maincall_request, value) ==
+	      12 * sizeof(unsigned long));
+static_assert(sizeof(struct dasics_maincall_request) ==
+	      13 * sizeof(unsigned long));
 static_assert(ARRAY_SIZE(((struct dasics_recovery_context *)0)->s) == 12);
 
 asmlinkage long __dasics_hw_call(struct dasics_call_regs *regs,
 				 struct dasics_recovery_context *recovery);
+EXPORT_SYMBOL_GPL(dasics_maincall_gate);
 asmlinkage void __dasics_hw_recover(void);
 
 static int dasics_hw_read_data_bound(unsigned int idx, unsigned long *lo,

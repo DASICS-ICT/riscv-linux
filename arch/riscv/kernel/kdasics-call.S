@@ -4,6 +4,7 @@
 #include <linux/errno.h>
 #include <asm/asm.h>
 #include <asm/asm-offsets.h>
+#include <asm/csr.h>
 
 	.text
 	.align 2
@@ -77,3 +78,41 @@ ENTRY(__dasics_hw_recover)
 	REG_L	sp, DASICS_RECOVERY_SP(t0)
 	ret
 ENDPROC(__dasics_hw_recover)
+
+/* Fixed a0-a7 request ABI for untrusted-to-trusted services. */
+ENTRY(dasics_maincall_gate)
+	mv	t3, sp
+	li	t4, SR_IE
+	csrrc	t2, CSR_STATUS, t4
+	la	t0, dasics_maincall_active_frame
+	REG_L	t0, 0(t0)
+	addi	t1, t0, DASICS_FRAME_MAINCALL_REQUEST
+	REG_S	a0, DASICS_MAINCALL_SERVICE_ID(t1)
+	REG_S	a1, DASICS_MAINCALL_ARG0(t1)
+	REG_S	a2, DASICS_MAINCALL_ARG1(t1)
+	REG_S	a3, DASICS_MAINCALL_ARG2(t1)
+	REG_S	a4, DASICS_MAINCALL_ARG3(t1)
+	REG_S	a5, DASICS_MAINCALL_ARG4(t1)
+	REG_S	a6, DASICS_MAINCALL_ARG5(t1)
+	REG_S	a7, DASICS_MAINCALL_ARG6(t1)
+	REG_S	ra, DASICS_MAINCALL_RETURN_PC(t1)
+	REG_S	t3, DASICS_MAINCALL_UNTRUSTED_SP(t1)
+	REG_S	t2, DASICS_MAINCALL_IRQ_STATUS(t1)
+	addi	sp, t0, DASICS_FRAME_MAINCALL_STACK
+	addi	sp, sp, DASICS_MAINCALL_TRUSTED_STACK_SIZE
+	mv	a0, t1
+	call	dasics_maincall_dispatch
+
+	mv	t0, a0
+	REG_L	ra, DASICS_MAINCALL_RETURN_PC(t0)
+	REG_L	t1, DASICS_MAINCALL_UNTRUSTED_SP(t0)
+	REG_L	t2, DASICS_MAINCALL_IRQ_STATUS(t0)
+	REG_L	a0, DASICS_MAINCALL_STATUS(t0)
+	REG_L	a1, DASICS_MAINCALL_VALUE(t0)
+	mv	sp, t1
+	andi	t2, t2, SR_IE
+	beqz	t2, 1f
+	csrs	CSR_STATUS, SR_IE
+1:
+	ret
+ENDPROC(dasics_maincall_gate)

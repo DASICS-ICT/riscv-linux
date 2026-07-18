@@ -12,6 +12,99 @@
 #include <asm/csr.h>
 
 static DEFINE_PER_CPU(struct dasics_call_frame *, dasics_active_call_frame);
+struct dasics_call_frame *dasics_maincall_active_frame;
+
+struct dasics_maincall_service {
+	unsigned long id;
+	long (*invoke)(const struct dasics_maincall_request *request,
+		       unsigned long *value);
+};
+
+static bool dasics_compartment_contains_pc(
+		const struct dasics_compartment *compartment, unsigned long pc)
+{
+	unsigned int i;
+
+	if (!compartment || !compartment->code_ranges)
+		return false;
+	for (i = 0; i < compartment->nr_code_ranges; i++) {
+		const struct dasics_code_range *range =
+			&compartment->code_ranges[i];
+
+		if (range->size && range->size <= ULONG_MAX - range->base &&
+		    pc >= range->base && pc < range->base + range->size)
+			return true;
+	}
+	return false;
+}
+
+static long dasics_maincall_abi_info(
+		const struct dasics_maincall_request *request,
+		unsigned long *value)
+{
+	unsigned int i;
+
+	switch (request->args[0]) {
+	case DASICS_MAINCALL_QUERY_RUNTIME:
+		for (i = 1; i < ARRAY_SIZE(request->args); i++) {
+			if (request->args[i])
+				return -EINVAL;
+		}
+		*value = DASICS_MAINCALL_ABI_VERSION;
+		return 0;
+	case DASICS_MAINCALL_QUERY_REGISTERS:
+		for (i = 1; i < ARRAY_SIZE(request->args); i++) {
+			if (request->args[i] != i + 1)
+				return -EINVAL;
+		}
+		*value = DASICS_MAINCALL_REGISTER_TEST_VALUE;
+		return 0;
+	default:
+		return -EINVAL;
+	}
+}
+
+static const struct dasics_maincall_service dasics_maincall_services[] = {
+	{
+		.id = DASICS_MAINCALL_SERVICE_ABI_INFO,
+		.invoke = dasics_maincall_abi_info,
+	},
+};
+
+asmlinkage struct dasics_maincall_request *dasics_maincall_dispatch(
+		struct dasics_maincall_request *request)
+{
+	struct dasics_call_frame *frame;
+	unsigned int i;
+
+	request->status = -EPERM;
+	request->value = 0;
+	frame = this_cpu_read(dasics_active_call_frame);
+	if (!frame || frame->magic != DASICS_CALL_FRAME_MAGIC ||
+	    frame->state != DASICS_CALL_FRAME_ENTERED || !frame->policy ||
+	    !frame->policy->callee ||
+	    !dasics_compartment_contains_pc(frame->policy->callee,
+					    request->return_pc)) {
+		/* Never return to an untrusted-supplied PC after source rejection. */
+		request->return_pc = csr_read(CSR_DRETURNPC);
+		if (frame && frame->magic == DASICS_CALL_FRAME_MAGIC &&
+		    frame->state == DASICS_CALL_FRAME_ENTERED)
+			dasics_call_recover(-EPERM);
+		return request;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(dasics_maincall_services); i++) {
+		const struct dasics_maincall_service *service =
+			&dasics_maincall_services[i];
+
+		if (service->id != request->service_id)
+			continue;
+		request->status = service->invoke(request, &request->value);
+		return request;
+	}
+	request->status = -ENOSYS;
+	return request;
+}
 
 static bool dasics_call_transition_valid(enum dasics_call_frame_state from,
 					 enum dasics_call_frame_state next)
@@ -191,7 +284,7 @@ static int dasics_call_build_child_state(struct dasics_call_frame *frame,
 	int ret;
 
 	memset(child, 0, sizeof(*child));
-	child->dmaincall = frame->parent_hw.dmaincall;
+	child->dmaincall = (unsigned long)dasics_maincall_gate;
 
 	ret = dasics_call_reside_bound(frame, child, frame->stack_handle, slot++);
 	if (ret)
@@ -246,6 +339,7 @@ static int dasics_call_restore_parent(struct dasics_call_frame *frame)
 	if (frame->preempt_held) {
 		if (this_cpu_read(dasics_active_call_frame) == frame)
 			this_cpu_write(dasics_active_call_frame, NULL);
+		cmpxchg(&dasics_maincall_active_frame, frame, NULL);
 		frame->preempt_held = false;
 		preempt_enable();
 	}
@@ -311,6 +405,10 @@ int dasics_call_prepare(struct dasics_call_frame *frame,
 	preempt_disable();
 	frame->preempt_held = true;
 	if (this_cpu_read(dasics_active_call_frame)) {
+		ret = -EBUSY;
+		goto fail;
+	}
+	if (cmpxchg(&dasics_maincall_active_frame, NULL, frame)) {
 		ret = -EBUSY;
 		goto fail;
 	}

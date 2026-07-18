@@ -3,6 +3,7 @@
 #define _LINUX_DASICS_H
 
 #include <linux/bitops.h>
+#include <linux/linkage.h>
 #include <linux/types.h>
 
 #include <asm/kdasics.h>
@@ -10,6 +11,7 @@
 #define DASICS_POLICY_MAX_REGIONS 64
 #define DASICS_DATA_BOUND_SLOTS 16
 #define DASICS_JUMP_BOUND_SLOTS 4
+#define DASICS_MAINCALL_STACK_SIZE 1024
 
 struct module;
 
@@ -120,6 +122,9 @@ struct dasics_call_frame {
 	enum dasics_call_frame_state state;
 	struct dasics_hw_state parent_hw;
 	struct dasics_recovery_context recovery;
+	struct dasics_maincall_request maincall_request;
+	unsigned long maincall_stack[DASICS_MAINCALL_STACK_SIZE /
+				     sizeof(unsigned long)] __aligned(16);
 	struct dasics_bound_table data_bounds;
 	struct dasics_fault_record fault;
 	struct dasics_region normalized[DASICS_POLICY_MAX_REGIONS];
@@ -188,6 +193,9 @@ void dasics_call_finish(struct dasics_call_frame *frame);
 long dasics_call(struct dasics_call_frame *frame,
 		 const struct dasics_call_policy *policy,
 		 struct dasics_call_regs *regs);
+asmlinkage struct dasics_maincall_request *dasics_maincall_dispatch(
+		struct dasics_maincall_request *request);
+extern struct dasics_call_frame *dasics_maincall_active_frame;
 
 #ifdef CONFIG_DASICS_DEBUG
 int dasics_call_test_fail_bound(struct dasics_call_frame *frame,

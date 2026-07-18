@@ -59,6 +59,31 @@ struct dasics_call_regs {
 	unsigned long ret_a1;
 };
 
+#define DASICS_MAINCALL_ABI_VERSION 1
+#define DASICS_MAINCALL_MAX_ARGS 7
+
+enum dasics_maincall_service_id {
+	DASICS_MAINCALL_SERVICE_ABI_INFO = 1,
+};
+
+enum dasics_maincall_abi_query {
+	DASICS_MAINCALL_QUERY_RUNTIME = 1,
+	DASICS_MAINCALL_QUERY_REGISTERS,
+};
+
+#define DASICS_MAINCALL_REGISTER_TEST_VALUE 0x12345678UL
+
+/* Register request captured by the trusted maincall assembly entry. */
+struct dasics_maincall_request {
+	unsigned long service_id;
+	unsigned long args[DASICS_MAINCALL_MAX_ARGS];
+	unsigned long return_pc;
+	unsigned long untrusted_sp;
+	unsigned long irq_status;
+	long status;
+	unsigned long value;
+};
+
 #define DASICS_RECOVERY_CONTEXT_MAGIC 0x44524358UL
 
 /* Trusted continuation state used to escape a faulting untrusted call. */
@@ -84,6 +109,7 @@ int dasics_hw_install_call_authority(const struct dasics_hw_state *state,
 				     unsigned int fail_bound);
 int dasics_hw_replace_data_bound(unsigned int slot, unsigned long lo,
 				 unsigned long hi, unsigned long cfg);
+void dasics_maincall_gate(void);
 
 /* smaincall used */
 #define OFFSET_SMAINCALL_T0     (8*0)

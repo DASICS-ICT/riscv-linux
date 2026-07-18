@@ -7,6 +7,7 @@
 #define GENERATING_ASM_OFFSETS
 
 #include <linux/kbuild.h>
+#include <linux/dasics.h>
 #include <linux/sched.h>
 #include <asm/kdasics.h>
 #include <asm/thread_info.h>
@@ -132,6 +133,26 @@ void asm_offsets(void)
 	OFFSET(DASICS_CALL_A7, dasics_call_regs, a7);
 	OFFSET(DASICS_CALL_RET_A0, dasics_call_regs, ret_a0);
 	OFFSET(DASICS_CALL_RET_A1, dasics_call_regs, ret_a1);
+	OFFSET(DASICS_MAINCALL_SERVICE_ID, dasics_maincall_request,
+	       service_id);
+	OFFSET(DASICS_MAINCALL_ARG0, dasics_maincall_request, args[0]);
+	OFFSET(DASICS_MAINCALL_ARG1, dasics_maincall_request, args[1]);
+	OFFSET(DASICS_MAINCALL_ARG2, dasics_maincall_request, args[2]);
+	OFFSET(DASICS_MAINCALL_ARG3, dasics_maincall_request, args[3]);
+	OFFSET(DASICS_MAINCALL_ARG4, dasics_maincall_request, args[4]);
+	OFFSET(DASICS_MAINCALL_ARG5, dasics_maincall_request, args[5]);
+	OFFSET(DASICS_MAINCALL_ARG6, dasics_maincall_request, args[6]);
+	OFFSET(DASICS_MAINCALL_RETURN_PC, dasics_maincall_request, return_pc);
+	OFFSET(DASICS_MAINCALL_UNTRUSTED_SP, dasics_maincall_request,
+	       untrusted_sp);
+	OFFSET(DASICS_MAINCALL_IRQ_STATUS, dasics_maincall_request, irq_status);
+	OFFSET(DASICS_MAINCALL_STATUS, dasics_maincall_request, status);
+	OFFSET(DASICS_MAINCALL_VALUE, dasics_maincall_request, value);
+	OFFSET(DASICS_FRAME_MAINCALL_REQUEST, dasics_call_frame,
+	       maincall_request);
+	OFFSET(DASICS_FRAME_MAINCALL_STACK, dasics_call_frame, maincall_stack);
+	DEFINE(DASICS_MAINCALL_TRUSTED_STACK_SIZE,
+	       DASICS_MAINCALL_STACK_SIZE);
 	OFFSET(DASICS_RECOVERY_MAGIC, dasics_recovery_context, magic);
 	OFFSET(DASICS_RECOVERY_ERROR, dasics_recovery_context, error);
 	OFFSET(DASICS_RECOVERY_GP, dasics_recovery_context, gp);
