@@ -360,11 +360,51 @@ int dasics_call_recover(int error)
 }
 EXPORT_SYMBOL_GPL(dasics_call_recover);
 
-int dasics_call_record_fault(unsigned long pc, unsigned long address,
-			     unsigned long reason, unsigned long cause,
-			     const struct dasics_compartment **compartment)
+static int dasics_call_refill_data_bound(struct dasics_call_frame *frame,
+					 unsigned long address,
+					 unsigned int access,
+					 unsigned int *slot)
+{
+	const struct dasics_bound_entry *entry;
+	dasics_bound_handle_t handle;
+	dasics_bound_handle_t victim;
+	unsigned int selected;
+	int ret;
+
+	ret = dasics_bound_find(&frame->data_bounds, address, access, &handle);
+	if (ret)
+		return ret;
+	ret = dasics_bound_get(&frame->data_bounds, handle, &entry);
+	if (ret)
+		return ret;
+	if (entry->resident_slot >= 0)
+		return -EACCES;
+	ret = dasics_bound_select_slot(&frame->data_bounds, handle, &selected,
+				       &victim);
+	if (ret)
+		return ret;
+	ret = dasics_hw_replace_data_bound(selected, entry->lo, entry->hi,
+					   dasics_entry_cfg(entry));
+	if (ret)
+		return ret;
+	ret = dasics_bound_commit_resident(&frame->data_bounds, handle, selected);
+	if (ret) {
+		dasics_hw_clear_call_authority();
+		return -EUCLEAN;
+	}
+	frame->data_refills++;
+	if (slot)
+		*slot = selected;
+	return 0;
+}
+
+int dasics_call_handle_trap(unsigned long pc, unsigned long address,
+			    unsigned long reason, unsigned long cause,
+			    const struct dasics_compartment **compartment,
+			    unsigned int *slot)
 {
 	struct dasics_call_frame *frame;
+	unsigned int access;
 	int ret;
 
 	frame = this_cpu_read(dasics_active_call_frame);
@@ -374,6 +414,19 @@ int dasics_call_record_fault(unsigned long pc, unsigned long address,
 		return dasics_call_fail_closed(frame, -EPROTO);
 	if (!frame->policy || !frame->policy->callee)
 		return dasics_call_fail_closed(frame, -EPROTO);
+	if (compartment)
+		*compartment = frame->policy->callee;
+
+	if (reason == DASICS_FAULT_LOAD || reason == DASICS_FAULT_STORE) {
+		access = reason == DASICS_FAULT_LOAD ? DASICS_REGION_READ :
+			 DASICS_REGION_WRITE;
+		frame->data_misses++;
+		ret = dasics_call_refill_data_bound(frame, address, access, slot);
+		if (!ret)
+			return DASICS_TRAP_RETRY;
+		if (ret != -ENOENT && ret != -EACCES && ret != -ENOSPC)
+			return dasics_call_fail_closed(frame, ret);
+	}
 
 	frame->fault.pc = pc;
 	frame->fault.address = address;
@@ -381,12 +434,10 @@ int dasics_call_record_fault(unsigned long pc, unsigned long address,
 	frame->fault.cause = cause;
 	frame->fault.compartment = frame->policy->callee;
 	frame->fault.valid = true;
-	if (compartment)
-		*compartment = frame->fault.compartment;
 	ret = dasics_call_recover(-EFAULT);
 	if (ret)
 		frame->fault.valid = false;
-	return ret;
+	return ret ?: DASICS_TRAP_TERMINAL;
 }
 
 void dasics_call_finish(struct dasics_call_frame *frame)
@@ -497,4 +548,11 @@ int dasics_call_test_transition(struct dasics_call_frame *frame,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(dasics_call_test_transition);
+
+int dasics_call_test_handle_trap(unsigned long pc, unsigned long address,
+				 unsigned long reason, unsigned long cause)
+{
+	return dasics_call_handle_trap(pc, address, reason, cause, NULL, NULL);
+}
+EXPORT_SYMBOL_GPL(dasics_call_test_handle_trap);
 #endif

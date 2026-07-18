@@ -63,6 +63,8 @@ void dasics_hw_clear_call_authority(void);
 long dasics_hw_call(struct dasics_call_regs *regs);
 int dasics_hw_install_call_authority(const struct dasics_hw_state *state,
 				     unsigned int fail_bound);
+int dasics_hw_replace_data_bound(unsigned int slot, unsigned long lo,
+				 unsigned long hi, unsigned long cfg);
 
 /* smaincall used */
 #define OFFSET_SMAINCALL_T0     (8*0)

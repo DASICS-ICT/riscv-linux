@@ -97,6 +97,11 @@ enum dasics_fault_reason {
 	DASICS_FAULT_JUMP,
 };
 
+enum dasics_trap_result {
+	DASICS_TRAP_TERMINAL,
+	DASICS_TRAP_RETRY,
+};
+
 struct dasics_fault_record {
 	unsigned long pc;
 	unsigned long address;
@@ -122,6 +127,8 @@ struct dasics_call_frame {
 	unsigned int nr_normalized;
 	unsigned int nr_resident;
 	unsigned int nr_jump_bounds;
+	unsigned int data_misses;
+	unsigned int data_refills;
 	unsigned int test_fail_bound;
 	unsigned int test_fail_restore;
 	int prepare_error;
@@ -171,9 +178,10 @@ int dasics_compartment_init_module(struct dasics_compartment *compartment,
 int dasics_call_prepare(struct dasics_call_frame *frame,
 			const struct dasics_call_policy *policy);
 int dasics_call_recover(int error);
-int dasics_call_record_fault(unsigned long pc, unsigned long address,
-			     unsigned long reason, unsigned long cause,
-			     const struct dasics_compartment **compartment);
+int dasics_call_handle_trap(unsigned long pc, unsigned long address,
+			    unsigned long reason, unsigned long cause,
+			    const struct dasics_compartment **compartment,
+			    unsigned int *slot);
 void dasics_call_finish(struct dasics_call_frame *frame);
 long dasics_call(struct dasics_call_frame *frame,
 		 const struct dasics_call_policy *policy,
@@ -185,6 +193,8 @@ int dasics_call_test_fail_bound(struct dasics_call_frame *frame,
 int dasics_call_test_fail_restore(struct dasics_call_frame *frame, bool fail);
 int dasics_call_test_transition(struct dasics_call_frame *frame,
 				enum dasics_call_frame_state next);
+int dasics_call_test_handle_trap(unsigned long pc, unsigned long address,
+				 unsigned long reason, unsigned long cause);
 #endif
 
 #endif /* _LINUX_DASICS_H */

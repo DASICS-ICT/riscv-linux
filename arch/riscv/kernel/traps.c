@@ -192,11 +192,17 @@ asmlinkage void do_trap_dasics(struct pt_regs *regs)
 {
 	const struct dasics_compartment *compartment = NULL;
 	unsigned long reason = csr_read(CSR_DFREASON);
+	unsigned int slot = 0;
 	int ret;
 
-	ret = dasics_call_record_fault(regs->epc, regs->badaddr, reason,
-				       regs->cause, &compartment);
-	if (!ret) {
+	ret = dasics_call_handle_trap(regs->epc, regs->badaddr, reason,
+				      regs->cause, &compartment, &slot);
+	if (ret == DASICS_TRAP_RETRY) {
+		pr_debug("DASICS data miss: pc=%lx address=%lx reason=%lu slot=%u\n",
+			 regs->epc, regs->badaddr, reason, slot);
+		return;
+	}
+	if (ret == DASICS_TRAP_TERMINAL) {
 		const char *name = compartment->module ?
 			module_name(compartment->module) : "<anonymous>";
 

@@ -410,6 +410,41 @@ out:
 	return ret;
 }
 
+int dasics_hw_replace_data_bound(unsigned int slot, unsigned long lo,
+				 unsigned long hi, unsigned long cfg)
+{
+	unsigned int shift;
+	unsigned long libcfg;
+	int ret;
+
+	if (slot >= DASICS_MAX_DATA_BOUNDS || lo >= hi ||
+	    !(cfg & DASICS_LIBCFG_V) ||
+	    !(cfg & (DASICS_LIBCFG_R | DASICS_LIBCFG_W)) ||
+	    (cfg & ~DASICS_LIBCFG_MASK))
+		return -EINVAL;
+
+	preempt_disable();
+	shift = slot * DASICS_LIBCFG_BITS;
+	libcfg = csr_read(CSR_DLCFG0);
+	libcfg &= ~(DASICS_LIBCFG_MASK << shift);
+	csr_write(CSR_DLCFG0, libcfg);
+	/* The victim must be invalid before its address registers change. */
+	mb();
+	ret = dasics_hw_write_data_bound(slot, lo, hi);
+	if (ret)
+		goto out;
+	/* Publish the new range before granting access to it. */
+	mb();
+	libcfg |= cfg << shift;
+	csr_write(CSR_DLCFG0, libcfg);
+	/* Complete the refill before retrying the faulting instruction. */
+	mb();
+
+out:
+	preempt_enable();
+	return ret;
+}
+
 long dasics_hw_call(struct dasics_call_regs *regs)
 {
 	long ret;
