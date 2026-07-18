@@ -119,6 +119,7 @@ void asm_offsets(void)
 	OFFSET(PT_UTIMER, pt_regs, utimer);
 
 #ifdef CONFIG_DASICS
+	DEFINE(DASICS_RECOVERY_MAGIC_VALUE, DASICS_RECOVERY_CONTEXT_MAGIC);
 	DEFINE(DASICS_CALL_REGS_SIZE, sizeof(struct dasics_call_regs));
 	OFFSET(DASICS_CALL_TARGET, dasics_call_regs, target);
 	OFFSET(DASICS_CALL_A0, dasics_call_regs, a0);
@@ -131,6 +132,24 @@ void asm_offsets(void)
 	OFFSET(DASICS_CALL_A7, dasics_call_regs, a7);
 	OFFSET(DASICS_CALL_RET_A0, dasics_call_regs, ret_a0);
 	OFFSET(DASICS_CALL_RET_A1, dasics_call_regs, ret_a1);
+	OFFSET(DASICS_RECOVERY_MAGIC, dasics_recovery_context, magic);
+	OFFSET(DASICS_RECOVERY_ERROR, dasics_recovery_context, error);
+	OFFSET(DASICS_RECOVERY_GP, dasics_recovery_context, gp);
+	OFFSET(DASICS_RECOVERY_TP, dasics_recovery_context, tp);
+	OFFSET(DASICS_RECOVERY_SP, dasics_recovery_context, sp);
+	OFFSET(DASICS_RECOVERY_RA, dasics_recovery_context, ra);
+	OFFSET(DASICS_RECOVERY_S0, dasics_recovery_context, s[0]);
+	OFFSET(DASICS_RECOVERY_S1, dasics_recovery_context, s[1]);
+	OFFSET(DASICS_RECOVERY_S2, dasics_recovery_context, s[2]);
+	OFFSET(DASICS_RECOVERY_S3, dasics_recovery_context, s[3]);
+	OFFSET(DASICS_RECOVERY_S4, dasics_recovery_context, s[4]);
+	OFFSET(DASICS_RECOVERY_S5, dasics_recovery_context, s[5]);
+	OFFSET(DASICS_RECOVERY_S6, dasics_recovery_context, s[6]);
+	OFFSET(DASICS_RECOVERY_S7, dasics_recovery_context, s[7]);
+	OFFSET(DASICS_RECOVERY_S8, dasics_recovery_context, s[8]);
+	OFFSET(DASICS_RECOVERY_S9, dasics_recovery_context, s[9]);
+	OFFSET(DASICS_RECOVERY_S10, dasics_recovery_context, s[10]);
+	OFFSET(DASICS_RECOVERY_S11, dasics_recovery_context, s[11]);
 
 	/* dasics supervisor registers */
 	OFFSET(PT_DUMCFG, pt_regs, dasicsUmainCfg);

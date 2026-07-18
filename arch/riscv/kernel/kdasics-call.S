@@ -1,12 +1,33 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 
 #include <linux/linkage.h>
+#include <linux/errno.h>
 #include <asm/asm.h>
 #include <asm/asm-offsets.h>
 
 	.text
 	.align 2
 ENTRY(__dasics_hw_call)
+	REG_S	zero, DASICS_RECOVERY_MAGIC(a1)
+	REG_S	gp, DASICS_RECOVERY_GP(a1)
+	REG_S	tp, DASICS_RECOVERY_TP(a1)
+	REG_S	sp, DASICS_RECOVERY_SP(a1)
+	REG_S	ra, DASICS_RECOVERY_RA(a1)
+	REG_S	s0, DASICS_RECOVERY_S0(a1)
+	REG_S	s1, DASICS_RECOVERY_S1(a1)
+	REG_S	s2, DASICS_RECOVERY_S2(a1)
+	REG_S	s3, DASICS_RECOVERY_S3(a1)
+	REG_S	s4, DASICS_RECOVERY_S4(a1)
+	REG_S	s5, DASICS_RECOVERY_S5(a1)
+	REG_S	s6, DASICS_RECOVERY_S6(a1)
+	REG_S	s7, DASICS_RECOVERY_S7(a1)
+	REG_S	s8, DASICS_RECOVERY_S8(a1)
+	REG_S	s9, DASICS_RECOVERY_S9(a1)
+	REG_S	s10, DASICS_RECOVERY_S10(a1)
+	REG_S	s11, DASICS_RECOVERY_S11(a1)
+	li	t0, DASICS_RECOVERY_MAGIC_VALUE
+	REG_S	t0, DASICS_RECOVERY_MAGIC(a1)
+
 	addi	sp, sp, -16
 	REG_S	s1, 0(sp)
 	REG_S	ra, 8(sp)
@@ -32,3 +53,27 @@ ENTRY(__dasics_hw_call)
 	addi	sp, sp, 16
 	ret
 ENDPROC(__dasics_hw_call)
+
+/* Entered only from the DASICS trap path with a trusted context in a0. */
+ENTRY(__dasics_hw_recover)
+	mv	t0, a0
+	REG_S	zero, DASICS_RECOVERY_MAGIC(t0)
+	REG_L	gp, DASICS_RECOVERY_GP(t0)
+	REG_L	tp, DASICS_RECOVERY_TP(t0)
+	REG_L	ra, DASICS_RECOVERY_RA(t0)
+	REG_L	s0, DASICS_RECOVERY_S0(t0)
+	REG_L	s1, DASICS_RECOVERY_S1(t0)
+	REG_L	s2, DASICS_RECOVERY_S2(t0)
+	REG_L	s3, DASICS_RECOVERY_S3(t0)
+	REG_L	s4, DASICS_RECOVERY_S4(t0)
+	REG_L	s5, DASICS_RECOVERY_S5(t0)
+	REG_L	s6, DASICS_RECOVERY_S6(t0)
+	REG_L	s7, DASICS_RECOVERY_S7(t0)
+	REG_L	s8, DASICS_RECOVERY_S8(t0)
+	REG_L	s9, DASICS_RECOVERY_S9(t0)
+	REG_L	s10, DASICS_RECOVERY_S10(t0)
+	REG_L	s11, DASICS_RECOVERY_S11(t0)
+	REG_L	a0, DASICS_RECOVERY_ERROR(t0)
+	REG_L	sp, DASICS_RECOVERY_SP(t0)
+	ret
+ENDPROC(__dasics_hw_recover)

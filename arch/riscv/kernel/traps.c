@@ -209,6 +209,13 @@ asmlinkage void do_trap_dasics(struct pt_regs *regs)
 		pr_info("DASICS fault: pc=%lx address=%lx reason=%lu cause=%lu compartment=%s\n",
 			regs->epc, regs->badaddr, reason, regs->cause,
 			name);
+#ifndef CONFIG_DASICS_POC_FAULT_CONTINUE
+		ret = dasics_call_unwind_trap(regs);
+		if (ret) {
+			die(regs, "DASICS fault recovery failed");
+			return;
+		}
+#endif
 	} else {
 		pr_err("DASICS fault without active frame: pc=%lx address=%lx reason=%lu cause=%lu error=%d\n",
 		       regs->epc, regs->badaddr, reason, regs->cause, ret);
@@ -228,7 +235,7 @@ asmlinkage void do_trap_dasics(struct pt_regs *regs)
 #ifdef CONFIG_DASICS_POC_FAULT_CONTINUE
 	regs->epc += 4;
 #else
-	die(regs, "DASICS fault recovery unavailable");
+	return;
 #endif
 }
 

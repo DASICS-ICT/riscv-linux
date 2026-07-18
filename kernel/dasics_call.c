@@ -434,10 +434,37 @@ int dasics_call_handle_trap(unsigned long pc, unsigned long address,
 	frame->fault.cause = cause;
 	frame->fault.compartment = frame->policy->callee;
 	frame->fault.valid = true;
-	ret = dasics_call_recover(-EFAULT);
+	ret = dasics_call_recover(reason == DASICS_FAULT_JUMP ||
+				  reason == DASICS_FAULT_ECALL ? -EPERM : -EFAULT);
 	if (ret)
 		frame->fault.valid = false;
 	return ret ?: DASICS_TRAP_TERMINAL;
+}
+
+int dasics_call_unwind_trap(struct pt_regs *regs)
+{
+	struct dasics_call_frame *frame;
+	int ret;
+
+	frame = this_cpu_read(dasics_active_call_frame);
+	if (!frame || frame->magic != DASICS_CALL_FRAME_MAGIC ||
+	    frame->state != DASICS_CALL_FRAME_FAULTED || !frame->fault.valid)
+		return -EPROTO;
+
+	ret = dasics_hw_redirect_recovery(regs, &frame->recovery,
+					  &frame->parent_hw);
+	if (ret) {
+		dasics_call_fail_closed(frame, ret);
+		return ret;
+	}
+	frame->recovery.error = frame->fault_error ?: -EFAULT;
+	ret = dasics_hw_restore(&frame->parent_hw);
+	if (ret) {
+		dasics_hw_clear_call_authority();
+	} else {
+		frame->parent_saved = false;
+	}
+	return ret;
 }
 
 void dasics_call_finish(struct dasics_call_frame *frame)
@@ -473,7 +500,7 @@ long dasics_call(struct dasics_call_frame *frame,
 		dasics_call_fail_closed(frame, ret);
 		return ret;
 	}
-	ret = dasics_hw_call(regs);
+	ret = dasics_hw_call(regs, &frame->recovery);
 	if (frame->state == DASICS_CALL_FRAME_ENTERED) {
 		int state_ret;
 

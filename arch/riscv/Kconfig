@@ -214,14 +214,13 @@ config DASICS_DEBUG
 config DASICS_POC_FAULT_CONTINUE
 	bool "Continue after a DASICS fault for PoC comparison"
 	depends on DASICS_DEBUG
-	default y
+	default n
 	help
 	  Keep the validated PoC behavior that skips a faulting 32-bit
 	  instruction after recording the fault in the active call frame. This
 	  mode is only for comparison with the existing QEMU demonstration; it
-	  does not provide fail-closed recovery. Disable it when the trusted
-	  recovery trampoline is available. Until then, disabling it makes a
-	  DASICS fault fatal rather than retrying or skipping the instruction.
+	  does not provide fail-closed recovery. Production mode redirects to a
+	  fixed trusted recovery trampoline and unwinds the active call frame.
 
 # config ZYNQ_ONBOARD is used for opening zynq spercific functions.
 # when using QEMU for test, this config should be changed to n.

@@ -119,6 +119,7 @@ struct dasics_call_frame {
 	u32 magic;
 	enum dasics_call_frame_state state;
 	struct dasics_hw_state parent_hw;
+	struct dasics_recovery_context recovery;
 	struct dasics_bound_table data_bounds;
 	struct dasics_fault_record fault;
 	struct dasics_region normalized[DASICS_POLICY_MAX_REGIONS];
@@ -182,6 +183,7 @@ int dasics_call_handle_trap(unsigned long pc, unsigned long address,
 			    unsigned long reason, unsigned long cause,
 			    const struct dasics_compartment **compartment,
 			    unsigned int *slot);
+int dasics_call_unwind_trap(struct pt_regs *regs);
 void dasics_call_finish(struct dasics_call_frame *frame);
 long dasics_call(struct dasics_call_frame *frame,
 		 const struct dasics_call_policy *policy,

@@ -5,6 +5,8 @@
 #include <asm/kattr.h>
 #include <asm/csr.h>
 
+struct pt_regs;
+
 // dasics elf type
 #define NO_DASICS 0
 #define DASICS_STATIC 1
@@ -57,10 +59,27 @@ struct dasics_call_regs {
 	unsigned long ret_a1;
 };
 
+#define DASICS_RECOVERY_CONTEXT_MAGIC 0x44524358UL
+
+/* Trusted continuation state used to escape a faulting untrusted call. */
+struct dasics_recovery_context {
+	unsigned long magic;
+	long error;
+	unsigned long gp;
+	unsigned long tp;
+	unsigned long sp;
+	unsigned long ra;
+	unsigned long s[12];
+};
+
 int dasics_hw_save(struct dasics_hw_state *state);
 int dasics_hw_restore(const struct dasics_hw_state *state);
 void dasics_hw_clear_call_authority(void);
-long dasics_hw_call(struct dasics_call_regs *regs);
+long dasics_hw_call(struct dasics_call_regs *regs,
+		    struct dasics_recovery_context *recovery);
+int dasics_hw_redirect_recovery(struct pt_regs *regs,
+				struct dasics_recovery_context *recovery,
+				const struct dasics_hw_state *parent);
 int dasics_hw_install_call_authority(const struct dasics_hw_state *state,
 				     unsigned int fail_bound);
 int dasics_hw_replace_data_bound(unsigned int slot, unsigned long lo,

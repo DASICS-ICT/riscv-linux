@@ -6,6 +6,7 @@
 #include <asm/barrier.h>
 #include <asm/csr.h>    
 #include <asm/kdasics.h>
+#include <asm/ptrace.h>
 
 static_assert(DASICS_MAX_DATA_BOUNDS * DASICS_LIBCFG_BITS == BITS_PER_LONG);
 static_assert(DASICS_MAX_JUMP_BOUNDS * DASICS_JUMPCFG_BITS == BITS_PER_LONG);
@@ -41,8 +42,11 @@ static_assert(offsetof(struct dasics_call_regs, ret_a0) ==
 static_assert(offsetof(struct dasics_call_regs, ret_a1) ==
 	      10 * sizeof(unsigned long));
 static_assert(sizeof(struct dasics_call_regs) == 11 * sizeof(unsigned long));
+static_assert(ARRAY_SIZE(((struct dasics_recovery_context *)0)->s) == 12);
 
-asmlinkage long __dasics_hw_call(struct dasics_call_regs *regs);
+asmlinkage long __dasics_hw_call(struct dasics_call_regs *regs,
+				 struct dasics_recovery_context *recovery);
+asmlinkage void __dasics_hw_recover(void);
 
 static int dasics_hw_read_data_bound(unsigned int idx, unsigned long *lo,
 				     unsigned long *hi)
@@ -445,20 +449,53 @@ out:
 	return ret;
 }
 
-long dasics_hw_call(struct dasics_call_regs *regs)
+long dasics_hw_call(struct dasics_call_regs *regs,
+		    struct dasics_recovery_context *recovery)
 {
 	long ret;
 
-	if (!regs || !regs->target)
+	if (!regs || !regs->target || !recovery)
 		return -EINVAL;
 
 	preempt_disable();
-	ret = __dasics_hw_call(regs);
+	ret = __dasics_hw_call(regs, recovery);
+	recovery->magic = 0;
 	preempt_enable();
 
 	return ret;
 }
 EXPORT_SYMBOL_GPL(dasics_hw_call);
+
+int dasics_hw_redirect_recovery(struct pt_regs *regs,
+				struct dasics_recovery_context *recovery,
+				const struct dasics_hw_state *parent)
+{
+	unsigned int idx;
+
+	if (!regs || !recovery || !parent ||
+	    recovery->magic != DASICS_RECOVERY_CONTEXT_MAGIC)
+		return -EPROTO;
+
+	/* entry.S restores these saved CSR values after the trap handler. */
+	regs->dasicsLibCfg0 = parent->libcfg;
+	for (idx = 0; idx < DASICS_MAX_DATA_BOUNDS; idx++) {
+		regs->dasicsLibBounds[idx][0] = parent->lib_lo[idx];
+		regs->dasicsLibBounds[idx][1] = parent->lib_hi[idx];
+	}
+	regs->dasicsJumpCfg = parent->jumpcfg;
+	for (idx = 0; idx < DASICS_MAX_JUMP_BOUNDS; idx++) {
+		regs->dasicsJumpBounds[idx][0] = parent->jump_lo[idx];
+		regs->dasicsJumpBounds[idx][1] = parent->jump_hi[idx];
+	}
+	regs->dasicsMaincall = parent->dmaincall;
+	regs->dasicsReturnPC = parent->dretpc;
+	regs->dasicsFreezoneRet = parent->dretpcactz;
+	regs->dasicsFaultReason = 0;
+
+	regs->a0 = (unsigned long)recovery;
+	regs->epc = (unsigned long)__dasics_hw_recover;
+	return 0;
+}
 
 #ifdef CONFIG_64BIT
 #define STEP 8
