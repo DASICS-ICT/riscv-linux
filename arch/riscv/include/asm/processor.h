@@ -15,6 +15,7 @@
 #include <asm/ptrace.h>
 #include <asm/insn-def.h>
 #include <asm/alternative-macros.h>
+#include <asm/dasics.h>
 #include <asm/hwcap.h>
 
 #define arch_get_mmap_end(addr, len, flags)			\
@@ -116,6 +117,13 @@ struct thread_struct {
 	struct __riscv_v_ext_state vstate;
 	unsigned long align_ctl;
 	struct __riscv_v_ext_state kernel_vstate;
+#ifdef CONFIG_RISCV_DASICS
+	/*
+	 * DASICS user CSRs are process state and must never leak across a
+	 * context switch or exec.
+	 */
+	struct riscv_dasics_state dasics;
+#endif
 #ifdef CONFIG_SMP
 	/* Flush the icache on migration */
 	bool force_icache_flush;

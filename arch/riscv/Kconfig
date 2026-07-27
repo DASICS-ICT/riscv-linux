@@ -394,6 +394,16 @@ config NONPORTABLE
 
 	  If unsure, say N.
 
+config RISCV_DASICS
+	bool "DASICS userspace isolation support"
+	depends on NONPORTABLE && 64BIT && MMU
+	help
+	  Enable process-local DASICS CSR state, DASICS exception handling,
+	  and ELF section initialization for NanhuV5 systems that implement
+	  the DASICS custom instruction and CSR interface.
+
+	  This kernel is not portable to RISC-V systems without DASICS.
+
 choice
 	prompt "Base ISA"
 	default ARCH_RV64I

@@ -29,6 +29,7 @@
 #include <asm/bug.h>
 #include <asm/cfi.h>
 #include <asm/csr.h>
+#include <asm/dasics.h>
 #include <asm/processor.h>
 #include <asm/ptrace.h>
 #include <asm/syscall.h>
@@ -264,6 +265,8 @@ asmlinkage __visible __trap_section void do_trap_insn_illegal(struct pt_regs *re
 
 		handled = riscv_v_first_use_handler(regs);
 		if (!handled)
+			handled = riscv_dasics_handle_illegal(regs);
+		if (!handled)
 			do_trap_error(regs, SIGILL, ILL_ILLOPC, regs->epc,
 				      "Oops - illegal instruction");
 
@@ -339,6 +342,40 @@ DO_ERROR_INFO(do_trap_ecall_s,
 	SIGILL, ILL_ILLTRP, "environment call from S-mode");
 DO_ERROR_INFO(do_trap_ecall_m,
 	SIGILL, ILL_ILLTRP, "environment call from M-mode");
+
+#ifdef CONFIG_RISCV_DASICS
+asmlinkage __visible __trap_section
+void do_trap_dasics_ucheck(struct pt_regs *regs)
+{
+	if (user_mode(regs)) {
+		irqentry_enter_from_user_mode(regs);
+		local_irq_enable();
+
+		if (!riscv_dasics_handle_fault(regs))
+			do_trap_error(regs, SIGSEGV, SEGV_ACCERR, regs->badaddr,
+				      "Oops - DASICS user check fault");
+
+		local_irq_disable();
+		irqentry_exit_to_user_mode(regs);
+	} else {
+		irqentry_state_t state = irqentry_nmi_enter(regs);
+
+		do_trap_error(regs, SIGSEGV, SEGV_ACCERR, regs->badaddr,
+			      "Oops - DASICS user check fault in kernel");
+		irqentry_nmi_exit(regs, state);
+	}
+}
+
+asmlinkage __visible __trap_section
+void do_trap_dasics_scheck(struct pt_regs *regs)
+{
+	irqentry_state_t state = irqentry_nmi_enter(regs);
+
+	do_trap_error(regs, SIGSEGV, SEGV_ACCERR, regs->badaddr,
+		      "Oops - DASICS supervisor check fault");
+	irqentry_nmi_exit(regs, state);
+}
+#endif
 
 static inline unsigned long get_break_insn_length(unsigned long pc)
 {
@@ -423,7 +460,9 @@ void do_trap_ecall_u(struct pt_regs *regs)
 
 		add_random_kstack_offset();
 
-		if (syscall >= 0 && syscall < NR_syscalls)
+		if (riscv_dasics_handle_syscall(regs, syscall))
+			;
+		else if (syscall >= 0 && syscall < NR_syscalls)
 			syscall_handler(regs, syscall);
 
 		/*

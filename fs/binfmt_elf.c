@@ -1360,6 +1360,12 @@ out_free_interp:
 					    task_pid_nr(current), retval);
 	}
 
+#ifdef arch_elf_dasics_setup
+	retval = arch_elf_dasics_setup(bprm, elf_ex, load_bias, start_data);
+	if (retval)
+		goto out;
+#endif
+
 	regs = current_pt_regs();
 #ifdef ELF_PLAT_INIT
 	/*

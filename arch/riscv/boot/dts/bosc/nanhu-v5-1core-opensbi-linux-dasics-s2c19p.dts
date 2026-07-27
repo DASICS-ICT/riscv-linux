@@ -1,0 +1,48 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/* Copyright (c) 2025-2026 BOSC */
+
+/dts-v1/;
+#include "nanhu-v5.dtsi"
+
+/ {
+	#address-cells = <2>;
+	#size-cells = <2>;
+	compatible = "bosc,nanhu-v5-dev";
+	model = "bosc,nanhu-v5-1core-opensbi-linux-dasics-s2c19p";
+
+	aliases {
+		serial0 = &s2c19p_uart;
+	};
+
+	chosen {
+		bootargs = "console=hvc0 earlycon=sbi clock_ignore_unused loglevel=8 nokaslr unaligned_scalar_speed=slow unaligned_vector_speed=unsupported";
+		stdout-path = &s2c19p_uart;
+		opensbi-config {
+			compatible = "opensbi,config";
+			cold-boot-harts = <&cpu0>;
+		};
+	};
+
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0x0 0x80000000 0x2 0x0>;
+	};
+
+	s2c19p_uart: serial@310b1000 {
+		compatible = "ns16550a";
+		reg = <0x0 0x310b1000 0x0 0x100>;
+		reg-shift = <2>;
+		reg-io-width = <1>;
+		clock-frequency = <50000000>;
+		current-speed = <115200>;
+		status = "okay";
+	};
+};
+
+&cpu0 {
+	status = "okay";
+};
+
+&PLIC {
+	interrupts-extended = <&intc_cpu0 0xb>, <&intc_cpu0 9>;
+};

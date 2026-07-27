@@ -51,6 +51,10 @@ DECLARE_DO_ERROR_INFO(do_trap_ecall_u);
 DECLARE_DO_ERROR_INFO(do_trap_ecall_s);
 DECLARE_DO_ERROR_INFO(do_trap_ecall_m);
 DECLARE_DO_ERROR_INFO(do_trap_break);
+#ifdef CONFIG_RISCV_DASICS
+DECLARE_DO_ERROR_INFO(do_trap_dasics_ucheck);
+DECLARE_DO_ERROR_INFO(do_trap_dasics_scheck);
+#endif
 
 asmlinkage void ret_from_fork_kernel(void *fn_arg, int (*fn)(void *), struct pt_regs *regs);
 asmlinkage void ret_from_fork_user(struct pt_regs *regs);

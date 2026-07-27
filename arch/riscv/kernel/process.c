@@ -23,6 +23,7 @@
 #include <asm/unistd.h>
 #include <asm/processor.h>
 #include <asm/csr.h>
+#include <asm/dasics.h>
 #include <asm/stacktrace.h>
 #include <asm/string.h>
 #include <asm/switch_to.h>
@@ -163,10 +164,12 @@ void start_thread(struct pt_regs *regs, unsigned long pc,
 	else
 		regs->status |= SR_UXL_64;
 #endif
+	riscv_dasics_start_thread(current);
 }
 
 void flush_thread(void)
 {
+	riscv_dasics_clear_task(current);
 #ifdef CONFIG_FPU
 	/*
 	 * Reset FPU state and context
@@ -200,6 +203,7 @@ void arch_release_task_struct(struct task_struct *tsk)
 int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 {
 	fstate_save(src, task_pt_regs(src));
+	riscv_dasics_prepare_copy(src);
 	*dst = *src;
 	/* clear entire V context, including datap for a new task */
 	memset(&dst->thread.vstate, 0, sizeof(struct __riscv_v_ext_state));

@@ -11,6 +11,7 @@
 #include <linux/mm_types.h>
 #include <asm/vector.h>
 #include <asm/cpufeature.h>
+#include <asm/dasics.h>
 #include <asm/processor.h>
 #include <asm/ptrace.h>
 #include <asm/csr.h>
@@ -122,6 +123,7 @@ do {							\
 	if (switch_to_should_flush_icache(__next))	\
 		local_flush_icache_all();		\
 	__switch_to_envcfg(__next);			\
+	riscv_dasics_switch(__prev, __next);		\
 	((last) = __switch_to(__prev, __next));		\
 } while (0)
 

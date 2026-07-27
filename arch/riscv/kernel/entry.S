@@ -460,6 +460,18 @@ SYM_DATA_START_LOCAL(excp_vect_table)
 	RISCV_PTR do_page_fault   /* load page fault */
 	RISCV_PTR do_trap_unknown
 	RISCV_PTR do_page_fault   /* store page fault */
+#ifdef CONFIG_RISCV_DASICS
+	RISCV_PTR do_trap_unknown /* reserved 16 */
+	RISCV_PTR do_trap_unknown /* reserved 17 */
+	RISCV_PTR do_trap_unknown /* reserved 18 */
+	RISCV_PTR do_trap_unknown /* reserved 19 */
+	RISCV_PTR do_trap_unknown /* instruction guest page fault */
+	RISCV_PTR do_trap_unknown /* load guest page fault */
+	RISCV_PTR do_trap_unknown /* virtual instruction */
+	RISCV_PTR do_trap_unknown /* store guest page fault */
+	RISCV_PTR do_trap_dasics_ucheck
+	RISCV_PTR do_trap_dasics_scheck
+#endif
 SYM_DATA_END_LABEL(excp_vect_table, SYM_L_LOCAL, excp_vect_table_end)
 
 #ifndef CONFIG_MMU

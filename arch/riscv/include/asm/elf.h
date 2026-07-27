@@ -15,6 +15,7 @@
 #include <asm/byteorder.h>
 #include <asm/cacheinfo.h>
 #include <asm/cpufeature.h>
+#include <asm/dasics.h>
 
 /*
  * These are used to set parameters in the core dumps.
@@ -81,6 +82,10 @@ extern unsigned long elf_hwcap;
 #define ELF_PLATFORM	(NULL)
 
 #define COMPAT_ELF_PLATFORM	(NULL)
+
+#ifdef CONFIG_RISCV_DASICS
+#define arch_elf_dasics_setup	riscv_dasics_setup_elf
+#endif
 
 #define ARCH_DLINFO						\
 do {								\
