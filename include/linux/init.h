@@ -141,7 +141,6 @@ struct file_system_type;
 
 /* Defined in init/main.c */
 extern int do_one_initcall(initcall_t fn);
-extern int do_untrust_one_init_call(initcall_t fn, uint64_t jmp_lo, uint64_t jmp_hi);
 extern char __initdata boot_command_line[];
 extern char *saved_command_line;
 extern unsigned int reset_devices;

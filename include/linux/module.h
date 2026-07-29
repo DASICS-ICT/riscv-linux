@@ -410,6 +410,8 @@ struct module {
 #endif
 
 	bool async_probe_requested;
+	/* Loader classification: false means execution must use DASICS gates. */
+	bool dasics_trusted;
 
 	/* symbols that will be GPL-only in the near future. */
 	const struct kernel_symbol *gpl_future_syms;

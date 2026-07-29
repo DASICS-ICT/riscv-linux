@@ -219,10 +219,10 @@ asmlinkage void do_trap_dasics(struct pt_regs *regs)
 	} else {
 		pr_err("DASICS fault without active frame: pc=%lx address=%lx reason=%lu cause=%lu error=%d\n",
 		       regs->epc, regs->badaddr, reason, regs->cause, ret);
-		if (ret != -ENOENT) {
-			die(regs, "invalid DASICS call frame state");
-			return;
-		}
+		die(regs, ret == -ENOENT ?
+		    "DASICS fault without active call frame" :
+		    "invalid DASICS call frame state");
+		return;
 	}
 
 	pr_info("Raised a dasics %ld exception.", regs->cause);

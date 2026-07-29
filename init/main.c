@@ -110,7 +110,6 @@
 #include <trace/events/initcall.h>
 
 #include <kunit/test.h>
-#include <asm/kdasics.h>
 
 static int kernel_init(void *);
 
@@ -1228,52 +1227,6 @@ int __init_or_module do_one_initcall(initcall_t fn)
 	add_latent_entropy();
 	return ret;
 }
-
-int __init_or_module do_untrust_one_init_call(initcall_t fn, uint64_t jmp_lo, uint64_t jmp_hi)
-{
-	int count = preempt_count();
-	char msgbuf[64];
-	int ret = -1;
-	uint64_t frame_addr, badfunc_stack_top, lib_lo, lib_hi;
-    asm volatile("mv %0, sp" : "=r"(frame_addr));
-    badfunc_stack_top = frame_addr - 104;
-	lib_lo = badfunc_stack_top;
-	lib_hi = badfunc_stack_top + 16;
-	//pr_info("jmp lo = %lx, jmp hi = %lx, lib lo = %lx, lib hi = %lx\n", jmp_lo, jmp_hi, lib_lo, lib_hi);
-
-	if (initcall_blacklisted(fn))
-		return -EPERM;
-
-	do_trace_initcall_start(fn);
-	register_kdasics(0);
-	uint32_t jmpcfg_idx = dasics_jumpcfg_kalloc(jmp_lo, jmp_hi);
-	uint32_t libcfg_idx = dasics_libcfg_kalloc(DASICS_LIBCFG_R | DASICS_LIBCFG_W, lib_hi, lib_lo);
-	// here is a klib_call()
-	ret = ret_klib_call(fn);
-	//ret = fn();
-	dasics_libcfg_kfree(libcfg_idx);
-	dasics_jumpcfg_kfree(jmpcfg_idx);
-	unregister_kdasics();
-
-	do_trace_initcall_finish(fn, ret);
-
-	msgbuf[0] = 0;
-
-	if (preempt_count() != count) {
-		sprintf(msgbuf, "preemption imbalance ");
-		preempt_count_set(count);
-	}
-	if (irqs_disabled()) {
-		strlcat(msgbuf, "disabled interrupts ", sizeof(msgbuf));
-		local_irq_enable();
-	}
-	WARN(msgbuf[0], "initcall %pS returned with %s\n", fn, msgbuf);
-
-	add_latent_entropy();
-	return ret;
-}
-
-
 
 extern initcall_entry_t __initcall_start[];
 extern initcall_entry_t __initcall0_start[];

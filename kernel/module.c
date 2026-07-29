@@ -57,6 +57,7 @@
 #include <linux/bsearch.h>
 #include <linux/dynamic_debug.h>
 #include <linux/audit.h>
+#include <linux/dasics.h>
 #include <uapi/linux/module.h>
 #include "module-internal.h"
 
@@ -1036,8 +1037,20 @@ SYSCALL_DEFINE2(delete_module, const char __user *, name_user,
 
 	mutex_unlock(&module_mutex);
 	/* Final destruction now no one is using it. */
-	if (mod->exit != NULL)
-		mod->exit();
+	if (mod->exit != NULL) {
+		if (mod->dasics_trusted) {
+			mod->exit();
+		} else {
+			int exit_ret;
+
+			exit_ret = dasics_call_module_loader(mod,
+							    (void *)mod->exit,
+							    false, NULL);
+			if (exit_ret)
+				pr_err("%s: isolated module exit failed: %d\n",
+				       mod->name, exit_ret);
+		}
+	}
 	blocking_notifier_call_chain(&module_notify_list,
 				     MODULE_STATE_GOING, mod);
 	klp_module_going(mod);
@@ -3439,7 +3452,7 @@ static int move_module(struct module *mod, struct load_info *info, int trust)
 	 * which is inside the block. Just mark it as not being a
 	 * leak.
 	 */
-    pr_info("module ptr is %lx\n", ptr);
+	pr_info("module ptr is %p\n", ptr);
 	kmemleak_not_leak(ptr);
 	if (!ptr)
 		return -ENOMEM;
@@ -3691,15 +3704,26 @@ static bool finished_loading(const char *name)
 	return ret;
 }
 
-/* Call module constructors. */
-static void do_mod_ctors(struct module *mod)
+/* Call module constructors without directly entering untrusted text. */
+static int do_mod_ctors(struct module *mod)
 {
 #ifdef CONFIG_CONSTRUCTORS
 	unsigned long i;
 
-	for (i = 0; i < mod->num_ctors; i++)
-		mod->ctors[i]();
+	for (i = 0; i < mod->num_ctors; i++) {
+		int ret;
+
+		if (mod->dasics_trusted) {
+			mod->ctors[i]();
+			continue;
+		}
+		ret = dasics_call_module_loader(mod, (void *)mod->ctors[i],
+					       true, NULL);
+		if (ret)
+			return ret;
+	}
 #endif
+	return 0;
 }
 
 /* For freeing module_init on success, in case kallsyms traversing */
@@ -3730,7 +3754,7 @@ static void do_free_init(struct work_struct *w)
  * Keep it uninlined to provide a reliable breakpoint target, e.g. for the gdb
  * helper command 'lx-symbols'.
  */
-static noinline int do_init_module(struct module *mod, int trust)
+static noinline int do_init_module(struct module *mod)
 {
 	int ret = 0;
 	struct mod_initfree *freeinit;
@@ -3741,16 +3765,26 @@ static noinline int do_init_module(struct module *mod, int trust)
 		goto fail;
 	}
 	freeinit->module_init = mod->init_layout.base;
-	do_mod_ctors(mod);
+	ret = do_mod_ctors(mod);
+	if (ret)
+		goto fail_free_freeinit;
 	/* Start the module */
 	if (mod->init != NULL) {
-        if (trust)
-		    ret = do_one_initcall(mod->init);
-        else
-            ret = do_untrust_one_init_call(mod->init, mod->core_layout.base, 
-                mod->core_layout.base + mod->core_layout.size);
-            //ret = do_untrust_one_init_call(mod->init, mod->core_layout.base, mod->core_layout.size, mod->core_layout.base, mod->core_layout.size);
-    }
+		if (mod->dasics_trusted) {
+			ret = do_one_initcall(mod->init);
+		} else {
+			unsigned long init_ret = 0;
+
+			ret = dasics_call_module_loader(mod, (void *)mod->init,
+						       true, &init_ret);
+			if (!ret) {
+				ret = (int)init_ret;
+				if (ret)
+					pr_err("%s: isolated init returned %d\n",
+					       mod->name, ret);
+			}
+		}
+	}
 	if (ret < 0) {
 		goto fail_free_freeinit;
 	}
@@ -3999,7 +4033,8 @@ static int parse_module_trust_arg(char *param, char *val,
 static int get_module_trust(const char *modname, char *args, int *value)
 {
 	struct module_trust_arg trust = {
-		.value = 1,
+		/* The project threat model treats an unspecified LKM as untrusted. */
+		.value = 0,
 	};
 	char *parse_buf, *ret;
 	int err = 0;
@@ -4103,6 +4138,7 @@ static int load_module(struct load_info *info, const char __user *uargs,
 		err = PTR_ERR(mod);
 		goto free_copy;
 	}
+	mod->dasics_trusted = trust;
 
 	audit_log_kern_module(mod->name);
 
@@ -4208,7 +4244,7 @@ static int load_module(struct load_info *info, const char __user *uargs,
 	/* Done! */
 	trace_module_load(mod);
 
-	return do_init_module(mod, trust);
+	return do_init_module(mod);
 
  sysfs_cleanup:
 	mod_sysfs_teardown(mod);

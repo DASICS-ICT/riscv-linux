@@ -61,6 +61,7 @@ struct dasics_call_regs {
 
 #define DASICS_MAINCALL_ABI_VERSION 1
 #define DASICS_MAINCALL_MAX_ARGS 7
+#define DASICS_MAINCALL_SERVICE_DEBUG_NESTED 0x44424701
 
 enum dasics_maincall_service_id {
 	DASICS_MAINCALL_SERVICE_ABI_INFO = 1,

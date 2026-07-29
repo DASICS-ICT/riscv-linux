@@ -11,7 +11,11 @@
 #define DASICS_POLICY_MAX_REGIONS 64
 #define DASICS_DATA_BOUND_SLOTS 16
 #define DASICS_JUMP_BOUND_SLOTS 4
-#define DASICS_MAINCALL_STACK_SIZE 1024
+#define DASICS_MAINCALL_STACK_SIZE 4096
+#define DASICS_CALL_MAX_DEPTH 4
+#define DASICS_COMPARTMENT_CODE_RANGES 2
+#define DASICS_COMPARTMENT_DATA_RANGES 4
+#define DASICS_MODULE_STACK_SIZE 4096
 
 struct module;
 
@@ -48,7 +52,18 @@ struct dasics_compartment {
 	struct module *module;
 	const struct dasics_code_range *code_ranges;
 	unsigned int nr_code_ranges;
-	struct dasics_code_range loader_code_ranges[2];
+	const struct dasics_region *data_ranges;
+	unsigned int nr_data_ranges;
+	struct dasics_code_range
+		loader_code_ranges[DASICS_COMPARTMENT_CODE_RANGES];
+	struct dasics_region
+		loader_data_ranges[DASICS_COMPARTMENT_DATA_RANGES];
+	bool loader_managed;
+	bool registered;
+};
+
+enum dasics_call_flags {
+	DASICS_CALL_ALLOW_COMING = BIT(0),
 };
 
 struct dasics_call_policy {
@@ -120,6 +135,8 @@ struct dasics_fault_record {
 struct dasics_call_frame {
 	u32 magic;
 	enum dasics_call_frame_state state;
+	struct dasics_call_frame *parent;
+	unsigned int depth;
 	struct dasics_hw_state parent_hw;
 	struct dasics_recovery_context recovery;
 	struct dasics_maincall_request maincall_request;
@@ -129,6 +146,7 @@ struct dasics_call_frame {
 	struct dasics_fault_record fault;
 	struct dasics_region normalized[DASICS_POLICY_MAX_REGIONS];
 	const struct dasics_call_policy *policy;
+	struct module *callee_module;
 	dasics_bound_handle_t stack_handle;
 	unsigned int nr_normalized;
 	unsigned int nr_resident;
@@ -143,6 +161,8 @@ struct dasics_call_frame {
 	int state_error;
 	bool parent_saved;
 	bool preempt_held;
+	bool active_pushed;
+	bool module_ref_held;
 };
 
 typedef int (*dasics_bound_clear_slot_fn)(unsigned int slot, void *context);
@@ -180,6 +200,9 @@ int dasics_jump_policy_validate(unsigned int nr_jump_regions);
 
 int dasics_compartment_init_module(struct dasics_compartment *compartment,
 				   void *target);
+void dasics_compartment_destroy(struct dasics_compartment *compartment);
+int dasics_call_module_loader(struct module *module, void *target,
+			      bool include_init, unsigned long *result);
 
 int dasics_call_prepare(struct dasics_call_frame *frame,
 			const struct dasics_call_policy *policy);
@@ -193,11 +216,18 @@ void dasics_call_finish(struct dasics_call_frame *frame);
 long dasics_call(struct dasics_call_frame *frame,
 		 const struct dasics_call_policy *policy,
 		 struct dasics_call_regs *regs);
+struct dasics_call_frame *dasics_call_current_frame(void);
 asmlinkage struct dasics_maincall_request *dasics_maincall_dispatch(
 		struct dasics_maincall_request *request);
-extern struct dasics_call_frame *dasics_maincall_active_frame;
 
 #ifdef CONFIG_DASICS_DEBUG
+typedef long (*dasics_maincall_debug_handler_t)(
+		const struct dasics_maincall_request *request,
+		unsigned long *value);
+
+int dasics_maincall_debug_register(dasics_maincall_debug_handler_t handler);
+void dasics_maincall_debug_unregister(
+		dasics_maincall_debug_handler_t handler);
 int dasics_call_test_fail_bound(struct dasics_call_frame *frame,
 				unsigned int bound);
 int dasics_call_test_fail_restore(struct dasics_call_frame *frame, bool fail);

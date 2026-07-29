@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
+#include <linux/cpu.h>
 #include <linux/dasics.h>
 #include <linux/errno.h>
 #include <linux/export.h>
@@ -7,11 +8,17 @@
 #include <linux/module.h>
 #include <linux/percpu.h>
 #include <linux/preempt.h>
+#include <linux/slab.h>
 #include <linux/string.h>
 
 #include <asm/csr.h>
 
 static DEFINE_PER_CPU(struct dasics_call_frame *, dasics_active_call_frame);
+/*
+ * Assembly reads this trusted shadow before it has a safe stack on which to
+ * call a C per-CPU helper.  The current milestone is single hart with
+ * preemption disabled for the complete untrusted call.
+ */
 struct dasics_call_frame *dasics_maincall_active_frame;
 
 struct dasics_maincall_service {
@@ -19,6 +26,21 @@ struct dasics_maincall_service {
 	long (*invoke)(const struct dasics_maincall_request *request,
 		       unsigned long *value);
 };
+
+#ifdef CONFIG_DASICS_DEBUG
+static dasics_maincall_debug_handler_t dasics_maincall_debug_handler;
+#endif
+
+struct dasics_call_frame *dasics_call_current_frame(void)
+{
+	struct dasics_call_frame *frame;
+
+	preempt_disable();
+	frame = this_cpu_read(dasics_active_call_frame);
+	preempt_enable();
+	return frame;
+}
+EXPORT_SYMBOL_GPL(dasics_call_current_frame);
 
 static bool dasics_compartment_contains_pc(
 		const struct dasics_compartment *compartment, unsigned long pc)
@@ -36,6 +58,87 @@ static bool dasics_compartment_contains_pc(
 			return true;
 	}
 	return false;
+}
+
+static int dasics_compartment_add_layout(
+		struct dasics_compartment *compartment,
+		const struct module_layout *layout)
+{
+	struct dasics_code_range *code;
+	struct dasics_region *data;
+	unsigned long base;
+
+	if (!layout->base || !layout->size)
+		return 0;
+	if (layout->text_size > layout->ro_size ||
+	    layout->ro_size > layout->ro_after_init_size ||
+	    layout->ro_after_init_size > layout->size) {
+		pr_err("DASICS invalid module layout base=%px size=%u text=%u ro=%u ro_after_init=%u\n",
+		       layout->base, layout->size, layout->text_size,
+		       layout->ro_size, layout->ro_after_init_size);
+		return -EINVAL;
+	}
+	base = (unsigned long)layout->base;
+	if (layout->text_size) {
+		if (compartment->nr_code_ranges >=
+		    ARRAY_SIZE(compartment->loader_code_ranges))
+			return -E2BIG;
+		code = &compartment->loader_code_ranges[
+			compartment->nr_code_ranges++];
+		code->base = base;
+		code->size = layout->text_size;
+	}
+
+	/*
+	 * Loader-owned metadata (including struct module) shares the writable
+	 * core allocation with module data. Never authorize that tail as a
+	 * blanket module self-grant. Text/RO data are safe to read
+	 * automatically; mutable module objects must appear explicitly in the
+	 * per-entry policy.
+	 */
+	if (layout->ro_after_init_size) {
+		if (compartment->nr_data_ranges >=
+		    ARRAY_SIZE(compartment->loader_data_ranges))
+			return -E2BIG;
+		data = &compartment->loader_data_ranges[
+			compartment->nr_data_ranges++];
+		data->base = base;
+		data->size = layout->ro_after_init_size;
+		data->perms = DASICS_REGION_READ;
+	}
+
+	return 0;
+}
+
+static int dasics_compartment_init_loader(
+		struct dasics_compartment *compartment, struct module *module,
+		void *target, bool include_init)
+{
+	enum module_state expected = include_init ? MODULE_STATE_COMING :
+						   MODULE_STATE_GOING;
+	int ret;
+
+	if (!compartment || !module || !target ||
+	    READ_ONCE(module->state) != expected)
+		return -EINVAL;
+
+	memset(compartment, 0, sizeof(*compartment));
+	compartment->module = module;
+	ret = dasics_compartment_add_layout(compartment, &module->core_layout);
+	if (ret)
+		return ret;
+	if (include_init) {
+		ret = dasics_compartment_add_layout(compartment,
+						    &module->init_layout);
+		if (ret)
+			return ret;
+	}
+	compartment->code_ranges = compartment->loader_code_ranges;
+	compartment->data_ranges = compartment->loader_data_ranges;
+	compartment->registered = true;
+
+	return dasics_compartment_contains_pc(compartment,
+					      (unsigned long)target) ? 0 : -EPERM;
 }
 
 static long dasics_maincall_abi_info(
@@ -64,11 +167,49 @@ static long dasics_maincall_abi_info(
 	}
 }
 
+#ifdef CONFIG_DASICS_DEBUG
+static long dasics_maincall_debug_nested(
+		const struct dasics_maincall_request *request,
+		unsigned long *value)
+{
+	dasics_maincall_debug_handler_t handler;
+
+	handler = READ_ONCE(dasics_maincall_debug_handler);
+	if (!handler)
+		return -ENOSYS;
+	return handler(request, value);
+}
+
+int dasics_maincall_debug_register(dasics_maincall_debug_handler_t handler)
+{
+	if (!handler)
+		return -EINVAL;
+	if (cmpxchg(&dasics_maincall_debug_handler, NULL, handler))
+		return -EBUSY;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(dasics_maincall_debug_register);
+
+void dasics_maincall_debug_unregister(
+		dasics_maincall_debug_handler_t handler)
+{
+	if (handler)
+		cmpxchg(&dasics_maincall_debug_handler, handler, NULL);
+}
+EXPORT_SYMBOL_GPL(dasics_maincall_debug_unregister);
+#endif
+
 static const struct dasics_maincall_service dasics_maincall_services[] = {
 	{
 		.id = DASICS_MAINCALL_SERVICE_ABI_INFO,
 		.invoke = dasics_maincall_abi_info,
 	},
+#ifdef CONFIG_DASICS_DEBUG
+	{
+		.id = DASICS_MAINCALL_SERVICE_DEBUG_NESTED,
+		.invoke = dasics_maincall_debug_nested,
+	},
+#endif
 };
 
 asmlinkage struct dasics_maincall_request *dasics_maincall_dispatch(
@@ -79,10 +220,10 @@ asmlinkage struct dasics_maincall_request *dasics_maincall_dispatch(
 
 	request->status = -EPERM;
 	request->value = 0;
-	frame = this_cpu_read(dasics_active_call_frame);
+	frame = dasics_call_current_frame();
 	if (!frame || frame->magic != DASICS_CALL_FRAME_MAGIC ||
 	    frame->state != DASICS_CALL_FRAME_ENTERED || !frame->policy ||
-	    !frame->policy->callee ||
+	    !frame->policy->callee || request != &frame->maincall_request ||
 	    !dasics_compartment_contains_pc(frame->policy->callee,
 					    request->return_pc)) {
 		/* Never return to an untrusted-supplied PC after source rejection. */
@@ -155,40 +296,41 @@ int dasics_compartment_init_module(struct dasics_compartment *compartment,
 #ifdef CONFIG_MODULES
 	struct module *module;
 	unsigned long address = (unsigned long)target;
-	unsigned int nr_ranges = 0;
+	int ret;
 
 	if (!compartment || !target)
 		return -EINVAL;
+	if (compartment->loader_managed && compartment->registered)
+		return -EBUSY;
 
 	preempt_disable();
 	module = __module_text_address(address);
-	if (!module || !module_is_live(module)) {
+	if (!module || !try_module_get(module)) {
+		preempt_enable();
+		return -ENOENT;
+	}
+	if (READ_ONCE(module->state) != MODULE_STATE_LIVE ||
+	    !within_module_core(address, module) ||
+	    !module->core_layout.text_size) {
+		module_put(module);
 		preempt_enable();
 		return -ENOENT;
 	}
 
 	memset(compartment, 0, sizeof(*compartment));
 	compartment->module = module;
-	if (module->core_layout.text_size) {
-		compartment->loader_code_ranges[nr_ranges].base =
-			(unsigned long)module->core_layout.base;
-		compartment->loader_code_ranges[nr_ranges].size =
-			module->core_layout.text_size;
-		nr_ranges++;
+	ret = dasics_compartment_add_layout(compartment, &module->core_layout);
+	if (ret) {
+		module_put(module);
+		preempt_enable();
+		return ret;
 	}
-	if (module->init_layout.text_size) {
-		compartment->loader_code_ranges[nr_ranges].base =
-			(unsigned long)module->init_layout.base;
-		compartment->loader_code_ranges[nr_ranges].size =
-			module->init_layout.text_size;
-		nr_ranges++;
-	}
+	compartment->code_ranges = compartment->loader_code_ranges;
+	compartment->data_ranges = compartment->loader_data_ranges;
+	compartment->loader_managed = true;
+	compartment->registered = true;
 	preempt_enable();
 
-	if (!nr_ranges)
-		return -ENOENT;
-	compartment->code_ranges = compartment->loader_code_ranges;
-	compartment->nr_code_ranges = nr_ranges;
 	return 0;
 #else
 	return -EOPNOTSUPP;
@@ -196,10 +338,72 @@ int dasics_compartment_init_module(struct dasics_compartment *compartment,
 }
 EXPORT_SYMBOL_GPL(dasics_compartment_init_module);
 
+void dasics_compartment_destroy(struct dasics_compartment *compartment)
+{
+#ifdef CONFIG_MODULES
+	struct module *module;
+
+	if (!compartment || !compartment->loader_managed ||
+	    !compartment->registered)
+		return;
+
+	preempt_disable();
+	module = compartment->module;
+	WRITE_ONCE(compartment->registered, false);
+	compartment->module = NULL;
+	compartment->code_ranges = NULL;
+	compartment->nr_code_ranges = 0;
+	compartment->data_ranges = NULL;
+	compartment->nr_data_ranges = 0;
+	memset(compartment->loader_code_ranges, 0,
+	       sizeof(compartment->loader_code_ranges));
+	memset(compartment->loader_data_ranges, 0,
+	       sizeof(compartment->loader_data_ranges));
+	preempt_enable();
+	module_put(module);
+#endif
+}
+EXPORT_SYMBOL_GPL(dasics_compartment_destroy);
+
+static int dasics_call_get_module(struct dasics_call_frame *frame,
+				  const struct dasics_call_policy *policy)
+{
+#ifdef CONFIG_MODULES
+	struct dasics_compartment *callee = policy->callee;
+	struct module *module;
+	enum module_state state;
+
+	if (!callee->loader_managed)
+		return 0;
+	if (!READ_ONCE(callee->registered))
+		return -ENODEV;
+	module = READ_ONCE(callee->module);
+	if (!module || !try_module_get(module))
+		return -ENODEV;
+
+	state = READ_ONCE(module->state);
+	if (state != MODULE_STATE_LIVE &&
+	    (!(policy->flags & DASICS_CALL_ALLOW_COMING) ||
+	     state != MODULE_STATE_COMING)) {
+		module_put(module);
+		return state == MODULE_STATE_COMING ? -EBUSY : -ENODEV;
+	}
+	if (!READ_ONCE(callee->registered) ||
+	    READ_ONCE(callee->module) != module) {
+		module_put(module);
+		return -ENODEV;
+	}
+	frame->callee_module = module;
+	frame->module_ref_held = true;
+#endif
+	return 0;
+}
+
 static int dasics_call_register_regions(struct dasics_call_frame *frame,
 					const struct dasics_call_policy *policy,
 					unsigned long stack_hi)
 {
+	const struct dasics_compartment *callee = policy->callee;
 	struct dasics_region stack;
 	unsigned int i;
 	int ret;
@@ -222,6 +426,19 @@ static int dasics_call_register_regions(struct dasics_call_frame *frame,
 				    &frame->stack_handle);
 	if (ret)
 		return ret;
+
+	if (callee->nr_data_ranges && !callee->data_ranges)
+		return -EINVAL;
+	for (i = 0; i < callee->nr_data_ranges; i++) {
+		const struct dasics_region *region = &callee->data_ranges[i];
+		dasics_bound_handle_t handle;
+
+		ret = dasics_bound_register(&frame->data_bounds, region,
+					    DASICS_BOUND_LIFETIME_CALL, 0,
+					    &handle);
+		if (ret)
+			return ret;
+	}
 
 	for (i = 0; i < frame->nr_normalized; i++) {
 		const struct dasics_region *region = &frame->normalized[i];
@@ -322,6 +539,7 @@ static int dasics_call_build_child_state(struct dasics_call_frame *frame,
 
 static int dasics_call_restore_parent(struct dasics_call_frame *frame)
 {
+	struct dasics_call_frame *top;
 	int ret = 0;
 
 	if (frame->parent_saved) {
@@ -336,10 +554,25 @@ static int dasics_call_restore_parent(struct dasics_call_frame *frame)
 		frame->parent_saved = false;
 	}
 
+	if (frame->active_pushed) {
+		top = this_cpu_read(dasics_active_call_frame);
+		if (top == frame) {
+			this_cpu_write(dasics_active_call_frame, frame->parent);
+			WRITE_ONCE(dasics_maincall_active_frame, frame->parent);
+		} else {
+			dasics_hw_clear_call_authority();
+			WRITE_ONCE(dasics_maincall_active_frame, NULL);
+			frame->finish_error = -EPROTO;
+			ret = -EPROTO;
+		}
+		frame->active_pushed = false;
+	}
+	if (frame->module_ref_held) {
+		frame->module_ref_held = false;
+		module_put(frame->callee_module);
+		frame->callee_module = NULL;
+	}
 	if (frame->preempt_held) {
-		if (this_cpu_read(dasics_active_call_frame) == frame)
-			this_cpu_write(dasics_active_call_frame, NULL);
-		cmpxchg(&dasics_maincall_active_frame, frame, NULL);
 		frame->preempt_held = false;
 		preempt_enable();
 	}
@@ -368,7 +601,13 @@ int dasics_call_prepare(struct dasics_call_frame *frame,
 
 	if (!frame || !policy)
 		return -EINVAL;
-	if (policy->flags)
+	/*
+	 * The assembly maincall bridge intentionally uses one trusted top
+	 * pointer. Refuse calls instead of silently sharing it across harts.
+	 */
+	if (num_online_cpus() != 1)
+		return -EOPNOTSUPP;
+	if (policy->flags & ~DASICS_CALL_ALLOW_COMING)
 		return -EOPNOTSUPP;
 	if (frame->magic && frame->magic != DASICS_CALL_FRAME_MAGIC)
 		return -EINVAL;
@@ -389,6 +628,9 @@ int dasics_call_prepare(struct dasics_call_frame *frame,
 	frame->policy = policy;
 	stack_hi = (unsigned long)__builtin_frame_address(0);
 
+	ret = dasics_call_get_module(frame, policy);
+	if (ret)
+		goto fail;
 	ret = dasics_policy_normalize(policy, frame->normalized,
 				      ARRAY_SIZE(frame->normalized),
 				      &frame->nr_normalized);
@@ -404,15 +646,23 @@ int dasics_call_prepare(struct dasics_call_frame *frame,
 
 	preempt_disable();
 	frame->preempt_held = true;
-	if (this_cpu_read(dasics_active_call_frame)) {
-		ret = -EBUSY;
-		goto fail;
+	frame->parent = this_cpu_read(dasics_active_call_frame);
+	if (frame->parent) {
+		if (frame->parent == frame) {
+			ret = -EBUSY;
+			goto fail;
+		}
+		if (frame->parent->magic != DASICS_CALL_FRAME_MAGIC ||
+		    frame->parent->state != DASICS_CALL_FRAME_ENTERED) {
+			ret = -EPROTO;
+			goto fail;
+		}
+		if (frame->parent->depth >= DASICS_CALL_MAX_DEPTH - 1) {
+			ret = -EOVERFLOW;
+			goto fail;
+		}
+		frame->depth = frame->parent->depth + 1;
 	}
-	if (cmpxchg(&dasics_maincall_active_frame, NULL, frame)) {
-		ret = -EBUSY;
-		goto fail;
-	}
-	this_cpu_write(dasics_active_call_frame, frame);
 
 	ret = dasics_hw_save(&frame->parent_hw);
 	if (ret)
@@ -427,8 +677,14 @@ int dasics_call_prepare(struct dasics_call_frame *frame,
 	if (ret)
 		goto fail;
 
+	this_cpu_write(dasics_active_call_frame, frame);
+	WRITE_ONCE(dasics_maincall_active_frame, frame);
+	frame->active_pushed = true;
 	frame->prepare_error = 0;
-	return dasics_call_transition(frame, DASICS_CALL_FRAME_PREPARED, true);
+	ret = dasics_call_transition(frame, DASICS_CALL_FRAME_PREPARED, true);
+	if (ret)
+		goto fail;
+	return 0;
 
 fail:
 	frame->prepare_error = ret;
@@ -619,6 +875,49 @@ long dasics_call(struct dasics_call_frame *frame,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(dasics_call);
+
+int dasics_call_module_loader(struct module *module, void *target,
+			      bool include_init, unsigned long *result)
+{
+#ifdef CONFIG_MODULES
+	struct dasics_compartment compartment;
+	struct dasics_call_policy policy = {
+		.stack_size = DASICS_MODULE_STACK_SIZE,
+	};
+	struct dasics_call_regs regs = {};
+	struct dasics_call_frame *frame;
+	long ret;
+
+	if (!module || !target)
+		return -EINVAL;
+
+	ret = dasics_compartment_init_loader(&compartment, module, target,
+					     include_init);
+	if (ret) {
+		pr_err("%s: DASICS loader compartment rejected target %px: %ld\n",
+		       module_name(module), target, ret);
+		return ret;
+	}
+
+	frame = kzalloc(sizeof(*frame), GFP_KERNEL);
+	if (!frame)
+		return -ENOMEM;
+	policy.callee = &compartment;
+	policy.target = target;
+	ret = dasics_call(frame, &policy, &regs);
+	if (ret)
+		pr_err("%s: DASICS loader call failed target=%px state=%u prepare=%d fault=%d finish=%d: %ld\n",
+		       module_name(module), target, frame->state,
+		       frame->prepare_error, frame->fault_error,
+		       frame->finish_error, ret);
+	if (!ret && result)
+		*result = regs.ret_a0;
+	kfree(frame);
+	return ret;
+#else
+	return -EOPNOTSUPP;
+#endif
+}
 
 #ifdef CONFIG_DASICS_DEBUG
 int dasics_call_test_fail_bound(struct dasics_call_frame *frame,

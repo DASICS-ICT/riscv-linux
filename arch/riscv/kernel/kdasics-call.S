@@ -84,9 +84,18 @@ ENTRY(dasics_maincall_gate)
 	mv	t3, sp
 	li	t4, SR_IE
 	csrrc	t2, CSR_STATUS, t4
+	/*
+	 * Do not touch the untrusted-supplied stack before resolving the
+	 * trusted frame.  The single-hart runtime updates this trusted shadow
+	 * whenever it pushes or pops the hart-local frame stack.
+	 */
 	la	t0, dasics_maincall_active_frame
 	REG_L	t0, 0(t0)
+	beqz	t0, 2f
 	addi	t1, t0, DASICS_FRAME_MAINCALL_REQUEST
+	addi	sp, t0, DASICS_FRAME_MAINCALL_STACK
+	li	t4, DASICS_MAINCALL_TRUSTED_STACK_SIZE
+	add	sp, sp, t4
 	REG_S	a0, DASICS_MAINCALL_SERVICE_ID(t1)
 	REG_S	a1, DASICS_MAINCALL_ARG0(t1)
 	REG_S	a2, DASICS_MAINCALL_ARG1(t1)
@@ -98,8 +107,6 @@ ENTRY(dasics_maincall_gate)
 	REG_S	ra, DASICS_MAINCALL_RETURN_PC(t1)
 	REG_S	t3, DASICS_MAINCALL_UNTRUSTED_SP(t1)
 	REG_S	t2, DASICS_MAINCALL_IRQ_STATUS(t1)
-	addi	sp, t0, DASICS_FRAME_MAINCALL_STACK
-	addi	sp, sp, DASICS_MAINCALL_TRUSTED_STACK_SIZE
 	mv	a0, t1
 	call	dasics_maincall_dispatch
 
@@ -115,4 +122,11 @@ ENTRY(dasics_maincall_gate)
 	csrs	CSR_STATUS, SR_IE
 1:
 	ret
+2:
+	/*
+	 * No valid call frame means there is no trusted stack or continuation.
+	 * Never return through the untrusted-controlled ra in that state.
+	 */
+	ebreak
+	j	2b
 ENDPROC(dasics_maincall_gate)
