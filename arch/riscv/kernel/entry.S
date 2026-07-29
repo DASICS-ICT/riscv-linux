@@ -166,7 +166,10 @@
  */
 	.macro SAVE_ALL
 	LOCAL _restore_kernel_tpsp
+	LOCAL _save_protected_context
 	LOCAL _save_context
+	LOCAL _save_normal_tp
+	LOCAL _save_tp_done
 	LOCAL _check_kernel
 	LOCAL _check_dasics
 	LOCAL _save_dasics
@@ -179,11 +182,31 @@
 	 */
 
 	csrrw tp, CSR_SCRATCH, tp
+#ifdef CONFIG_DASICS
+	bnez tp, _save_protected_context
+#else
 	bnez tp, _save_context
+#endif
 
 _restore_kernel_tpsp:
 	csrr tp, CSR_SCRATCH
 	REG_S sp, TASK_TI_KERNEL_SP(tp)
+#ifdef CONFIG_DASICS
+	j _save_context
+
+_save_protected_context:
+	/*
+	 * dasicscall arms sscratch with the trusted TP.  This path therefore
+	 * also covers an interrupt whose untrusted code corrupted tp or sp.
+	 * Preserve t0 and the interrupted tp in trusted thread_info slots
+	 * before using t0 to leave an entry marker in sscratch.
+	 */
+	REG_S t0, TASK_TI_DASICS_T0(tp)
+	csrr t0, CSR_SCRATCH
+	REG_S t0, TASK_TI_DASICS_TP(tp)
+	li t0, 1
+	csrw CSR_SCRATCH, t0
+#endif
 _save_context:
 	REG_S sp, TASK_TI_USER_SP(tp)
 	REG_L sp, TASK_TI_KERNEL_SP(tp)
@@ -238,7 +261,23 @@ _save_context:
 	REG_S s2, PT_EPC(sp)
 	REG_S s3, PT_BADADDR(sp)
 	REG_S s4, PT_CAUSE(sp)
+#ifdef CONFIG_DASICS
+	li t0, 1
+	bne s5, t0, _save_normal_tp
+	REG_L t0, TASK_TI_DASICS_T0(tp)
+	REG_S t0, PT_T0(sp)
+	REG_L s5, TASK_TI_DASICS_TP(tp)
 	REG_S s5, PT_TP(sp)
+	li t0, 1
+	REG_S t0, PT_ORIG_A0(sp)
+	j _save_tp_done
+_save_normal_tp:
+	REG_S zero, PT_ORIG_A0(sp)
+#endif
+	REG_S s5, PT_TP(sp)
+#ifdef CONFIG_DASICS
+_save_tp_done:
+#endif
 
 _check_kernel:
 	/* if exception comes from kernel, sscratch contains 0 */
@@ -669,6 +708,20 @@ resume_userspace:
 	csrw CSR_SCRATCH, tp
 
 restore_all:
+#ifdef CONFIG_DASICS
+	/*
+	 * A marked S-mode frame returns to an untrusted compartment.  Keep a
+	 * trusted TP in sscratch so a later interrupt can enter safely.
+	 * Trusted kernel frames and redirected recovery frames leave it zero.
+	 */
+	REG_L t0, PT_STATUS(sp)
+	andi t0, t0, SR_SPP
+	beqz t0, .Ldasics_restore_scratch_done
+	REG_L t0, PT_ORIG_A0(sp)
+	beqz t0, .Ldasics_restore_scratch_done
+	csrw CSR_SCRATCH, tp
+.Ldasics_restore_scratch_done:
+#endif
 #ifdef CONFIG_TRACE_IRQFLAGS
 	REG_L s1, PT_STATUS(sp)
 	andi t0, s1, SR_PIE

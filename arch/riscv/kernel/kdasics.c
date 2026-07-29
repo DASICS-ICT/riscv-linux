@@ -473,11 +473,12 @@ long dasics_hw_call(struct dasics_call_regs *regs,
 
 	if (!regs || !regs->target || !recovery)
 		return -EINVAL;
+	if (WARN_ON_ONCE(IS_ENABLED(CONFIG_PREEMPT_COUNT) &&
+			 !preempt_count()))
+		return -EPERM;
 
-	preempt_disable();
 	ret = __dasics_hw_call(regs, recovery);
 	recovery->magic = 0;
-	preempt_enable();
 
 	return ret;
 }
@@ -511,6 +512,11 @@ int dasics_hw_redirect_recovery(struct pt_regs *regs,
 
 	regs->a0 = (unsigned long)recovery;
 	regs->epc = (unsigned long)__dasics_hw_recover;
+	/*
+	 * Recovery resumes trusted code, so exception return must not re-arm
+	 * the untrusted-entry sscratch convention.
+	 */
+	regs->orig_a0 = 0;
 	return 0;
 }
 

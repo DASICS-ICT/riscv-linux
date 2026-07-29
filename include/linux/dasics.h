@@ -7,17 +7,19 @@
 #include <linux/types.h>
 
 #include <asm/kdasics.h>
+#include <asm/thread_info.h>
 
 #define DASICS_POLICY_MAX_REGIONS 64
 #define DASICS_DATA_BOUND_SLOTS 16
 #define DASICS_JUMP_BOUND_SLOTS 4
-#define DASICS_MAINCALL_STACK_SIZE 4096
+#define DASICS_MAINCALL_STACK_SIZE THREAD_SIZE
 #define DASICS_CALL_MAX_DEPTH 4
 #define DASICS_COMPARTMENT_CODE_RANGES 2
 #define DASICS_COMPARTMENT_DATA_RANGES 4
 #define DASICS_MODULE_STACK_SIZE 4096
 
 struct module;
+struct task_struct;
 
 typedef u64 dasics_bound_handle_t;
 
@@ -136,8 +138,10 @@ struct dasics_call_frame {
 	u32 magic;
 	enum dasics_call_frame_state state;
 	struct dasics_call_frame *parent;
+	struct task_struct *owner;
 	unsigned int depth;
 	struct dasics_hw_state parent_hw;
+	struct dasics_hw_state suspended_hw;
 	struct dasics_recovery_context recovery;
 	struct dasics_maincall_request maincall_request;
 	unsigned long maincall_stack[DASICS_MAINCALL_STACK_SIZE /
@@ -155,6 +159,7 @@ struct dasics_call_frame {
 	unsigned int data_refills;
 	unsigned int test_fail_bound;
 	unsigned int test_fail_restore;
+	unsigned int caller_preempt_count;
 	int prepare_error;
 	int finish_error;
 	int fault_error;
@@ -163,6 +168,8 @@ struct dasics_call_frame {
 	bool preempt_held;
 	bool active_pushed;
 	bool module_ref_held;
+	bool caller_irqs_disabled;
+	bool maincall_suspended;
 };
 
 typedef int (*dasics_bound_clear_slot_fn)(unsigned int slot, void *context);

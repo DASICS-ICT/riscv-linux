@@ -62,6 +62,8 @@ struct dasics_call_regs {
 #define DASICS_MAINCALL_ABI_VERSION 1
 #define DASICS_MAINCALL_MAX_ARGS 7
 #define DASICS_MAINCALL_SERVICE_DEBUG_NESTED 0x44424701
+#define DASICS_MAINCALL_SERVICE_DEBUG_SLEEP 0x44424702
+#define DASICS_MAINCALL_SLEEP_TEST_VALUE 0x534c454550UL
 
 enum dasics_maincall_service_id {
 	DASICS_MAINCALL_SERVICE_ABI_INFO = 1,
@@ -90,7 +92,9 @@ struct dasics_maincall_request {
 /* Trusted continuation state used to escape a faulting untrusted call. */
 struct dasics_recovery_context {
 	unsigned long magic;
+	unsigned long regs;
 	long error;
+	unsigned long scratch;
 	unsigned long gp;
 	unsigned long tp;
 	unsigned long sp;

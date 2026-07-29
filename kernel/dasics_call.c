@@ -4,10 +4,13 @@
 #include <linux/dasics.h>
 #include <linux/errno.h>
 #include <linux/export.h>
+#include <linux/irqflags.h>
+#include <linux/jiffies.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/percpu.h>
 #include <linux/preempt.h>
+#include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/string.h>
 
@@ -16,15 +19,21 @@
 static DEFINE_PER_CPU(struct dasics_call_frame *, dasics_active_call_frame);
 /*
  * Assembly reads this trusted shadow before it has a safe stack on which to
- * call a C per-CPU helper.  The current milestone is single hart with
- * preemption disabled for the complete untrusted call.
+ * call a C per-CPU helper.  The current milestone is single hart and one
+ * active owner.  A sleepable maincall may temporarily release preemption,
+ * but another task is rejected while this shadow remains owned.
  */
 struct dasics_call_frame *dasics_maincall_active_frame;
 
 struct dasics_maincall_service {
 	unsigned long id;
+	unsigned int flags;
 	long (*invoke)(const struct dasics_maincall_request *request,
 		       unsigned long *value);
+};
+
+enum dasics_maincall_service_flags {
+	DASICS_MAINCALL_MAY_SLEEP = BIT(0),
 };
 
 #ifdef CONFIG_DASICS_DEBUG
@@ -37,6 +46,8 @@ struct dasics_call_frame *dasics_call_current_frame(void)
 
 	preempt_disable();
 	frame = this_cpu_read(dasics_active_call_frame);
+	if (frame && frame->owner != current)
+		frame = NULL;
 	preempt_enable();
 	return frame;
 }
@@ -180,6 +191,21 @@ static long dasics_maincall_debug_nested(
 	return handler(request, value);
 }
 
+static long dasics_maincall_debug_sleep(
+		const struct dasics_maincall_request *request,
+		unsigned long *value)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(request->args); i++) {
+		if (request->args[i])
+			return -EINVAL;
+	}
+	schedule_timeout_uninterruptible(1);
+	*value = DASICS_MAINCALL_SLEEP_TEST_VALUE;
+	return 0;
+}
+
 int dasics_maincall_debug_register(dasics_maincall_debug_handler_t handler)
 {
 	if (!handler)
@@ -209,8 +235,54 @@ static const struct dasics_maincall_service dasics_maincall_services[] = {
 		.id = DASICS_MAINCALL_SERVICE_DEBUG_NESTED,
 		.invoke = dasics_maincall_debug_nested,
 	},
+	{
+		.id = DASICS_MAINCALL_SERVICE_DEBUG_SLEEP,
+		.flags = DASICS_MAINCALL_MAY_SLEEP,
+		.invoke = dasics_maincall_debug_sleep,
+	},
 #endif
 };
+
+static int dasics_maincall_suspend(struct dasics_call_frame *frame,
+				   const struct dasics_maincall_request *request)
+{
+	int ret;
+
+	if (!frame || !request || frame->owner != current ||
+	    frame->maincall_suspended || !frame->preempt_held ||
+	    frame->caller_preempt_count || frame->caller_irqs_disabled ||
+	    !(request->irq_status & SR_IE) || !irqs_disabled())
+		return -EWOULDBLOCK;
+
+	ret = dasics_hw_save(&frame->suspended_hw);
+	if (ret)
+		return ret;
+	frame->maincall_suspended = true;
+	frame->preempt_held = false;
+	preempt_enable_no_resched();
+	local_irq_enable();
+	preempt_check_resched();
+	return 0;
+}
+
+static int dasics_maincall_resume(struct dasics_call_frame *frame)
+{
+	int ret = 0;
+
+	preempt_disable();
+	local_irq_disable();
+	frame->preempt_held = true;
+	if (!frame->maincall_suspended || frame->owner != current ||
+	    this_cpu_read(dasics_active_call_frame) != frame ||
+	    READ_ONCE(dasics_maincall_active_frame) != frame)
+		ret = -EPROTO;
+	else
+		ret = dasics_hw_restore(&frame->suspended_hw);
+	frame->maincall_suspended = false;
+	if (ret)
+		dasics_hw_clear_call_authority();
+	return ret;
+}
 
 asmlinkage struct dasics_maincall_request *dasics_maincall_dispatch(
 		struct dasics_maincall_request *request)
@@ -223,7 +295,8 @@ asmlinkage struct dasics_maincall_request *dasics_maincall_dispatch(
 	frame = dasics_call_current_frame();
 	if (!frame || frame->magic != DASICS_CALL_FRAME_MAGIC ||
 	    frame->state != DASICS_CALL_FRAME_ENTERED || !frame->policy ||
-	    !frame->policy->callee || request != &frame->maincall_request ||
+	    frame->owner != current || !frame->policy->callee ||
+	    request != &frame->maincall_request ||
 	    !dasics_compartment_contains_pc(frame->policy->callee,
 					    request->return_pc)) {
 		/* Never return to an untrusted-supplied PC after source rejection. */
@@ -240,6 +313,23 @@ asmlinkage struct dasics_maincall_request *dasics_maincall_dispatch(
 
 		if (service->id != request->service_id)
 			continue;
+		if (service->flags & DASICS_MAINCALL_MAY_SLEEP) {
+			long service_status;
+			int ret;
+
+			ret = dasics_maincall_suspend(frame, request);
+			if (ret) {
+				request->status = ret;
+				return request;
+			}
+			service_status = service->invoke(request,
+							 &request->value);
+			ret = dasics_maincall_resume(frame);
+			request->status = ret ?: service_status;
+			if (ret)
+				dasics_call_recover(ret);
+			return request;
+		}
 		request->status = service->invoke(request, &request->value);
 		return request;
 	}
@@ -626,6 +716,9 @@ int dasics_call_prepare(struct dasics_call_frame *frame,
 	frame->test_fail_bound = fail_bound;
 	frame->test_fail_restore = fail_restore;
 	frame->policy = policy;
+	frame->owner = current;
+	frame->caller_preempt_count = preempt_count();
+	frame->caller_irqs_disabled = irqs_disabled();
 	stack_hi = (unsigned long)__builtin_frame_address(0);
 
 	ret = dasics_call_get_module(frame, policy);
@@ -648,6 +741,10 @@ int dasics_call_prepare(struct dasics_call_frame *frame,
 	frame->preempt_held = true;
 	frame->parent = this_cpu_read(dasics_active_call_frame);
 	if (frame->parent) {
+		if (frame->parent->owner != current) {
+			ret = -EBUSY;
+			goto fail;
+		}
 		if (frame->parent == frame) {
 			ret = -EBUSY;
 			goto fail;
@@ -699,7 +796,8 @@ int dasics_call_recover(int error)
 	int ret;
 
 	frame = this_cpu_read(dasics_active_call_frame);
-	if (!frame || frame->magic != DASICS_CALL_FRAME_MAGIC)
+	if (!frame || frame->owner != current ||
+	    frame->magic != DASICS_CALL_FRAME_MAGIC)
 		return -ENOENT;
 	if (!error)
 		error = -EFAULT;
@@ -762,7 +860,8 @@ int dasics_call_handle_trap(unsigned long pc, unsigned long address,
 	int ret;
 
 	frame = this_cpu_read(dasics_active_call_frame);
-	if (!frame || frame->magic != DASICS_CALL_FRAME_MAGIC)
+	if (!frame || frame->owner != current ||
+	    frame->magic != DASICS_CALL_FRAME_MAGIC)
 		return -ENOENT;
 	if (frame->state != DASICS_CALL_FRAME_ENTERED)
 		return dasics_call_fail_closed(frame, -EPROTO);
@@ -801,7 +900,8 @@ int dasics_call_unwind_trap(struct pt_regs *regs)
 	int ret;
 
 	frame = this_cpu_read(dasics_active_call_frame);
-	if (!frame || frame->magic != DASICS_CALL_FRAME_MAGIC ||
+	if (!frame || frame->owner != current ||
+	    frame->magic != DASICS_CALL_FRAME_MAGIC ||
 	    frame->state != DASICS_CALL_FRAME_FAULTED || !frame->fault.valid)
 		return -EPROTO;
 

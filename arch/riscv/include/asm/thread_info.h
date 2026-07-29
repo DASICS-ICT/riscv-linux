@@ -48,6 +48,15 @@ struct thread_info {
 	 */
 	long			kernel_sp;	/* Kernel stack pointer */
 	long			user_sp;	/* User stack pointer */
+#ifdef CONFIG_DASICS
+	/*
+	 * Early exception entry uses these slots before it has a pt_regs.
+	 * They preserve registers while an untrusted kernel compartment is
+	 * treated like a user context for stack and TP recovery.
+	 */
+	unsigned long		dasics_t0;
+	unsigned long		dasics_tp;
+#endif
 	int			cpu;
 };
 

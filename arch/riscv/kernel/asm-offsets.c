@@ -33,6 +33,10 @@ void asm_offsets(void)
 	OFFSET(TASK_TI_PREEMPT_COUNT, task_struct, thread_info.preempt_count);
 	OFFSET(TASK_TI_KERNEL_SP, task_struct, thread_info.kernel_sp);
 	OFFSET(TASK_TI_USER_SP, task_struct, thread_info.user_sp);
+#ifdef CONFIG_DASICS
+	OFFSET(TASK_TI_DASICS_T0, task_struct, thread_info.dasics_t0);
+	OFFSET(TASK_TI_DASICS_TP, task_struct, thread_info.dasics_tp);
+#endif
 	OFFSET(TASK_TI_CPU, task_struct, thread_info.cpu);
 
 	OFFSET(TASK_THREAD_F0,  task_struct, thread.fstate.f[0]);
@@ -151,10 +155,13 @@ void asm_offsets(void)
 	OFFSET(DASICS_FRAME_MAINCALL_REQUEST, dasics_call_frame,
 	       maincall_request);
 	OFFSET(DASICS_FRAME_MAINCALL_STACK, dasics_call_frame, maincall_stack);
+	OFFSET(DASICS_FRAME_RECOVERY, dasics_call_frame, recovery);
 	DEFINE(DASICS_MAINCALL_TRUSTED_STACK_SIZE,
 	       DASICS_MAINCALL_STACK_SIZE);
 	OFFSET(DASICS_RECOVERY_MAGIC, dasics_recovery_context, magic);
+	OFFSET(DASICS_RECOVERY_REGS, dasics_recovery_context, regs);
 	OFFSET(DASICS_RECOVERY_ERROR, dasics_recovery_context, error);
+	OFFSET(DASICS_RECOVERY_SCRATCH, dasics_recovery_context, scratch);
 	OFFSET(DASICS_RECOVERY_GP, dasics_recovery_context, gp);
 	OFFSET(DASICS_RECOVERY_TP, dasics_recovery_context, tp);
 	OFFSET(DASICS_RECOVERY_SP, dasics_recovery_context, sp);
