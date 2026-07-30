@@ -17,6 +17,7 @@
 #define DASICS_COMPARTMENT_CODE_RANGES 2
 #define DASICS_COMPARTMENT_DATA_RANGES 4
 #define DASICS_MODULE_STACK_SIZE 4096
+#define DASICS_MAINCALL_PROVIDER_SLOTS 8
 
 struct module;
 struct task_struct;
@@ -61,11 +62,13 @@ struct dasics_compartment {
 	struct dasics_region
 		loader_data_ranges[DASICS_COMPARTMENT_DATA_RANGES];
 	bool loader_managed;
+	bool module_ref_owned;
 	bool registered;
 };
 
 enum dasics_call_flags {
 	DASICS_CALL_ALLOW_COMING = BIT(0),
+	DASICS_CALL_ALLOW_GOING = BIT(1),
 };
 
 struct dasics_call_policy {
@@ -226,6 +229,32 @@ long dasics_call(struct dasics_call_frame *frame,
 struct dasics_call_frame *dasics_call_current_frame(void);
 asmlinkage struct dasics_maincall_request *dasics_maincall_dispatch(
 		struct dasics_maincall_request *request);
+
+enum dasics_maincall_provider_flags {
+	DASICS_MAINCALL_PROVIDER_MAY_SLEEP = BIT(0),
+};
+
+struct dasics_maincall_provider {
+	const char *module_name;
+	unsigned long first_service;
+	unsigned long last_service;
+	unsigned int flags;
+	struct module *owner;
+	unsigned int (*service_flags)(unsigned long service_id);
+	long (*invoke)(const struct dasics_maincall_request *request,
+		       unsigned long *value);
+};
+
+int dasics_maincall_provider_register(
+		const struct dasics_maincall_provider *provider);
+void dasics_maincall_provider_unregister(
+		const struct dasics_maincall_provider *provider);
+unsigned long dasics_maincall_lookup_caller_symbol(const char *name);
+int dasics_maincall_attach_caller(struct dasics_compartment *compartment,
+				  void *target);
+int dasics_maincall_validate_range(unsigned long address, size_t size,
+				   unsigned int access);
+int dasics_maincall_grant(const struct dasics_region *region);
 
 #ifdef CONFIG_DASICS_DEBUG
 typedef long (*dasics_maincall_debug_handler_t)(

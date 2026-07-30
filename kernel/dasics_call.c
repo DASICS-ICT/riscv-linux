@@ -6,10 +6,13 @@
 #include <linux/export.h>
 #include <linux/irqflags.h>
 #include <linux/jiffies.h>
+#include <linux/kallsyms.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/percpu.h>
 #include <linux/preempt.h>
+#include <linux/rcupdate.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/string.h>
@@ -17,6 +20,9 @@
 #include <asm/csr.h>
 
 static DEFINE_PER_CPU(struct dasics_call_frame *, dasics_active_call_frame);
+static DEFINE_MUTEX(dasics_maincall_provider_lock);
+static const struct dasics_maincall_provider __rcu
+	*dasics_maincall_providers[DASICS_MAINCALL_PROVIDER_SLOTS];
 /*
  * Assembly reads this trusted shadow before it has a safe stack on which to
  * call a C per-CPU helper.  The current milestone is single hart and one
@@ -35,6 +41,78 @@ struct dasics_maincall_service {
 enum dasics_maincall_service_flags {
 	DASICS_MAINCALL_MAY_SLEEP = BIT(0),
 };
+
+int dasics_maincall_provider_register(
+		const struct dasics_maincall_provider *provider)
+{
+	unsigned int free_slot = DASICS_MAINCALL_PROVIDER_SLOTS;
+	unsigned int i;
+	int ret = 0;
+
+	if (!provider || !provider->module_name || !*provider->module_name ||
+	    strnlen(provider->module_name, MODULE_NAME_LEN) >= MODULE_NAME_LEN ||
+	    !provider->first_service ||
+	    provider->first_service > provider->last_service ||
+	    !provider->invoke ||
+	    (provider->flags & ~DASICS_MAINCALL_PROVIDER_MAY_SLEEP))
+		return -EINVAL;
+
+	mutex_lock(&dasics_maincall_provider_lock);
+	for (i = 0; i < ARRAY_SIZE(dasics_maincall_providers); i++) {
+		const struct dasics_maincall_provider *registered;
+
+		registered = rcu_dereference_protected(
+				dasics_maincall_providers[i],
+				lockdep_is_held(&dasics_maincall_provider_lock));
+		if (!registered) {
+			if (free_slot == DASICS_MAINCALL_PROVIDER_SLOTS)
+				free_slot = i;
+			continue;
+		}
+		if (!strcmp(registered->module_name, provider->module_name) ||
+		    (provider->first_service <= registered->last_service &&
+		     registered->first_service <= provider->last_service)) {
+			ret = -EEXIST;
+			goto out;
+		}
+	}
+	if (free_slot == DASICS_MAINCALL_PROVIDER_SLOTS) {
+		ret = -ENOSPC;
+		goto out;
+	}
+	rcu_assign_pointer(dasics_maincall_providers[free_slot], provider);
+out:
+	mutex_unlock(&dasics_maincall_provider_lock);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(dasics_maincall_provider_register);
+
+void dasics_maincall_provider_unregister(
+		const struct dasics_maincall_provider *provider)
+{
+	unsigned int i;
+	bool removed = false;
+
+	if (!provider)
+		return;
+	mutex_lock(&dasics_maincall_provider_lock);
+	for (i = 0; i < ARRAY_SIZE(dasics_maincall_providers); i++) {
+		const struct dasics_maincall_provider *registered;
+
+		registered = rcu_dereference_protected(
+				dasics_maincall_providers[i],
+				lockdep_is_held(&dasics_maincall_provider_lock));
+		if (registered != provider)
+			continue;
+		RCU_INIT_POINTER(dasics_maincall_providers[i], NULL);
+		removed = true;
+		break;
+	}
+	mutex_unlock(&dasics_maincall_provider_lock);
+	if (removed)
+		synchronize_rcu();
+}
+EXPORT_SYMBOL_GPL(dasics_maincall_provider_unregister);
 
 #ifdef CONFIG_DASICS_DEBUG
 static dasics_maincall_debug_handler_t dasics_maincall_debug_handler;
@@ -284,10 +362,70 @@ static int dasics_maincall_resume(struct dasics_call_frame *frame)
 	return ret;
 }
 
+static void dasics_maincall_invoke(
+		struct dasics_call_frame *frame,
+		struct dasics_maincall_request *request,
+		unsigned int flags,
+		long (*invoke)(const struct dasics_maincall_request *request,
+			       unsigned long *value))
+{
+	if (flags & DASICS_MAINCALL_MAY_SLEEP) {
+		long service_status;
+		int ret;
+
+		ret = dasics_maincall_suspend(frame, request);
+		if (ret) {
+			request->status = ret;
+			return;
+		}
+		service_status = invoke(request, &request->value);
+		ret = dasics_maincall_resume(frame);
+		request->status = ret ?: service_status;
+		if (ret)
+			dasics_call_recover(ret);
+		return;
+	}
+	request->status = invoke(request, &request->value);
+}
+
+static const struct dasics_maincall_provider *
+dasics_maincall_get_provider(struct dasics_call_frame *frame,
+			     unsigned long service_id)
+{
+	const struct dasics_maincall_provider *provider = NULL;
+	struct module *caller;
+	unsigned int i;
+
+	if (!frame->policy || !frame->policy->callee)
+		return NULL;
+	caller = frame->policy->callee->module;
+	if (!caller)
+		return NULL;
+
+	rcu_read_lock();
+	for (i = 0; i < ARRAY_SIZE(dasics_maincall_providers); i++) {
+		const struct dasics_maincall_provider *candidate;
+
+		candidate = rcu_dereference(dasics_maincall_providers[i]);
+		if (!candidate ||
+		    service_id < candidate->first_service ||
+		    service_id > candidate->last_service ||
+		    strcmp(candidate->module_name, module_name(caller)))
+			continue;
+		if (!try_module_get(candidate->owner))
+			break;
+		provider = candidate;
+		break;
+	}
+	rcu_read_unlock();
+	return provider;
+}
+
 asmlinkage struct dasics_maincall_request *dasics_maincall_dispatch(
 		struct dasics_maincall_request *request)
 {
 	struct dasics_call_frame *frame;
+	const struct dasics_maincall_provider *provider;
 	unsigned int i;
 
 	request->status = -EPERM;
@@ -313,24 +451,26 @@ asmlinkage struct dasics_maincall_request *dasics_maincall_dispatch(
 
 		if (service->id != request->service_id)
 			continue;
-		if (service->flags & DASICS_MAINCALL_MAY_SLEEP) {
-			long service_status;
-			int ret;
+		dasics_maincall_invoke(frame, request, service->flags,
+				      service->invoke);
+		return request;
+	}
+	provider = dasics_maincall_get_provider(frame, request->service_id);
+	if (provider) {
+		unsigned int provider_flags = provider->service_flags ?
+			provider->service_flags(request->service_id) :
+			provider->flags;
+		unsigned int flags = 0;
 
-			ret = dasics_maincall_suspend(frame, request);
-			if (ret) {
-				request->status = ret;
-				return request;
-			}
-			service_status = service->invoke(request,
-							 &request->value);
-			ret = dasics_maincall_resume(frame);
-			request->status = ret ?: service_status;
-			if (ret)
-				dasics_call_recover(ret);
+		if (provider_flags & ~DASICS_MAINCALL_PROVIDER_MAY_SLEEP) {
+			request->status = -EOPNOTSUPP;
+			module_put(provider->owner);
 			return request;
 		}
-		request->status = service->invoke(request, &request->value);
+		if (provider_flags & DASICS_MAINCALL_PROVIDER_MAY_SLEEP)
+			flags |= DASICS_MAINCALL_MAY_SLEEP;
+		dasics_maincall_invoke(frame, request, flags, provider->invoke);
+		module_put(provider->owner);
 		return request;
 	}
 	request->status = -ENOSYS;
@@ -418,6 +558,7 @@ int dasics_compartment_init_module(struct dasics_compartment *compartment,
 	compartment->code_ranges = compartment->loader_code_ranges;
 	compartment->data_ranges = compartment->loader_data_ranges;
 	compartment->loader_managed = true;
+	compartment->module_ref_owned = true;
 	compartment->registered = true;
 	preempt_enable();
 
@@ -428,10 +569,93 @@ int dasics_compartment_init_module(struct dasics_compartment *compartment,
 }
 EXPORT_SYMBOL_GPL(dasics_compartment_init_module);
 
+unsigned long dasics_maincall_lookup_caller_symbol(const char *name)
+{
+#ifdef CONFIG_MODULES
+	struct dasics_call_frame *frame;
+	struct module *module;
+	char qualified[MODULE_NAME_LEN + KSYM_NAME_LEN + 2];
+	unsigned long address;
+
+	if (!name || !*name || strnlen(name, KSYM_NAME_LEN) >= KSYM_NAME_LEN ||
+	    strchr(name, ':'))
+		return 0;
+	frame = dasics_call_current_frame();
+	if (!frame || !frame->policy || !frame->policy->callee)
+		return 0;
+	module = frame->policy->callee->module;
+	if (!module ||
+	    scnprintf(qualified, sizeof(qualified), "%s:%s",
+		      module_name(module), name) >= sizeof(qualified))
+		return 0;
+	address = module_kallsyms_lookup_name(qualified);
+	return address && within_module(address, module) ? address : 0;
+#else
+	return 0;
+#endif
+}
+EXPORT_SYMBOL_GPL(dasics_maincall_lookup_caller_symbol);
+
+int dasics_maincall_attach_caller(struct dasics_compartment *compartment,
+				  void *target)
+{
+#ifdef CONFIG_MODULES
+	struct dasics_call_frame *frame;
+	struct module *module;
+	enum module_state state;
+	int ret;
+
+	if (!compartment || !target)
+		return -EINVAL;
+	if (compartment->registered)
+		return -EBUSY;
+	frame = dasics_call_current_frame();
+	if (!frame || !frame->policy || !frame->policy->callee)
+		return -EPERM;
+	module = frame->policy->callee->module;
+	if (!module)
+		return -ENOENT;
+	state = READ_ONCE(module->state);
+	if (state != MODULE_STATE_COMING && state != MODULE_STATE_LIVE)
+		return -ENODEV;
+
+	memset(compartment, 0, sizeof(*compartment));
+	compartment->module = module;
+	ret = dasics_compartment_add_layout(compartment, &module->core_layout);
+	if (ret)
+		goto fail;
+	if (state == MODULE_STATE_COMING) {
+		ret = dasics_compartment_add_layout(compartment,
+						    &module->init_layout);
+		if (ret)
+			goto fail;
+	}
+	compartment->code_ranges = compartment->loader_code_ranges;
+	compartment->data_ranges = compartment->loader_data_ranges;
+	compartment->loader_managed = true;
+	compartment->module_ref_owned = false;
+	compartment->registered = true;
+	if (!dasics_compartment_contains_pc(compartment,
+					    (unsigned long)target)) {
+		ret = -EPERM;
+		goto fail;
+	}
+	return 0;
+
+fail:
+	memset(compartment, 0, sizeof(*compartment));
+	return ret;
+#else
+	return -EOPNOTSUPP;
+#endif
+}
+EXPORT_SYMBOL_GPL(dasics_maincall_attach_caller);
+
 void dasics_compartment_destroy(struct dasics_compartment *compartment)
 {
 #ifdef CONFIG_MODULES
 	struct module *module;
+	bool module_ref_owned;
 
 	if (!compartment || !compartment->loader_managed ||
 	    !compartment->registered)
@@ -439,18 +663,22 @@ void dasics_compartment_destroy(struct dasics_compartment *compartment)
 
 	preempt_disable();
 	module = compartment->module;
+	module_ref_owned = compartment->module_ref_owned;
 	WRITE_ONCE(compartment->registered, false);
 	compartment->module = NULL;
 	compartment->code_ranges = NULL;
 	compartment->nr_code_ranges = 0;
 	compartment->data_ranges = NULL;
 	compartment->nr_data_ranges = 0;
+	compartment->loader_managed = false;
+	compartment->module_ref_owned = false;
 	memset(compartment->loader_code_ranges, 0,
 	       sizeof(compartment->loader_code_ranges));
 	memset(compartment->loader_data_ranges, 0,
 	       sizeof(compartment->loader_data_ranges));
 	preempt_enable();
-	module_put(module);
+	if (module_ref_owned)
+		module_put(module);
 #endif
 }
 EXPORT_SYMBOL_GPL(dasics_compartment_destroy);
@@ -468,10 +696,16 @@ static int dasics_call_get_module(struct dasics_call_frame *frame,
 	if (!READ_ONCE(callee->registered))
 		return -ENODEV;
 	module = READ_ONCE(callee->module);
-	if (!module || !try_module_get(module))
+	if (!module)
 		return -ENODEV;
 
 	state = READ_ONCE(module->state);
+	if (state == MODULE_STATE_GOING &&
+	    (policy->flags & DASICS_CALL_ALLOW_GOING) &&
+	    !callee->module_ref_owned)
+		return 0;
+	if (!try_module_get(module))
+		return -ENODEV;
 	if (state != MODULE_STATE_LIVE &&
 	    (!(policy->flags & DASICS_CALL_ALLOW_COMING) ||
 	     state != MODULE_STATE_COMING)) {
@@ -558,6 +792,92 @@ static unsigned long dasics_entry_cfg(const struct dasics_bound_entry *entry)
 		cfg |= DASICS_LIBCFG_W;
 	return cfg;
 }
+
+int dasics_maincall_validate_range(unsigned long address, size_t size,
+				   unsigned int access)
+{
+	struct dasics_call_frame *frame;
+	unsigned long end;
+	unsigned int i;
+
+	if (!size || size > ULONG_MAX - address || !access ||
+	    (access & ~(DASICS_REGION_READ | DASICS_REGION_WRITE)))
+		return -EINVAL;
+	end = address + size;
+	frame = dasics_call_current_frame();
+	if (!frame || frame->magic != DASICS_CALL_FRAME_MAGIC ||
+	    frame->state != DASICS_CALL_FRAME_ENTERED ||
+	    frame->owner != current)
+		return -EPERM;
+
+	for (i = 0; i < ARRAY_SIZE(frame->data_bounds.entries); i++) {
+		const struct dasics_bound_entry *entry =
+			&frame->data_bounds.entries[i];
+
+		if (entry->active && address >= entry->lo && end <= entry->hi &&
+		    (entry->perms & access) == access)
+			return 0;
+	}
+	return -EACCES;
+}
+EXPORT_SYMBOL_GPL(dasics_maincall_validate_range);
+
+int dasics_maincall_grant(const struct dasics_region *region)
+{
+	struct dasics_call_frame *frame;
+	const struct dasics_bound_entry *entry;
+	dasics_bound_handle_t handle;
+	dasics_bound_handle_t victim;
+	unsigned int shift;
+	unsigned int slot;
+	unsigned long cfg;
+	int ret;
+
+	if (!region)
+		return -EINVAL;
+	ret = dasics_maincall_validate_range(region->base, region->size,
+					     region->perms);
+	if (!ret)
+		return 0;
+	if (ret != -EACCES)
+		return ret;
+	frame = dasics_call_current_frame();
+	if (!frame || !frame->maincall_suspended)
+		return -EWOULDBLOCK;
+
+	ret = dasics_bound_register(&frame->data_bounds, region,
+				    DASICS_BOUND_LIFETIME_CALL, 0, &handle);
+	if (ret)
+		return ret;
+	ret = dasics_bound_select_slot(&frame->data_bounds, handle, &slot,
+				       &victim);
+	if (ret)
+		goto free_bound;
+	ret = dasics_bound_commit_resident(&frame->data_bounds, handle, slot);
+	if (ret)
+		goto free_bound;
+	ret = dasics_bound_get(&frame->data_bounds, handle, &entry);
+	if (ret) {
+		dasics_hw_clear_call_authority();
+		return -EUCLEAN;
+	}
+
+	shift = slot * DASICS_LIBCFG_BITS;
+	cfg = dasics_entry_cfg(entry);
+	frame->suspended_hw.libcfg &=
+		~(DASICS_LIBCFG_MASK << shift);
+	frame->suspended_hw.lib_lo[slot] = entry->lo;
+	frame->suspended_hw.lib_hi[slot] = entry->hi;
+	frame->suspended_hw.libcfg |= cfg << shift;
+	if (victim == DASICS_BOUND_INVALID_HANDLE)
+		frame->nr_resident++;
+	return 0;
+
+free_bound:
+	dasics_bound_free(&frame->data_bounds, handle, NULL, NULL);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(dasics_maincall_grant);
 
 static int dasics_call_reside_bound(struct dasics_call_frame *frame,
 				    struct dasics_hw_state *child,
@@ -697,7 +1017,8 @@ int dasics_call_prepare(struct dasics_call_frame *frame,
 	 */
 	if (num_online_cpus() != 1)
 		return -EOPNOTSUPP;
-	if (policy->flags & ~DASICS_CALL_ALLOW_COMING)
+	if (policy->flags &
+	    ~(DASICS_CALL_ALLOW_COMING | DASICS_CALL_ALLOW_GOING))
 		return -EOPNOTSUPP;
 	if (frame->magic && frame->magic != DASICS_CALL_FRAME_MAGIC)
 		return -EINVAL;
