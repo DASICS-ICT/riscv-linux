@@ -205,6 +205,7 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 	fstate_save(src, task_pt_regs(src));
 	riscv_dasics_prepare_copy(src);
 	*dst = *src;
+	riscv_dasics_finish_copy(dst);
 	/* clear entire V context, including datap for a new task */
 	memset(&dst->thread.vstate, 0, sizeof(struct __riscv_v_ext_state));
 	memset(&dst->thread.kernel_vstate, 0, sizeof(struct __riscv_v_ext_state));

@@ -1006,6 +1006,12 @@ out_free_interp:
 	if (retval)
 		goto out_free_dentry;
 
+#ifdef arch_elf_dasics_validate
+	retval = arch_elf_dasics_validate(bprm, elf_ex, !!interpreter);
+	if (retval)
+		goto out_free_dentry;
+#endif
+
 	/* Flush all traces of the currently running executable */
 	retval = begin_new_exec(bprm);
 	if (retval)
@@ -1361,9 +1367,7 @@ out_free_interp:
 	}
 
 #ifdef arch_elf_dasics_setup
-	retval = arch_elf_dasics_setup(bprm, elf_ex, load_bias, start_data);
-	if (retval)
-		goto out;
+	arch_elf_dasics_setup(bprm, load_bias, start_data);
 #endif
 
 	regs = current_pt_regs();

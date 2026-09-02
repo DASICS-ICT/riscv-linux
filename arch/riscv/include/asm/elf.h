@@ -84,6 +84,7 @@ extern unsigned long elf_hwcap;
 #define COMPAT_ELF_PLATFORM	(NULL)
 
 #ifdef CONFIG_RISCV_DASICS
+#define arch_elf_dasics_validate	riscv_dasics_validate_elf
 #define arch_elf_dasics_setup	riscv_dasics_setup_elf
 #endif
 

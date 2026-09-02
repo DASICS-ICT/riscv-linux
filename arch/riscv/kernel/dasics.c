@@ -22,14 +22,12 @@ static bool riscv_dasics_ready;
 #define DASICS_SUPERVISOR_MASK_TOTAL	9UL
 
 #define DASICS_FREASON_ECALL		1UL
-#define DASICS_TEST_GETPID		306L
+#define DASICS_TEST_SYSCALL		306L
+#define DASICS_LINUX_CONTROL_MAGIC	0x4441534943534c58UL
+#define DASICS_LINUX_QUERY_UMAINCFG	0x515259UL
+#define DASICS_LINUX_ENABLE_CUET		0x43554554UL
 
-#define DASICS_COMPLETE_MAGIC		0x4644494150504354UL
-#define DASICS_COMPLETE_SET		0x534554UL
-#define DASICS_COMPLETE_RESTORE		0x525354UL
-#define DASICS_COMPLETE_STAGE_A		0UL
-#define DASICS_COMPLETE_STAGE_B		1UL
-#define DASICS_COMPLETE_STAGE_RESTORE	2UL
+#define DASICS_EXEC_OPTION		"-dasics"
 
 #define DASICS_MAINCFG_MAGIC		0x4644494d43464755UL
 #define DASICS_MAINCFG_ARM		0x41524dUL
@@ -180,35 +178,20 @@ static void riscv_dasics_clear_hw(void)
 	riscv_dasics_restore_hw(&empty);
 }
 
-struct riscv_dasics_elf_sections {
-	bool have_text;
-	bool have_ulib_text;
-	bool have_freezone;
-	unsigned long text_lo;
-	unsigned long text_hi;
-	unsigned long ulib_text_lo;
-	unsigned long ulib_text_hi;
-	unsigned long freezone_lo;
-	unsigned long freezone_hi;
-};
-
 static bool riscv_dasics_section_range(const struct elf_shdr *section,
-				       unsigned long load_bias,
 				       unsigned long *lo,
 				       unsigned long *hi)
 {
-	if (section->sh_addr > ULONG_MAX - load_bias)
-		return false;
-	*lo = section->sh_addr + load_bias;
+	*lo = section->sh_addr;
 	if (section->sh_size > ULONG_MAX - *lo)
 		return false;
 	*hi = *lo + section->sh_size;
-	return true;
+	return *hi <= ULONG_MAX - 7UL;
 }
 
 static int riscv_dasics_read_elf_sections(
 	struct linux_binprm *bprm, const struct elfhdr *elf_ex,
-	unsigned long load_bias, struct riscv_dasics_elf_sections *result)
+	struct riscv_dasics_elf_sections *result)
 {
 	const struct elf_shdr *string_section;
 	struct elf_shdr *sections;
@@ -275,7 +258,13 @@ static int riscv_dasics_read_elf_sections(
 		    strcmp(name, ".ulibtext") &&
 		    strcmp(name, ".ufreezonetext"))
 			continue;
-		if (!riscv_dasics_section_range(section, load_bias, &lo, &hi)) {
+		if (!(section->sh_flags & SHF_EXECINSTR) ||
+		    (!strcmp(name, ".text") ? section->sh_size < 4 :
+					     !section->sh_size)) {
+			ret = -ENOEXEC;
+			goto out_names;
+		}
+		if (!riscv_dasics_section_range(section, &lo, &hi)) {
 			ret = -ENOEXEC;
 			goto out_names;
 		}
@@ -315,48 +304,86 @@ static unsigned long riscv_dasics_align_up(unsigned long value)
 	return (value + 7UL) & ~7UL;
 }
 
-int riscv_dasics_setup_elf(struct linux_binprm *bprm,
-			   const void *elf_header, unsigned long load_bias,
-			   unsigned long start_data)
+int riscv_dasics_prepare_exec(struct linux_binprm *bprm,
+			      const char __user *last_arg)
 {
-	const struct elfhdr *elf_ex = elf_header;
-	struct riscv_dasics_elf_sections sections = { };
-	struct riscv_dasics_state *state = &current->thread.dasics;
-	struct riscv_dasics_hw_state *hw = &state->hw;
-	const char *name = kbasename(bprm->filename);
-	int ret;
+	char option[sizeof(DASICS_EXEC_OPTION)];
+	long length;
 
-	memset(state, 0, sizeof(*state));
-	if (strncmp(name, "dasics-test-", strlen("dasics-test-")))
+	if (bprm->argc < 2)
+		return 0;
+	if (IS_ERR(last_arg))
+		return PTR_ERR(last_arg);
+	if (!last_arg)
+		return -EFAULT;
+
+	length = strncpy_from_user(option, last_arg, sizeof(option));
+	if (length < 0)
+		return length;
+	if (length != sizeof(option) - 1 ||
+	    memcmp(option, DASICS_EXEC_OPTION, sizeof(option)))
 		return 0;
 
-	ret = riscv_dasics_read_elf_sections(bprm, elf_ex, load_bias,
-					     &sections);
+	bprm->argc--;
+	bprm->dasics.requested = true;
+	return 0;
+}
+
+int riscv_dasics_validate_elf(struct linux_binprm *bprm,
+			      const void *elf_header, bool has_interpreter)
+{
+	const struct elfhdr *elf_ex = elf_header;
+	int ret;
+
+	if (!bprm->dasics.requested)
+		return 0;
+	if (elf_ex->e_ident[EI_CLASS] != ELFCLASS64)
+		return -ENOEXEC;
+	if (bprm->interp != bprm->filename)
+		return -ENOEXEC;
+	/* The opt-in contract currently supports fixed-address static ELFs. */
+	if (has_interpreter || elf_ex->e_type != ET_EXEC)
+		return -ENOEXEC;
+
+	ret = riscv_dasics_read_elf_sections(bprm, elf_ex,
+					     &bprm->dasics.sections);
 	if (ret)
 		return ret;
 
+	bprm->dasics.validated = true;
+	return 0;
+}
+
+void riscv_dasics_setup_elf(struct linux_binprm *bprm,
+			    unsigned long load_bias, unsigned long start_data)
+{
+	struct riscv_dasics_elf_sections sections = bprm->dasics.sections;
+	struct riscv_dasics_state *state = &current->thread.dasics;
+	struct riscv_dasics_hw_state *hw = &state->hw;
+
+	memset(state, 0, sizeof(*state));
+	if (!bprm->dasics.validated)
+		return;
+
+	sections.text_lo += load_bias;
+	sections.text_hi += load_bias;
+	if (sections.have_ulib_text) {
+		sections.ulib_text_lo += load_bias;
+		sections.ulib_text_hi += load_bias;
+	}
+	if (sections.have_freezone) {
+		sections.freezone_lo += load_bias;
+		sections.freezone_hi += load_bias;
+	}
+
 	state->metadata.enabled = true;
-	state->metadata.ecall_close =
-		!strcmp(name, "dasics-test-ecall-close-smoke");
-	state->metadata.complete_app =
-		!strcmp(name, "dasics-test-rwx") ||
-		!strcmp(name, "dasics-test-jump") ||
-		!strcmp(name, "dasics-test-ofb") ||
-		!strcmp(name, "dasics-test-free") ||
-		!strcmp(name, "dasics-test-syscall");
-	state->metadata.maincfg_toggle =
-		!strcmp(name, "dasics-test-maincfg-toggle-smoke");
 	state->metadata.text_lo = sections.text_lo;
 	state->metadata.text_hi = sections.text_hi;
 	state->metadata.ulib_text_lo = sections.ulib_text_lo;
 	state->metadata.ulib_text_hi = sections.ulib_text_hi;
-	state->metadata.freezone_lo = sections.freezone_lo;
-	state->metadata.freezone_hi = sections.freezone_hi;
 	state->metadata.start_data = start_data;
 
 	hw->umain_cfg = RISCV_DASICS_UMAIN_UENA;
-	if (state->metadata.ecall_close)
-		hw->umain_cfg |= RISCV_DASICS_UMAIN_CUET;
 	hw->umain_bound_lo = riscv_dasics_align_down(sections.text_lo);
 	hw->umain_bound_hi = riscv_dasics_align_up(sections.text_hi);
 
@@ -388,13 +415,11 @@ int riscv_dasics_setup_elf(struct linux_binprm *bprm,
 		}
 	}
 
-	pr_info("DASICS_ELF_SETUP name=%s text=[0x%lx,0x%lx) "
+	pr_info("DASICS_ELF_SETUP text=[0x%lx,0x%lx) "
 		"ulib=[0x%lx,0x%lx) freezone=[0x%lx,0x%lx)\n",
-		name, sections.text_lo, sections.text_hi,
+		sections.text_lo, sections.text_hi,
 		sections.ulib_text_lo, sections.ulib_text_hi,
 		sections.freezone_lo, sections.freezone_hi);
-
-	return 0;
 }
 
 static unsigned long riscv_dasics_read_lib_bound_lo(unsigned int index)
@@ -568,75 +593,6 @@ static bool riscv_dasics_pc_is_trusted(const struct pt_regs *regs)
 	return metadata->text_lo <= pc && pc <= metadata->text_hi - 4;
 }
 
-static void riscv_dasics_set_umain_cfg(unsigned long cfg)
-{
-	cfg &= DASICS_UMAIN_CFG_MASK;
-	current->thread.dasics.hw.umain_cfg = cfg;
-	csr_write(0x9e1, cfg);
-}
-
-static bool riscv_dasics_complete_control(struct pt_regs *regs)
-{
-	struct riscv_dasics_complete_control *control =
-		&current->thread.dasics.complete_control;
-	unsigned long cfg = csr_read(0x9e1) & DASICS_UMAIN_CFG_MASK;
-	unsigned long magic = regs->orig_a0;
-	unsigned long pid = task_pid_vnr(current);
-
-	if (magic != DASICS_COMPLETE_MAGIC)
-		return false;
-	if (!current->thread.dasics.metadata.complete_app ||
-	    regs->a2 != pid || !riscv_dasics_pc_is_trusted(regs))
-		goto failure;
-
-	if (regs->a1 == DASICS_COMPLETE_SET &&
-	    regs->a3 == DASICS_COMPLETE_STAGE_A &&
-	    regs->a4 == 0) {
-		if (control->active || cfg != RISCV_DASICS_UMAIN_UENA)
-			goto failure;
-		control->pid = pid;
-		control->saved_cfg = cfg;
-		control->next_stage = DASICS_COMPLETE_STAGE_B;
-		control->active = true;
-		riscv_dasics_set_umain_cfg(0);
-		regs->a0 = 0;
-		return true;
-	}
-
-	if (regs->a1 == DASICS_COMPLETE_SET &&
-	    regs->a3 == DASICS_COMPLETE_STAGE_B &&
-	    regs->a4 == RISCV_DASICS_UMAIN_UENA) {
-		if (!control->active || control->pid != pid ||
-		    control->next_stage != DASICS_COMPLETE_STAGE_B ||
-		    cfg != 0)
-			goto failure;
-		control->next_stage = DASICS_COMPLETE_STAGE_RESTORE;
-		riscv_dasics_set_umain_cfg(RISCV_DASICS_UMAIN_UENA);
-		regs->a0 = RISCV_DASICS_UMAIN_UENA;
-		return true;
-	}
-
-	if (regs->a1 == DASICS_COMPLETE_RESTORE &&
-	    regs->a3 == DASICS_COMPLETE_STAGE_RESTORE &&
-	    regs->a4 == RISCV_DASICS_UMAIN_UENA) {
-		if (!control->active || control->pid != pid ||
-		    control->next_stage != DASICS_COMPLETE_STAGE_RESTORE ||
-		    cfg != RISCV_DASICS_UMAIN_UENA)
-			goto failure;
-		riscv_dasics_set_umain_cfg(control->saved_cfg);
-		memset(control, 0, sizeof(*control));
-		regs->a0 = csr_read(0x9e1) & DASICS_UMAIN_CFG_MASK;
-		return true;
-	}
-
-failure:
-	pr_err("DASICS_COMPLETE_APP_CONTROL version=1 pid=%lu stage=%lu "
-	       "value=0x%lx cfg=0x%lx result=FAIL\n",
-	       pid, regs->a3, regs->a4, cfg);
-	regs->a0 = -1UL;
-	return true;
-}
-
 static enum riscv_dasics_maincfg_operation
 riscv_dasics_maincfg_operation(unsigned long step)
 {
@@ -693,8 +649,21 @@ static bool riscv_dasics_range_contains(unsigned long lo, unsigned long hi,
 
 static bool riscv_dasics_maincfg_process_matches(unsigned long pid)
 {
-	return current->thread.dasics.metadata.maincfg_toggle &&
+	return current->thread.dasics.metadata.enabled &&
 	       task_pid_vnr(current) == pid;
+}
+
+static void riscv_dasics_maincfg_restore(void)
+{
+	struct riscv_dasics_state *state = &current->thread.dasics;
+	struct riscv_dasics_maincfg_control *control =
+		&state->maincfg_control;
+
+	if (control->active) {
+		state->hw = control->saved_hw;
+		riscv_dasics_restore_hw(&state->hw);
+	}
+	memset(control, 0, sizeof(*control));
 }
 
 static bool riscv_dasics_maincfg_protocol_failure(struct pt_regs *regs,
@@ -703,6 +672,7 @@ static bool riscv_dasics_maincfg_protocol_failure(struct pt_regs *regs,
 	pr_err("DASICS_MAINCFG_TOGGLE_PROTOCOL version=1 pid=%d step=%lu "
 	       "detail=%s result=FAIL\n",
 	       task_pid_vnr(current), regs->a3, detail);
+	riscv_dasics_maincfg_restore();
 	regs->a0 = -1UL;
 	return true;
 }
@@ -815,8 +785,9 @@ static int riscv_dasics_maincfg_initialize_operand(
 
 static bool riscv_dasics_maincfg_arm(struct pt_regs *regs)
 {
+	struct riscv_dasics_state *state = &current->thread.dasics;
 	struct riscv_dasics_maincfg_control *control =
-		&current->thread.dasics.maincfg_control;
+		&state->maincfg_control;
 	unsigned long step = regs->a3;
 	enum riscv_dasics_maincfg_operation operation;
 	enum riscv_dasics_maincfg_stage stage;
@@ -830,6 +801,9 @@ static bool riscv_dasics_maincfg_arm(struct pt_regs *regs)
 			return riscv_dasics_maincfg_protocol_failure(
 				regs, "arm-active-state");
 		memset(control, 0, sizeof(*control));
+		riscv_dasics_save_hw(&control->saved_hw);
+		riscv_dasics_restore_hw(&control->saved_hw);
+		state->hw = control->saved_hw;
 		control->active = true;
 		control->pid = regs->a2;
 	}
@@ -960,6 +934,7 @@ static bool riscv_dasics_maincfg_report(struct pt_regs *regs)
 {
 	struct riscv_dasics_maincfg_control *control =
 		&current->thread.dasics.maincfg_control;
+	unsigned long pid = control->pid;
 	unsigned long step = regs->a3;
 	enum riscv_dasics_maincfg_operation operation;
 	enum riscv_dasics_maincfg_stage stage;
@@ -1033,10 +1008,10 @@ static bool riscv_dasics_maincfg_report(struct pt_regs *regs)
 			"failed=%lu result=%s\n",
 			control->failures,
 			control->failures ? "FAIL" : "PASS");
-		control->active = false;
+		riscv_dasics_maincfg_restore();
 	}
 
-	regs->a0 = passed ? control->pid : -1UL;
+	regs->a0 = passed ? pid : -1UL;
 	return true;
 }
 
@@ -1045,9 +1020,6 @@ static bool riscv_dasics_maincfg_syscall(struct pt_regs *regs)
 	struct riscv_dasics_maincfg_control *control =
 		&current->thread.dasics.maincfg_control;
 	unsigned long source_pc = regs->epc - 4;
-
-	if (!current->thread.dasics.metadata.maincfg_toggle)
-		return false;
 
 	if (control->active && control->armed &&
 	    riscv_dasics_maincfg_process_matches(control->pid) &&
@@ -1078,15 +1050,54 @@ static bool riscv_dasics_maincfg_syscall(struct pt_regs *regs)
 		regs, "control-command");
 }
 
+static bool riscv_dasics_linux_control_syscall(struct pt_regs *regs)
+{
+	struct riscv_dasics_state *state = &current->thread.dasics;
+	unsigned long cfg;
+
+	if (regs->orig_a0 != DASICS_LINUX_CONTROL_MAGIC)
+		return false;
+	if (regs->a2 || regs->a3 || regs->a4 || regs->a5 || regs->a6) {
+		regs->a0 = -EINVAL;
+		return true;
+	}
+
+	if (regs->a1 == DASICS_LINUX_QUERY_UMAINCFG) {
+		regs->a0 = csr_read(0x9e1) & DASICS_UMAIN_CFG_MASK;
+		return true;
+	}
+	if (regs->a1 != DASICS_LINUX_ENABLE_CUET) {
+		regs->a0 = -EINVAL;
+		return true;
+	}
+
+	cfg = csr_read(0x9e1) & DASICS_UMAIN_CFG_MASK;
+	/* Trusted main may add CUET, but this interface never changes UENA. */
+	if (!state->metadata.enabled ||
+	    !riscv_dasics_pc_is_trusted(regs) ||
+	    state->maincfg_control.active ||
+	    cfg != RISCV_DASICS_UMAIN_UENA) {
+		regs->a0 = -EPERM;
+		return true;
+	}
+
+	cfg |= RISCV_DASICS_UMAIN_CUET;
+	state->hw.umain_cfg = cfg;
+	csr_write(0x9e1, cfg);
+	regs->a0 = cfg;
+	return true;
+}
+
 static bool riscv_dasics_maincfg_fault(struct pt_regs *regs)
 {
 	struct riscv_dasics_maincfg_control *control =
 		&current->thread.dasics.maincfg_control;
 	enum riscv_dasics_maincfg_operation operation;
+	unsigned long recovery;
 
-	if (!current->thread.dasics.metadata.maincfg_toggle)
+	if (!control->active)
 		return false;
-	if (!control->active || !control->armed ||
+	if (!control->armed ||
 	    !riscv_dasics_maincfg_process_matches(control->pid)) {
 		riscv_dasics_maincfg_protocol_failure(regs, "fdi-unarmed");
 		regs->epc += 4;
@@ -1094,22 +1105,23 @@ static bool riscv_dasics_maincfg_fault(struct pt_regs *regs)
 	}
 
 	operation = riscv_dasics_maincfg_operation(control->armed_step);
+	recovery = control->recovery[operation];
 	if (regs->epc != control->source[operation]) {
 		riscv_dasics_maincfg_protocol_failure(regs, "fdi-source");
-		regs->epc = control->recovery[operation];
+		regs->epc = recovery;
 		return true;
 	}
 	if (control->actual.seen) {
 		riscv_dasics_maincfg_protocol_failure(
 			regs, "fdi-duplicate-event");
-		regs->epc = control->recovery[operation];
+		regs->epc = recovery;
 		return true;
 	}
 
 	riscv_dasics_maincfg_capture(regs, regs->epc,
 				     DASICS_MAINCFG_EVENT_FDI);
 	if (operation == DASICS_MAINCFG_JUMP)
-		regs->epc = control->recovery[operation];
+		regs->epc = recovery;
 	else
 		regs->epc += 4;
 	return true;
@@ -1117,13 +1129,14 @@ static bool riscv_dasics_maincfg_fault(struct pt_regs *regs)
 
 bool riscv_dasics_handle_syscall(struct pt_regs *regs, long syscall)
 {
-	if (!current->thread.dasics.metadata.enabled ||
-	    syscall != DASICS_TEST_GETPID)
+	if (syscall != DASICS_TEST_SYSCALL)
+		return false;
+	if (riscv_dasics_linux_control_syscall(regs))
+		return true;
+	if (!current->thread.dasics.metadata.enabled)
 		return false;
 
 	if (riscv_dasics_maincfg_syscall(regs))
-		return true;
-	if (riscv_dasics_complete_control(regs))
 		return true;
 	regs->a0 = task_pid_vnr(current);
 	return true;
@@ -1138,8 +1151,25 @@ void riscv_dasics_clear_task(struct task_struct *task)
 
 void riscv_dasics_prepare_copy(struct task_struct *task)
 {
-	if (task == current && READ_ONCE(riscv_dasics_ready))
+	if (task == current && READ_ONCE(riscv_dasics_ready)) {
 		riscv_dasics_save_hw(&task->thread.dasics.hw);
+		/* Saving disables checking; restore it before fork continues. */
+		riscv_dasics_restore_hw(&task->thread.dasics.hw);
+	}
+}
+
+void riscv_dasics_finish_copy(struct task_struct *task)
+{
+	struct riscv_dasics_state *state = &task->thread.dasics;
+	struct riscv_dasics_maincfg_control *control =
+		&state->maincfg_control;
+
+	if (!control->active)
+		return;
+
+	/* A child must not resume the parent's in-flight test transaction. */
+	state->hw = control->saved_hw;
+	memset(control, 0, sizeof(*control));
 }
 
 void riscv_dasics_start_thread(struct task_struct *task)

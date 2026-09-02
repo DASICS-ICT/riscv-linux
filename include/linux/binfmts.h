@@ -66,6 +66,11 @@ struct linux_binprm {
 	int execfd;		/* File descriptor of the executable */
 	unsigned long exec;
 
+#ifdef CONFIG_RISCV_DASICS
+	/* Keep DASICS validation local to this exec until it is committed. */
+	struct riscv_dasics_exec_state dasics;
+#endif
+
 	struct rlimit rlim_stack; /* Saved RLIMIT_STACK used during exec. */
 
 	char buf[BINPRM_BUF_SIZE];

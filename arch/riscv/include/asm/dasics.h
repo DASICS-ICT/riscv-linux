@@ -33,23 +33,11 @@ struct riscv_dasics_hw_state {
 
 struct riscv_dasics_metadata {
 	bool enabled;
-	bool ecall_close;
-	bool complete_app;
-	bool maincfg_toggle;
 	unsigned long text_lo;
 	unsigned long text_hi;
 	unsigned long ulib_text_lo;
 	unsigned long ulib_text_hi;
-	unsigned long freezone_lo;
-	unsigned long freezone_hi;
 	unsigned long start_data;
-};
-
-struct riscv_dasics_complete_control {
-	unsigned long pid;
-	unsigned long saved_cfg;
-	unsigned long next_stage;
-	bool active;
 };
 
 struct riscv_dasics_maincfg_actual {
@@ -68,6 +56,8 @@ struct riscv_dasics_maincfg_control {
 	unsigned long source[4];
 	unsigned long operand[4];
 	unsigned long recovery[4];
+	/* Full task state outside the transient MainCfg test sequence. */
+	struct riscv_dasics_hw_state saved_hw;
 	unsigned long armed_step;
 	struct riscv_dasics_maincfg_actual actual;
 	unsigned long failures;
@@ -78,7 +68,6 @@ struct riscv_dasics_maincfg_control {
 struct riscv_dasics_state {
 	struct riscv_dasics_hw_state hw;
 	struct riscv_dasics_metadata metadata;
-	struct riscv_dasics_complete_control complete_control;
 	struct riscv_dasics_maincfg_control maincfg_control;
 };
 
@@ -88,13 +77,15 @@ struct task_struct;
 
 #ifdef CONFIG_RISCV_DASICS
 void riscv_dasics_clear_task(struct task_struct *task);
-int riscv_dasics_setup_elf(struct linux_binprm *bprm,
-			   const void *elf_header, unsigned long load_bias,
-			   unsigned long start_data);
+int riscv_dasics_validate_elf(struct linux_binprm *bprm,
+			      const void *elf_header, bool has_interpreter);
+void riscv_dasics_setup_elf(struct linux_binprm *bprm,
+			    unsigned long load_bias, unsigned long start_data);
 bool riscv_dasics_handle_fault(struct pt_regs *regs);
 bool riscv_dasics_handle_illegal(struct pt_regs *regs);
 bool riscv_dasics_handle_syscall(struct pt_regs *regs, long syscall);
 void riscv_dasics_prepare_copy(struct task_struct *task);
+void riscv_dasics_finish_copy(struct task_struct *task);
 void riscv_dasics_start_thread(struct task_struct *task);
 void riscv_dasics_switch(struct task_struct *prev, struct task_struct *next);
 #else
@@ -113,6 +104,7 @@ static inline bool riscv_dasics_handle_syscall(struct pt_regs *regs,
 	return false;
 }
 static inline void riscv_dasics_prepare_copy(struct task_struct *task) { }
+static inline void riscv_dasics_finish_copy(struct task_struct *task) { }
 static inline void riscv_dasics_start_thread(struct task_struct *task) { }
 static inline void riscv_dasics_switch(struct task_struct *prev,
 				       struct task_struct *next) { }

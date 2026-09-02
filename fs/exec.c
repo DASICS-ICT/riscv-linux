@@ -1824,6 +1824,13 @@ static int do_execveat_common(int fd, struct filename *filename,
 		goto out_free;
 	bprm->envc = retval;
 
+#ifdef arch_bprm_prepare_exec
+	retval = arch_bprm_prepare_exec(bprm, bprm->argc >= 2 ?
+		get_user_arg_ptr(argv, bprm->argc - 1) : NULL);
+	if (retval < 0)
+		goto out_free;
+#endif
+
 	retval = bprm_stack_limits(bprm);
 	if (retval < 0)
 		goto out_free;
