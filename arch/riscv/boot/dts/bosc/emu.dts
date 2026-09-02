@@ -115,7 +115,7 @@
 	};
 
 	chosen {
-		bootargs = "console=ttyS0,115200 earlycon";
+		bootargs = "console=hvc0 earlycon=sbi";
 		stdout-path = "serial0:115200n8";
 	};
 

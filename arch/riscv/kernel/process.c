@@ -241,6 +241,7 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 	/* p->thread holds context to be restored by __switch_to() */
 	if (unlikely(args->fn)) {
 		/* Kernel thread */
+		riscv_dasics_clear_task(p);
 		memset(childregs, 0, sizeof(struct pt_regs));
 		/* Supervisor/Machine, irqs on: */
 		childregs->status = SR_PP | SR_PIE;

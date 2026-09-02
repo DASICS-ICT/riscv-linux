@@ -24,9 +24,22 @@ static bool riscv_dasics_ready;
 #define DASICS_FREASON_ECALL		1UL
 #define DASICS_TEST_GETPID		306L
 
+#define DASICS_CSR_USTATUS		0x000
+#define DASICS_CSR_UIE			0x004
+#define DASICS_CSR_UTVEC		0x005
+#define DASICS_CSR_SEDELEG		0x102
+#define DASICS_CSR_SIDELEG		0x103
+#define DASICS_CSR_USCRATCH		0x040
+#define DASICS_CSR_UEPC			0x041
+#define DASICS_CSR_UCAUSE		0x042
+#define DASICS_CSR_UTVAL		0x043
+#define DASICS_CSR_UIP			0x044
+#define DASICS_UCHECK_DELEG_BIT		(1UL << 24)
+
 #define DASICS_COMPLETE_MAGIC		0x4644494150504354UL
 #define DASICS_COMPLETE_SET		0x534554UL
 #define DASICS_COMPLETE_RESTORE		0x525354UL
+#define DASICS_COMPLETE_QUERY		0x515259UL
 #define DASICS_COMPLETE_STAGE_A		0UL
 #define DASICS_COMPLETE_STAGE_B		1UL
 #define DASICS_COMPLETE_STAGE_RESTORE	2UL
@@ -80,6 +93,35 @@ static const unsigned long riscv_dasics_maincfg_open_cfg[] = {
 };
 
 static bool riscv_dasics_maincfg_fault(struct pt_regs *regs);
+
+#ifdef CONFIG_RISCV_DASICS_N_EXTENSION
+static void riscv_dasics_save_n_hw(struct riscv_dasics_n_hw_state *state)
+{
+	state->ustatus = csr_read(DASICS_CSR_USTATUS);
+	state->uie = csr_read(DASICS_CSR_UIE);
+	state->utvec = csr_read(DASICS_CSR_UTVEC);
+	state->uscratch = csr_read(DASICS_CSR_USCRATCH);
+	state->uepc = csr_read(DASICS_CSR_UEPC);
+	state->ucause = csr_read(DASICS_CSR_UCAUSE);
+	state->utval = csr_read(DASICS_CSR_UTVAL);
+	state->uip = csr_read(DASICS_CSR_UIP);
+}
+
+static void riscv_dasics_restore_n_hw(
+	const struct riscv_dasics_n_hw_state *state)
+{
+	/* Keep HU interrupts disabled until the remaining user state is ready. */
+	csr_write(DASICS_CSR_USTATUS, 0);
+	csr_write(DASICS_CSR_UIE, state->uie);
+	csr_write(DASICS_CSR_UTVEC, state->utvec);
+	csr_write(DASICS_CSR_USCRATCH, state->uscratch);
+	csr_write(DASICS_CSR_UEPC, state->uepc);
+	csr_write(DASICS_CSR_UCAUSE, state->ucause);
+	csr_write(DASICS_CSR_UTVAL, state->utval);
+	csr_write(DASICS_CSR_UIP, state->uip);
+	csr_write(DASICS_CSR_USTATUS, state->ustatus);
+}
+#endif
 
 #define DASICS_SAVE_BOUND(index, lo_csr, hi_csr) do {		\
 		state->lib_bound_lo[index] = csr_read(lo_csr);	\
@@ -179,6 +221,15 @@ static void riscv_dasics_clear_hw(void)
 
 	riscv_dasics_restore_hw(&empty);
 }
+
+#ifdef CONFIG_RISCV_DASICS_N_EXTENSION
+static void riscv_dasics_clear_n_hw(void)
+{
+	static const struct riscv_dasics_n_hw_state empty;
+
+	riscv_dasics_restore_n_hw(&empty);
+}
+#endif
 
 struct riscv_dasics_elf_sections {
 	bool have_text;
@@ -343,7 +394,8 @@ int riscv_dasics_setup_elf(struct linux_binprm *bprm,
 		!strcmp(name, "dasics-test-jump") ||
 		!strcmp(name, "dasics-test-ofb") ||
 		!strcmp(name, "dasics-test-free") ||
-		!strcmp(name, "dasics-test-syscall");
+		!strcmp(name, "dasics-test-syscall") ||
+		!strcmp(name, "dasics-test-interactive-protection-demo");
 	state->metadata.maincfg_toggle =
 		!strcmp(name, "dasics-test-maincfg-toggle-smoke");
 	state->metadata.text_lo = sections.text_lo;
@@ -588,6 +640,11 @@ static bool riscv_dasics_complete_control(struct pt_regs *regs)
 	if (!current->thread.dasics.metadata.complete_app ||
 	    regs->a2 != pid || !riscv_dasics_pc_is_trusted(regs))
 		goto failure;
+
+	if (regs->a1 == DASICS_COMPLETE_QUERY && !regs->a3 && !regs->a4) {
+		regs->a0 = cfg;
+		return true;
+	}
 
 	if (regs->a1 == DASICS_COMPLETE_SET &&
 	    regs->a3 == DASICS_COMPLETE_STAGE_A &&
@@ -1132,20 +1189,34 @@ bool riscv_dasics_handle_syscall(struct pt_regs *regs, long syscall)
 void riscv_dasics_clear_task(struct task_struct *task)
 {
 	memset(&task->thread.dasics, 0, sizeof(task->thread.dasics));
-	if (task == current && READ_ONCE(riscv_dasics_ready))
+	if (task == current && READ_ONCE(riscv_dasics_ready)) {
+#ifdef CONFIG_RISCV_DASICS_N_EXTENSION
+		riscv_dasics_clear_n_hw();
+#endif
 		riscv_dasics_clear_hw();
+	}
 }
 
 void riscv_dasics_prepare_copy(struct task_struct *task)
 {
-	if (task == current && READ_ONCE(riscv_dasics_ready))
+	if (task == current && READ_ONCE(riscv_dasics_ready)) {
 		riscv_dasics_save_hw(&task->thread.dasics.hw);
+#ifdef CONFIG_RISCV_DASICS_N_EXTENSION
+		riscv_dasics_save_n_hw(&task->thread.dasics.n_hw);
+		riscv_dasics_restore_n_hw(&task->thread.dasics.n_hw);
+#endif
+		riscv_dasics_restore_hw(&task->thread.dasics.hw);
+	}
 }
 
 void riscv_dasics_start_thread(struct task_struct *task)
 {
-	if (READ_ONCE(riscv_dasics_ready))
+	if (READ_ONCE(riscv_dasics_ready)) {
+#ifdef CONFIG_RISCV_DASICS_N_EXTENSION
+		riscv_dasics_restore_n_hw(&task->thread.dasics.n_hw);
+#endif
 		riscv_dasics_restore_hw(&task->thread.dasics.hw);
+	}
 }
 
 void riscv_dasics_switch(struct task_struct *prev, struct task_struct *next)
@@ -1154,6 +1225,10 @@ void riscv_dasics_switch(struct task_struct *prev, struct task_struct *next)
 		return;
 
 	riscv_dasics_save_hw(&prev->thread.dasics.hw);
+#ifdef CONFIG_RISCV_DASICS_N_EXTENSION
+	riscv_dasics_save_n_hw(&prev->thread.dasics.n_hw);
+	riscv_dasics_restore_n_hw(&next->thread.dasics.n_hw);
+#endif
 	riscv_dasics_restore_hw(&next->thread.dasics.hw);
 }
 
@@ -1343,8 +1418,26 @@ static unsigned long dasics_supervisor_smoke(void)
 
 static void riscv_dasics_enable_cpu(void *unused)
 {
+#ifdef CONFIG_RISCV_DASICS_N_EXTENSION
+	unsigned long sedeleg;
+	unsigned long sideleg;
+	bool delegation_ok;
+#endif
+
 	csr_set(0x10c, DASICS_SSTATEEN0_CUSTOM_CSR);
 	riscv_dasics_clear_hw();
+#ifdef CONFIG_RISCV_DASICS_N_EXTENSION
+	riscv_dasics_clear_n_hw();
+	csr_write(DASICS_CSR_SIDELEG, 0);
+	csr_write(DASICS_CSR_SEDELEG, DASICS_UCHECK_DELEG_BIT);
+	sedeleg = csr_read(DASICS_CSR_SEDELEG);
+	sideleg = csr_read(DASICS_CSR_SIDELEG);
+	delegation_ok = sedeleg == DASICS_UCHECK_DELEG_BIT && !sideleg;
+	pr_info("DASICS_N_EXTENSION_DELEGATION version=1 cpu=%u "
+		"sedeleg=0x%lx sideleg=0x%lx result=%s\n",
+		smp_processor_id(), sedeleg, sideleg,
+		delegation_ok ? "PASS" : "FAIL");
+#endif
 }
 
 static int __init riscv_dasics_init(void)
