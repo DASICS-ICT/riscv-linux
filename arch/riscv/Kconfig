@@ -404,6 +404,20 @@ config RISCV_DASICS
 
 	  This kernel is not portable to RISC-V systems without DASICS.
 
+config RISCV_DASICS_N_EXTENSION
+	bool "Delegate DASICS user-check faults to HU mode"
+	depends on RISCV_DASICS
+	help
+	  Delegate DASICS user-check faults (exception cause 24) from HS mode
+	  to HU mode through sedeleg, while keeping sideleg clear. The kernel
+	  also saves and restores the standard N-extension user CSRs as part
+	  of each process's architectural state.
+
+	  This option supports HS/HU operation only. N-extension support for
+	  VS/VU operation is not provided.
+
+	  Say N to retain the legacy Linux HS-mode DASICS fault handler.
+
 choice
 	prompt "Base ISA"
 	default ARCH_RV64I

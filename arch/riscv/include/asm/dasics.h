@@ -31,6 +31,19 @@ struct riscv_dasics_hw_state {
 	unsigned long umain_bound_hi;
 };
 
+#ifdef CONFIG_RISCV_DASICS_N_EXTENSION
+struct riscv_dasics_n_hw_state {
+	unsigned long ustatus;
+	unsigned long uie;
+	unsigned long utvec;
+	unsigned long uscratch;
+	unsigned long uepc;
+	unsigned long ucause;
+	unsigned long utval;
+	unsigned long uip;
+};
+#endif
+
 struct riscv_dasics_metadata {
 	bool enabled;
 	unsigned long text_lo;
@@ -67,6 +80,9 @@ struct riscv_dasics_maincfg_control {
 
 struct riscv_dasics_state {
 	struct riscv_dasics_hw_state hw;
+#ifdef CONFIG_RISCV_DASICS_N_EXTENSION
+	struct riscv_dasics_n_hw_state n_hw;
+#endif
 	struct riscv_dasics_metadata metadata;
 	struct riscv_dasics_maincfg_control maincfg_control;
 };

@@ -195,6 +195,7 @@ void flush_thread(void)
 
 void arch_release_task_struct(struct task_struct *tsk)
 {
+	riscv_dasics_clear_task(tsk);
 	/* Free the vector context of datap. */
 	if (has_vector() || has_xtheadvector())
 		riscv_v_thread_free(tsk);
@@ -242,6 +243,7 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 	/* p->thread holds context to be restored by __switch_to() */
 	if (unlikely(args->fn)) {
 		/* Kernel thread */
+		riscv_dasics_clear_task(p);
 		memset(childregs, 0, sizeof(struct pt_regs));
 		/* Supervisor/Machine, irqs on: */
 		childregs->status = SR_PP | SR_PIE;

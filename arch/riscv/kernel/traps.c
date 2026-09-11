@@ -351,7 +351,16 @@ void do_trap_dasics_ucheck(struct pt_regs *regs)
 		irqentry_enter_from_user_mode(regs);
 		local_irq_enable();
 
-		if (!riscv_dasics_handle_fault(regs))
+#ifdef CONFIG_RISCV_DASICS_N_EXTENSION
+		pr_info("DASICS_N_EXTENSION_KERNEL_TRAP_HANDLER version=1 "
+			"origin=user cause=0x%lx epc=0x%lx tval=0x%lx "
+			"pid=%d comm=%s\n",
+			regs->cause, regs->epc, regs->badaddr,
+			task_pid_nr(current), current->comm);
+#endif
+		/* N-profile faults must be recovered by the user trap handler. */
+		if (IS_ENABLED(CONFIG_RISCV_DASICS_N_EXTENSION) ||
+		    !riscv_dasics_handle_fault(regs))
 			do_trap_error(regs, SIGSEGV, SEGV_ACCERR, regs->badaddr,
 				      "Oops - DASICS user check fault");
 
