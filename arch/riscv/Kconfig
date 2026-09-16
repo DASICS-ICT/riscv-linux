@@ -404,6 +404,13 @@ config RISCV_DASICS
 
 	  This kernel is not portable to RISC-V systems without DASICS.
 
+config RISCV_DASICS_UTIMER
+	bool "HU cycle budget timer (CSR 0x045)"
+	depends on RISCV_DASICS_N_EXTENSION
+	help
+	  Save and restore the per-thread HU cycle timer and delegate UTIP to U.
+	  Enable only on hardware implementing the DASICS UTimer CSR.
+
 config RISCV_DASICS_N_EXTENSION
 	bool "Delegate DASICS user-check faults to HU mode"
 	depends on RISCV_DASICS

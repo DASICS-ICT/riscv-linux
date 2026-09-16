@@ -39,6 +39,8 @@ static bool riscv_dasics_ready;
 #define DASICS_CSR_UCAUSE		0x042
 #define DASICS_CSR_UTVAL		0x043
 #define DASICS_CSR_UIP			0x044
+#define DASICS_CSR_UTIMER		0x045
+#define DASICS_UTIMER_BIT		(1UL << 4)
 #define DASICS_UCHECK_DELEG_BIT		(1UL << 24)
 
 #define DASICS_MAINCFG_MAGIC		0x4644494d43464755UL
@@ -103,6 +105,10 @@ static void riscv_dasics_save_n_hw(struct riscv_dasics_n_hw_state *state)
 	state->ucause = csr_read(DASICS_CSR_UCAUSE);
 	state->utval = csr_read(DASICS_CSR_UTVAL);
 	state->uip = csr_read(DASICS_CSR_UIP);
+#ifdef CONFIG_RISCV_DASICS_UTIMER
+	state->utimer = csr_read(DASICS_CSR_UTIMER);
+	state->uip &= ~DASICS_UTIMER_BIT;
+#endif
 }
 
 static void riscv_dasics_restore_n_hw(
@@ -110,6 +116,9 @@ static void riscv_dasics_restore_n_hw(
 {
 	/* Keep HU interrupts disabled until the remaining user state is ready. */
 	csr_write(DASICS_CSR_USTATUS, 0);
+#ifdef CONFIG_RISCV_DASICS_UTIMER
+	csr_write(DASICS_CSR_UTIMER, 0);
+#endif
 	csr_write(DASICS_CSR_UIE, state->uie);
 	csr_write(DASICS_CSR_UTVEC, state->utvec);
 	csr_write(DASICS_CSR_USCRATCH, state->uscratch);
@@ -117,6 +126,9 @@ static void riscv_dasics_restore_n_hw(
 	csr_write(DASICS_CSR_UCAUSE, state->ucause);
 	csr_write(DASICS_CSR_UTVAL, state->utval);
 	csr_write(DASICS_CSR_UIP, state->uip);
+#ifdef CONFIG_RISCV_DASICS_UTIMER
+	csr_write(DASICS_CSR_UTIMER, state->utimer);
+#endif
 	csr_write(DASICS_CSR_USTATUS, state->ustatus);
 }
 #endif
@@ -1251,6 +1263,10 @@ void riscv_dasics_finish_copy(struct task_struct *task)
 	struct riscv_dasics_maincfg_control *control =
 		&state->maincfg_control;
 
+#ifdef CONFIG_RISCV_DASICS_UTIMER
+	state->n_hw.utimer = 0;
+	state->n_hw.uip &= ~DASICS_UTIMER_BIT;
+#endif
 	if (!control->active)
 		return;
 
@@ -1478,11 +1494,12 @@ static void riscv_dasics_enable_cpu(void *unused)
 	riscv_dasics_clear_hw();
 #ifdef CONFIG_RISCV_DASICS_N_EXTENSION
 	riscv_dasics_clear_n_hw();
-	csr_write(DASICS_CSR_SIDELEG, 0);
+	csr_write(DASICS_CSR_SIDELEG, IS_ENABLED(CONFIG_RISCV_DASICS_UTIMER) ? DASICS_UTIMER_BIT : 0);
 	csr_write(DASICS_CSR_SEDELEG, DASICS_UCHECK_DELEG_BIT);
 	sedeleg = csr_read(DASICS_CSR_SEDELEG);
 	sideleg = csr_read(DASICS_CSR_SIDELEG);
-	delegation_ok = sedeleg == DASICS_UCHECK_DELEG_BIT && !sideleg;
+	delegation_ok = sedeleg == DASICS_UCHECK_DELEG_BIT &&
+		sideleg == (IS_ENABLED(CONFIG_RISCV_DASICS_UTIMER) ? DASICS_UTIMER_BIT : 0);
 	pr_info("DASICS_N_EXTENSION_DELEGATION version=1 cpu=%u "
 		"sedeleg=0x%lx sideleg=0x%lx result=%s\n",
 		smp_processor_id(), sedeleg, sideleg,

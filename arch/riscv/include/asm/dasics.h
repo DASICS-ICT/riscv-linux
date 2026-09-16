@@ -41,6 +41,9 @@ struct riscv_dasics_n_hw_state {
 	unsigned long ucause;
 	unsigned long utval;
 	unsigned long uip;
+#ifdef CONFIG_RISCV_DASICS_UTIMER
+	unsigned long utimer;
+#endif
 };
 #endif
 
