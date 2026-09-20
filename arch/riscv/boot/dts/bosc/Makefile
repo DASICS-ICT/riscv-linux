@@ -29,6 +29,7 @@ dtb-$(CONFIG_SOC_XIANGSHAN) += \
 	kmh-v2-nemu.dtb \
 	nanhu-v5-1core.dtb \
 	nanhu-v5-1core-opensbi-linux-dasics-s2c19p.dtb \
+	nanhu-v5-1core-opensbi-linux-dasics-s2c19p-64m.dtb \
 	nanhu-v5-1core-uvhs.dtb \
 	nanhu-v5-1core-uvhs-ddr.dtb \
 	nanhu-v5-1core-64m.dtb \
