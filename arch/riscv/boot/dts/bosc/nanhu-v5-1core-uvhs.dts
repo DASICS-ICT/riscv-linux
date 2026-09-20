@@ -1,0 +1,23 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/* UVHS V1 VP1902, single-hart LinkNan, board clocks 50/16.2601/10 MHz. */
+#include "nanhu-v5-1core-opensbi-linux-dasics-s2c19p.dts"
+
+/ {
+	model = "bosc,nanhu-v5-1core-uvhs";
+
+	cpus {
+		/* FpgaClkDiv10 is between the board RTC and ACLINT. */
+		timebase-frequency = <1626010>;
+	};
+
+	memory@80000000 {
+		reg = <0x0 0x80000000 0x0 0x04000000>;
+	};
+};
+
+&s2c19p_uart {
+	/* AXI UART16550 uses ACLK_PERI, not the 50 MHz CPU clock. */
+	clock-frequency = <10000000>;
+	/* Divisor 11 gives 56818 baud, within 1.4% of the host's 57600. */
+	current-speed = <57600>;
+};
