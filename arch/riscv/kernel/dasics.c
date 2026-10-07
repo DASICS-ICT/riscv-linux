@@ -18,7 +18,7 @@
 static bool riscv_dasics_ready;
 
 #define DASICS_SSTATEEN0_CUSTOM_CSR	0x1UL
-#define DASICS_UMAIN_CFG_MASK		0xc3eUL
+#define DASICS_UMAIN_CFG_MASK		0x3eUL
 #define DASICS_SUPERVISOR_MASK_TOTAL	9UL
 
 #define DASICS_FREASON_ECALL		1UL
