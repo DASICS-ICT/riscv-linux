@@ -47,7 +47,8 @@ static bool riscv_dasics_ready;
 #define DASICS_MAINCFG_ARM		0x41524dUL
 #define DASICS_MAINCFG_REPORT		0x525054UL
 #define DASICS_MAINCFG_HU_REPORT		0x4855525054UL
-#define DASICS_MAINCFG_OBSERVATIONS	16UL
+/* This regression profile covers load, store and jump only. */
+#define DASICS_MAINCFG_OBSERVATIONS	12UL
 
 #define DASICS_MAINCFG_ECALL_SENTINEL	0x4543414c4c534954UL
 #define DASICS_MAINCFG_ECALL_GUARD	0x47554152444d4346UL
@@ -448,7 +449,8 @@ void riscv_dasics_setup_elf(struct linux_binprm *bprm,
 
 	hw->umain_cfg = RISCV_DASICS_UMAIN_UENA;
 	hw->umain_bound_lo = riscv_dasics_align_down(sections.text_lo);
-	hw->umain_bound_hi = riscv_dasics_align_up(sections.text_hi);
+	/* Main bounds include the final 8-byte block; ELF ranges stay half-open. */
+	hw->umain_bound_hi = riscv_dasics_align_down(sections.text_hi - 1);
 
 	if (sections.have_freezone) {
 		hw->jump_bound_lo[0] =
@@ -659,7 +661,7 @@ static bool riscv_dasics_pc_is_trusted(const struct pt_regs *regs)
 static enum riscv_dasics_maincfg_operation
 riscv_dasics_maincfg_operation(unsigned long step)
 {
-	return step / 4;
+	return DASICS_MAINCFG_LOAD + step / 4;
 }
 
 static enum riscv_dasics_maincfg_stage
@@ -766,7 +768,7 @@ static void riscv_dasics_maincfg_set_csr_state(unsigned long cfg)
 	hw->umain_bound_lo =
 		riscv_dasics_align_down(state->metadata.text_lo);
 	hw->umain_bound_hi =
-		riscv_dasics_align_up(state->metadata.text_hi);
+		riscv_dasics_align_down(state->metadata.text_hi - 1);
 	hw->freason = 5;
 	riscv_dasics_restore_hw(hw);
 }
@@ -1067,7 +1069,7 @@ static bool riscv_dasics_maincfg_report(struct pt_regs *regs)
 	control->next_step++;
 
 	if (control->next_step == DASICS_MAINCFG_OBSERVATIONS) {
-		pr_info("DASICS_MAINCFG_TOGGLE_SUMMARY version=1 total=16 "
+		pr_info("DASICS_MAINCFG_TOGGLE_SUMMARY version=1 total=12 "
 			"failed=%lu result=%s\n",
 			control->failures,
 			control->failures ? "FAIL" : "PASS");
@@ -1358,7 +1360,7 @@ static unsigned long dasics_supervisor_mask_ops(void)
 		}							\
 	} while (0)
 
-	DASICS_RUN_SUPERVISOR_OPS(0x9e1, FDIUMainCfg, 0x3eUL, 48);
+	DASICS_RUN_SUPERVISOR_OPS(0x9e1, FDIUMainCfg, DASICS_UMAIN_CFG_MASK, 48);
 	DASICS_RUN_SUPERVISOR_OPS(0x9e2, FDIUMainBoundLo, ~7UL, 49);
 	DASICS_RUN_SUPERVISOR_OPS(0x9e3, FDIUMainBoundHi, ~7UL, 50);
 #undef DASICS_RUN_SUPERVISOR_OPS
