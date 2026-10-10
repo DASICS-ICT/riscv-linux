@@ -449,8 +449,8 @@ void riscv_dasics_setup_elf(struct linux_binprm *bprm,
 
 	hw->umain_cfg = RISCV_DASICS_UMAIN_UENA;
 	hw->umain_bound_lo = riscv_dasics_align_down(sections.text_lo);
-	/* Main bounds include the final 8-byte block; ELF ranges stay half-open. */
-	hw->umain_bound_hi = riscv_dasics_align_down(sections.text_hi - 1);
+	/* Main bounds use an exclusive upper address at 8-byte granularity. */
+	hw->umain_bound_hi = riscv_dasics_align_up(sections.text_hi);
 
 	if (sections.have_freezone) {
 		hw->jump_bound_lo[0] =
@@ -768,7 +768,7 @@ static void riscv_dasics_maincfg_set_csr_state(unsigned long cfg)
 	hw->umain_bound_lo =
 		riscv_dasics_align_down(state->metadata.text_lo);
 	hw->umain_bound_hi =
-		riscv_dasics_align_down(state->metadata.text_hi - 1);
+		riscv_dasics_align_up(state->metadata.text_hi);
 	hw->freason = 5;
 	riscv_dasics_restore_hw(hw);
 }
