@@ -400,6 +400,9 @@ struct klp_modinfo {
 #endif
 
 struct module {
+#ifdef CONFIG_RISCV_DASICS_KERNEL
+	int dasics_trusted;
+#endif
 	enum module_state state;
 
 	/* Member of list of modules */

@@ -64,6 +64,14 @@
 #define MODULES_END		VMALLOC_END
 #endif
 
+#ifdef CONFIG_RISCV_DASICS_KERNEL
+/* Preserve the reference split, within the 6.18 module relocation window. */
+#define UT_MODULES_START MODULES_VADDR
+#define UT_MODULES_END (MODULES_VADDR + (MODULES_END - MODULES_VADDR) / 2)
+#define T_MODULES_START UT_MODULES_END
+#define T_MODULES_END MODULES_END
+#endif
+
 /*
  * Roughly size the vmemmap space to be large enough to fit enough
  * struct pages to map half the virtual address space. Then
