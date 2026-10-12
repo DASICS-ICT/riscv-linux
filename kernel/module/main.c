@@ -59,6 +59,10 @@
 #include <linux/codetag.h>
 #include <linux/debugfs.h>
 #include <linux/execmem.h>
+#ifdef CONFIG_RISCV_DASICS_KERNEL
+#include <linux/dasics.h>
+#include <asm/pgtable.h>
+#endif
 #include <uapi/linux/module.h>
 #include "internal.h"
 
@@ -831,8 +835,18 @@ SYSCALL_DEFINE2(delete_module, const char __user *, name_user,
 
 	mutex_unlock(&module_mutex);
 	/* Final destruction now no one is using it. */
-	if (mod->exit != NULL)
-		mod->exit();
+	if (mod->exit != NULL) {
+#ifdef CONFIG_RISCV_DASICS_KERNEL
+		if (!mod->dasics_trusted) {
+			int exit_ret = dasics_call_module_loader(mod,
+					(void *)mod->exit, false, NULL);
+			if (exit_ret)
+				pr_err("%s: isolated exit failed: %d\n",
+				       mod->name, exit_ret);
+		} else
+#endif
+			mod->exit();
+	}
 	blocking_notifier_call_chain(&module_notify_list,
 				     MODULE_STATE_GOING, mod);
 	klp_module_going(mod);
@@ -1322,11 +1336,23 @@ static int module_memory_alloc(struct module *mod, enum mod_mem_type type)
 	else
 		execmem_type = EXECMEM_MODULE_TEXT;
 
+#ifdef CONFIG_RISCV_DASICS_KERNEL
+	ptr = __vmalloc_node_range(size, 1,
+			mod->dasics_trusted ? T_MODULES_START : UT_MODULES_START,
+			mod->dasics_trusted ? T_MODULES_END : UT_MODULES_END,
+			GFP_KERNEL, PAGE_KERNEL, VM_FLUSH_RESET_PERMS,
+			NUMA_NO_NODE, __builtin_return_address(0));
+#else
 	ptr = execmem_alloc_rw(execmem_type, size);
+#endif
 	if (!ptr)
 		return -ENOMEM;
 
+#ifdef CONFIG_RISCV_DASICS_KERNEL
+	mod->mem[type].is_rox = false;
+#else
 	mod->mem[type].is_rox = execmem_is_rox(execmem_type);
+#endif
 
 	/*
 	 * The pointer to these blocks of memory are stored on the module
@@ -2954,14 +2980,25 @@ static int post_relocation(struct module *mod, const struct load_info *info)
 }
 
 /* Call module constructors. */
-static void do_mod_ctors(struct module *mod)
+static int do_mod_ctors(struct module *mod)
 {
 #ifdef CONFIG_CONSTRUCTORS
 	unsigned long i;
 
-	for (i = 0; i < mod->num_ctors; i++)
-		mod->ctors[i]();
+	for (i = 0; i < mod->num_ctors; i++) {
+#ifdef CONFIG_RISCV_DASICS_KERNEL
+		if (!mod->dasics_trusted) {
+			int ret = dasics_call_module_loader(mod,
+					(void *)mod->ctors[i], true, NULL);
+			if (ret)
+				return ret;
+			continue;
+		}
 #endif
+		mod->ctors[i]();
+	}
+#endif
+	return 0;
 }
 
 /* For freeing module_init on success, in case kallsyms traversing */
@@ -3033,10 +3070,23 @@ static noinline int do_init_module(struct module *mod)
 	freeinit->init_data = mod->mem[MOD_INIT_DATA].base;
 	freeinit->init_rodata = mod->mem[MOD_INIT_RODATA].base;
 
-	do_mod_ctors(mod);
+	ret = do_mod_ctors(mod);
+	if (ret)
+		goto fail_free_freeinit;
 	/* Start the module */
-	if (mod->init != NULL)
-		ret = do_one_initcall(mod->init);
+	if (mod->init != NULL) {
+#ifdef CONFIG_RISCV_DASICS_KERNEL
+		if (!mod->dasics_trusted) {
+			unsigned long init_ret = 0;
+
+			ret = dasics_call_module_loader(mod, (void *)mod->init,
+						       true, &init_ret);
+			if (!ret)
+				ret = (int)init_ret;
+		} else
+#endif
+			ret = do_one_initcall(mod->init);
+	}
 	if (ret < 0) {
 		goto fail_free_freeinit;
 	}
@@ -3297,6 +3347,10 @@ static int unknown_module_param_cb(char *param, char *val, const char *modname,
 {
 	struct module *mod = arg;
 	int ret;
+#ifdef CONFIG_RISCV_DASICS_KERNEL
+	if (!strcmp(param, "trust"))
+		return 0;
+#endif
 
 	if (strcmp(param, "async_probe") == 0) {
 		if (kstrtobool(val, &mod->async_probe_requested))
@@ -3348,6 +3402,62 @@ static int early_mod_check(struct load_info *info, int flags)
  * Allocate and load the module: note that size of section 0 is always
  * zero, and we rely on this for optional sections.
  */
+#ifdef CONFIG_RISCV_DASICS_KERNEL
+struct module_trust_arg {
+	bool found;
+	int value;
+};
+
+static int parse_module_trust_arg(char *param, char *val,
+				  const char *modname, void *arg)
+{
+	struct module_trust_arg *trust = arg;
+
+	if (strcmp(param, "trust"))
+		return 0;
+
+	if (trust->found) {
+		pr_err("%s: duplicate trust parameter\n", modname);
+		return -EINVAL;
+	}
+
+	if (!val || (strcmp(val, "0") && strcmp(val, "1"))) {
+		pr_err("%s: trust must be either 0 or 1\n", modname);
+		return -EINVAL;
+	}
+
+	trust->found = true;
+	trust->value = val[0] - '0';
+	return 0;
+}
+
+static int get_module_trust(const char *modname, char *args, int *value)
+{
+	struct module_trust_arg trust = {
+		/* The project threat model treats an unspecified LKM as untrusted. */
+		.value = 0,
+	};
+	char *parse_buf, *ret;
+	int err = 0;
+
+	parse_buf = kstrdup(args, GFP_KERNEL);
+	if (!parse_buf)
+		return -ENOMEM;
+
+	ret = parse_args(modname, parse_buf, NULL, 0, -32768, 32767,
+			 &trust, parse_module_trust_arg);
+	if (IS_ERR(ret)) {
+		err = PTR_ERR(ret);
+		goto out;
+	}
+
+	*value = trust.value;
+out:
+	kfree(parse_buf);
+	return err;
+}
+#endif
+
 static int load_module(struct load_info *info, const char __user *uargs,
 		       int flags)
 {
@@ -3384,6 +3494,24 @@ static int load_module(struct load_info *info, const char __user *uargs,
 	err = early_mod_check(info, flags);
 	if (err)
 		goto free_copy;
+
+#ifdef CONFIG_RISCV_DASICS_KERNEL
+	/* As in 5.10, trust must be known before module allocation. */
+	{
+		char *args = strndup_user(uargs, ~0UL >> 1);
+		int trust;
+
+		if (IS_ERR(args)) {
+			err = PTR_ERR(args);
+			goto free_copy;
+		}
+		err = get_module_trust(info->name, args, &trust);
+		kfree(args);
+		if (err)
+			goto free_copy;
+		info->mod->dasics_trusted = trust;
+	}
+#endif
 
 	/* Figure out module layout, and allocate all the memory. */
 	mod = layout_and_allocate(info, flags);
