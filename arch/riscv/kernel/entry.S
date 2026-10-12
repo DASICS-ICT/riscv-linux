@@ -17,6 +17,9 @@
 #include <asm/asm-offsets.h>
 #include <asm/errata_list.h>
 #include <linux/sizes.h>
+#ifdef CONFIG_RISCV_DASICS_KERNEL
+#include <asm/kdasics-entry.h>
+#endif
 
 	.section .irqentry.text, "ax"
 
@@ -100,7 +103,11 @@ SYM_CODE_START(handle_exception)
 	 * register will contain 0, and we should continue on the current TP.
 	 */
 	csrrw tp, CSR_SCRATCH, tp
+#ifdef CONFIG_RISCV_DASICS_KERNEL
+	bnez tp, .Lsave_protected_context
+#else
 	bnez tp, .Lsave_context
+#endif
 
 .Lrestore_kernel_tpsp:
 	csrr tp, CSR_SCRATCH
@@ -128,6 +135,16 @@ SYM_CODE_START(handle_exception)
 	REG_L sp, TASK_TI_KERNEL_SP(tp)
 #endif
 
+#ifdef CONFIG_RISCV_DASICS_KERNEL
+	j .Lsave_context
+.Lsave_protected_context:
+	/* Preserve the interrupted registers before using trusted thread_info. */
+	REG_S t0, TASK_TI_DASICS_T0(tp)
+	csrr t0, CSR_SCRATCH
+	REG_S t0, TASK_TI_DASICS_TP(tp)
+	li t0, 1
+	csrw CSR_SCRATCH, t0
+#endif
 .Lsave_context:
 	REG_S sp, TASK_TI_USER_SP(tp)
 	REG_L sp, TASK_TI_KERNEL_SP(tp)
@@ -157,7 +174,28 @@ SYM_CODE_START(handle_exception)
 	REG_S s2, PT_EPC(sp)
 	REG_S s3, PT_BADADDR(sp)
 	REG_S s4, PT_CAUSE(sp)
+#ifdef CONFIG_RISCV_DASICS_KERNEL
+	li t0, 1
+	bne s5, t0, .Lsave_normal_tp
+	REG_L t0, TASK_TI_DASICS_T0(tp)
+	REG_S t0, PT_T0(sp)
+	REG_L s5, TASK_TI_DASICS_TP(tp)
 	REG_S s5, PT_TP(sp)
+	li t0, 1
+	REG_S t0, PT_ORIG_A0(sp)
+	j .Lsave_tp_done
+.Lsave_normal_tp:
+	REG_S zero, PT_ORIG_A0(sp)
+#endif
+	REG_S s5, PT_TP(sp)
+#ifdef CONFIG_RISCV_DASICS_KERNEL
+.Lsave_tp_done:
+	/* The existing user runtime owns user-origin CSR state. */
+	andi t0, s1, SR_SPP
+	beqz t0, .Lsave_dasics_done
+	SAVE_DASICS
+.Lsave_dasics_done:
+#endif
 
 	/*
 	 * Set the scratch register to 0, so that if a recursive exception
@@ -241,6 +279,16 @@ SYM_CODE_START_NOALIGN(ret_from_exception)
 #ifdef CONFIG_RISCV_ISA_V_PREEMPTIVE
 	move a0, sp
 	call riscv_v_context_nesting_end
+#endif
+#ifdef CONFIG_RISCV_DASICS_KERNEL
+	REG_L t0, PT_STATUS(sp)
+	andi t0, t0, SR_SPP
+	beqz t0, .Lrestore_dasics_done
+	RESTORE_DASICS
+	REG_L t0, PT_ORIG_A0(sp)
+	beqz t0, .Lrestore_dasics_done
+	csrw CSR_SCRATCH, tp
+.Lrestore_dasics_done:
 #endif
 	REG_L a0, PT_STATUS(sp)
 	/*

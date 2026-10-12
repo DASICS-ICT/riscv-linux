@@ -60,6 +60,10 @@ struct thread_info {
 	 */
 	long			kernel_sp;	/* Kernel stack pointer */
 	long			user_sp;	/* User stack pointer */
+#ifdef CONFIG_RISCV_DASICS_KERNEL
+	unsigned long		dasics_t0;
+	unsigned long		dasics_tp;
+#endif
 	int			cpu;
 	unsigned long		syscall_work;	/* SYSCALL_WORK_ flags */
 #ifdef CONFIG_SHADOW_CALL_STACK
