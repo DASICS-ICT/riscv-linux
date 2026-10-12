@@ -404,6 +404,25 @@ config RISCV_DASICS
 
 	  This kernel is not portable to RISC-V systems without DASICS.
 
+config RISCV_DASICS_KERNEL
+	bool "DASICS supervisor-mode compartments"
+	depends on RISCV_DASICS && 64BIT && MMU && MODULES
+	help
+	  Port the DASICS kernel call and module isolation runtime.
+
+config RISCV_DASICS_KERNEL_DEBUG
+	bool "DASICS kernel runtime test hooks"
+	depends on RISCV_DASICS_KERNEL
+	default y
+
+config DASICS_POC_FAULT_CONTINUE
+	bool "Continue after a DASICS fault for PoC comparison"
+	depends on RISCV_DASICS_KERNEL_DEBUG
+	default n
+	help
+	  Preserve the reference kernel's optional faulting-instruction skip
+	  mode for PoC comparison rather than unwinding the isolated call.
+
 config RISCV_DASICS_UTIMER
 	bool "HU cycle budget timer (CSR 0x045)"
 	depends on RISCV_DASICS_N_EXTENSION

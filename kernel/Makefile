@@ -13,6 +13,7 @@ obj-y     = fork.o exec_domain.o panic.o \
 	    async.o range.o smpboot.o ucount.o regset.o ksyms_common.o
 
 obj-$(CONFIG_MULTIUSER) += groups.o
+obj-$(CONFIG_RISCV_DASICS_KERNEL) += dasics_policy.o dasics_bound.o dasics_call.o
 obj-$(CONFIG_VHOST_TASK) += vhost_task.o
 
 ifdef CONFIG_FUNCTION_TRACER

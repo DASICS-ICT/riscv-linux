@@ -51,6 +51,7 @@ obj-$(CONFIG_RISCV_ALTERNATIVE) += alternative.o
 obj-y	+= cpu.o
 obj-y	+= cpufeature.o
 obj-$(CONFIG_RISCV_DASICS) += dasics.o
+obj-$(CONFIG_RISCV_DASICS_KERNEL) += kdasics.o kdasics-call.o
 obj-y	+= entry.o
 obj-y	+= irq.o
 obj-y	+= process.o
