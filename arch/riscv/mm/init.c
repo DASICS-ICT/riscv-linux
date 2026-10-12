@@ -22,6 +22,9 @@
 #include <linux/hugetlb.h>
 #include <linux/kfence.h>
 #include <linux/execmem.h>
+#ifdef CONFIG_RISCV_DASICS_KERNEL
+#include <asm/sbi.h>
+#endif
 
 #include <asm/alternative.h>
 #include <asm/fixmap.h>
@@ -1425,6 +1428,12 @@ void __init paging_init(void)
 {
 	setup_bootmem();
 	setup_vm_final();
+
+#ifdef CONFIG_RISCV_DASICS_KERNEL
+	/* 6.18 kernel text is separate from PAGE_OFFSET's linear mapping. */
+	sbi_ecall(0xda51c5, 1, T_MODULES_START,
+		  (unsigned long)_end, 1, 0, 0, 0);
+#endif
 
 	/* Depend on that Linear Mapping is ready */
 	memblock_allow_resize();

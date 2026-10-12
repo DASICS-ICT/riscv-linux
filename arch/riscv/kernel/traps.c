@@ -30,6 +30,9 @@
 #include <asm/cfi.h>
 #include <asm/csr.h>
 #include <asm/dasics.h>
+#ifdef CONFIG_RISCV_DASICS_KERNEL
+#include <linux/dasics.h>
+#endif
 #include <asm/processor.h>
 #include <asm/ptrace.h>
 #include <asm/syscall.h>
@@ -380,8 +383,48 @@ void do_trap_dasics_scheck(struct pt_regs *regs)
 {
 	irqentry_state_t state = irqentry_nmi_enter(regs);
 
+#ifdef CONFIG_RISCV_DASICS_KERNEL
+	const struct dasics_compartment *compartment = NULL;
+	unsigned long reason = csr_read(CSR_DFREASON);
+	unsigned int slot = 0;
+	int ret;
+
+	ret = dasics_call_handle_trap(regs->epc, regs->badaddr, reason,
+				    regs->cause, &compartment, &slot);
+	if (ret == DASICS_TRAP_RETRY) {
+		/* Return restores the saved bank, so also save the refill there. */
+		struct dasics_hw_state hw;
+		unsigned int idx;
+
+		dasics_hw_save(&hw);
+		regs->dasicsLibCfg0 = hw.libcfg;
+		for (idx = 0; idx < DASICS_MAX_DATA_BOUNDS; idx++) {
+			regs->dasicsLibBounds[idx][0] = hw.lib_lo[idx];
+			regs->dasicsLibBounds[idx][1] = hw.lib_hi[idx];
+		}
+		goto out;
+	}
+	if (ret == DASICS_TRAP_TERMINAL) {
+		pr_info("DASICS fault: pc=%lx address=%lx reason=%lu cause=%lu compartment=%s\n",
+			regs->epc, regs->badaddr, reason, regs->cause,
+			compartment->module ? module_name(compartment->module) :
+			"<anonymous>");
+#ifdef CONFIG_DASICS_POC_FAULT_CONTINUE
+		regs->epc += 4;
+#else
+		ret = dasics_call_unwind_trap(regs);
+		if (ret)
+			die(regs, "DASICS fault recovery failed");
+#endif
+		goto out;
+	}
+#endif
+
 	do_trap_error(regs, SIGSEGV, SEGV_ACCERR, regs->badaddr,
 		      "Oops - DASICS supervisor check fault");
+#ifdef CONFIG_RISCV_DASICS_KERNEL
+out:
+#endif
 	irqentry_nmi_exit(regs, state);
 }
 #endif
