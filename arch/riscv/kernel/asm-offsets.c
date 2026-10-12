@@ -16,6 +16,9 @@
 #include <asm/cpu_ops_sbi.h>
 #include <asm/stacktrace.h>
 #include <asm/suspend.h>
+#ifdef CONFIG_RISCV_DASICS_KERNEL
+#include <linux/dasics.h>
+#endif
 
 void asm_offsets(void);
 
@@ -41,6 +44,10 @@ void asm_offsets(void)
 	OFFSET(TASK_TI_PREEMPT_COUNT, task_struct, thread_info.preempt_count);
 	OFFSET(TASK_TI_KERNEL_SP, task_struct, thread_info.kernel_sp);
 	OFFSET(TASK_TI_USER_SP, task_struct, thread_info.user_sp);
+#ifdef CONFIG_RISCV_DASICS_KERNEL
+	OFFSET(TASK_TI_DASICS_T0, task_struct, thread_info.dasics_t0);
+	OFFSET(TASK_TI_DASICS_TP, task_struct, thread_info.dasics_tp);
+#endif
 #ifdef CONFIG_SHADOW_CALL_STACK
 	OFFSET(TASK_TI_SCS_SP, task_struct, thread_info.scs_sp);
 #endif
@@ -126,6 +133,120 @@ void asm_offsets(void)
 	OFFSET(PT_STATUS, pt_regs, status);
 	OFFSET(PT_BADADDR, pt_regs, badaddr);
 	OFFSET(PT_CAUSE, pt_regs, cause);
+#ifdef CONFIG_RISCV_DASICS_KERNEL
+	DEFINE(DASICS_RECOVERY_MAGIC_VALUE, DASICS_RECOVERY_CONTEXT_MAGIC);
+	DEFINE(DASICS_CALL_REGS_SIZE, sizeof(struct dasics_call_regs));
+	OFFSET(DASICS_CALL_TARGET, dasics_call_regs, target);
+	OFFSET(DASICS_CALL_A0, dasics_call_regs, a0);
+	OFFSET(DASICS_CALL_A1, dasics_call_regs, a1);
+	OFFSET(DASICS_CALL_A2, dasics_call_regs, a2);
+	OFFSET(DASICS_CALL_A3, dasics_call_regs, a3);
+	OFFSET(DASICS_CALL_A4, dasics_call_regs, a4);
+	OFFSET(DASICS_CALL_A5, dasics_call_regs, a5);
+	OFFSET(DASICS_CALL_A6, dasics_call_regs, a6);
+	OFFSET(DASICS_CALL_A7, dasics_call_regs, a7);
+	OFFSET(DASICS_CALL_RET_A0, dasics_call_regs, ret_a0);
+	OFFSET(DASICS_CALL_RET_A1, dasics_call_regs, ret_a1);
+	OFFSET(DASICS_MAINCALL_SERVICE_ID, dasics_maincall_request,
+	       service_id);
+	OFFSET(DASICS_MAINCALL_ARG0, dasics_maincall_request, args[0]);
+	OFFSET(DASICS_MAINCALL_ARG1, dasics_maincall_request, args[1]);
+	OFFSET(DASICS_MAINCALL_ARG2, dasics_maincall_request, args[2]);
+	OFFSET(DASICS_MAINCALL_ARG3, dasics_maincall_request, args[3]);
+	OFFSET(DASICS_MAINCALL_ARG4, dasics_maincall_request, args[4]);
+	OFFSET(DASICS_MAINCALL_ARG5, dasics_maincall_request, args[5]);
+	OFFSET(DASICS_MAINCALL_ARG6, dasics_maincall_request, args[6]);
+	OFFSET(DASICS_MAINCALL_RETURN_PC, dasics_maincall_request, return_pc);
+	OFFSET(DASICS_MAINCALL_UNTRUSTED_SP, dasics_maincall_request,
+	       untrusted_sp);
+	OFFSET(DASICS_MAINCALL_IRQ_STATUS, dasics_maincall_request, irq_status);
+	OFFSET(DASICS_MAINCALL_STATUS, dasics_maincall_request, status);
+	OFFSET(DASICS_MAINCALL_VALUE, dasics_maincall_request, value);
+	OFFSET(DASICS_FRAME_MAINCALL_REQUEST, dasics_call_frame,
+	       maincall_request);
+	OFFSET(DASICS_FRAME_MAINCALL_STACK, dasics_call_frame, maincall_stack);
+	OFFSET(DASICS_FRAME_RECOVERY, dasics_call_frame, recovery);
+	DEFINE(DASICS_MAINCALL_TRUSTED_STACK_SIZE,
+	       DASICS_MAINCALL_STACK_SIZE);
+	OFFSET(DASICS_RECOVERY_MAGIC, dasics_recovery_context, magic);
+	OFFSET(DASICS_RECOVERY_REGS, dasics_recovery_context, regs);
+	OFFSET(DASICS_RECOVERY_ERROR, dasics_recovery_context, error);
+	OFFSET(DASICS_RECOVERY_SCRATCH, dasics_recovery_context, scratch);
+	OFFSET(DASICS_RECOVERY_GP, dasics_recovery_context, gp);
+	OFFSET(DASICS_RECOVERY_TP, dasics_recovery_context, tp);
+	OFFSET(DASICS_RECOVERY_SP, dasics_recovery_context, sp);
+	OFFSET(DASICS_RECOVERY_RA, dasics_recovery_context, ra);
+	OFFSET(DASICS_RECOVERY_S0, dasics_recovery_context, s[0]);
+	OFFSET(DASICS_RECOVERY_S1, dasics_recovery_context, s[1]);
+	OFFSET(DASICS_RECOVERY_S2, dasics_recovery_context, s[2]);
+	OFFSET(DASICS_RECOVERY_S3, dasics_recovery_context, s[3]);
+	OFFSET(DASICS_RECOVERY_S4, dasics_recovery_context, s[4]);
+	OFFSET(DASICS_RECOVERY_S5, dasics_recovery_context, s[5]);
+	OFFSET(DASICS_RECOVERY_S6, dasics_recovery_context, s[6]);
+	OFFSET(DASICS_RECOVERY_S7, dasics_recovery_context, s[7]);
+	OFFSET(DASICS_RECOVERY_S8, dasics_recovery_context, s[8]);
+	OFFSET(DASICS_RECOVERY_S9, dasics_recovery_context, s[9]);
+	OFFSET(DASICS_RECOVERY_S10, dasics_recovery_context, s[10]);
+	OFFSET(DASICS_RECOVERY_S11, dasics_recovery_context, s[11]);
+
+	/* dasics supervisor registers */
+	OFFSET(PT_DUMCFG, pt_regs, dasicsUmainCfg);
+	OFFSET(PT_DUMBOUNDLO, pt_regs, dasicsUMainBoundLo);
+	OFFSET(PT_DUMBOUNDHI, pt_regs, dasicsUMainBoundHi);
+
+	OFFSET(PT_DLCFG0, pt_regs, dasicsLibCfg0);
+	OFFSET(PT_DLCFG1, pt_regs, dasicsLibCfg1);
+	OFFSET(PT_DLBOUND0LO, pt_regs, dasicsLibBounds[0][0]);
+	OFFSET(PT_DLBOUND0HI, pt_regs, dasicsLibBounds[0][1]);
+	OFFSET(PT_DLBOUND1LO, pt_regs, dasicsLibBounds[1][0]);
+	OFFSET(PT_DLBOUND1HI, pt_regs, dasicsLibBounds[1][1]);
+	OFFSET(PT_DLBOUND2LO, pt_regs, dasicsLibBounds[2][0]);
+	OFFSET(PT_DLBOUND2HI, pt_regs, dasicsLibBounds[2][1]);
+	OFFSET(PT_DLBOUND3LO, pt_regs, dasicsLibBounds[3][0]);
+	OFFSET(PT_DLBOUND3HI, pt_regs, dasicsLibBounds[3][1]);
+	OFFSET(PT_DLBOUND4LO, pt_regs, dasicsLibBounds[4][0]);
+	OFFSET(PT_DLBOUND4HI, pt_regs, dasicsLibBounds[4][1]);
+	OFFSET(PT_DLBOUND5LO, pt_regs, dasicsLibBounds[5][0]);
+	OFFSET(PT_DLBOUND5HI, pt_regs, dasicsLibBounds[5][1]);
+	OFFSET(PT_DLBOUND6LO, pt_regs, dasicsLibBounds[6][0]);
+	OFFSET(PT_DLBOUND6HI, pt_regs, dasicsLibBounds[6][1]);
+	OFFSET(PT_DLBOUND7LO, pt_regs, dasicsLibBounds[7][0]);
+	OFFSET(PT_DLBOUND7HI, pt_regs, dasicsLibBounds[7][1]);
+	OFFSET(PT_DLBOUND8LO, pt_regs, dasicsLibBounds[8][0]);
+	OFFSET(PT_DLBOUND8HI, pt_regs, dasicsLibBounds[8][1]);
+	OFFSET(PT_DLBOUND9LO, pt_regs, dasicsLibBounds[9][0]);
+	OFFSET(PT_DLBOUND9HI, pt_regs, dasicsLibBounds[9][1]);
+	OFFSET(PT_DLBOUND10LO, pt_regs, dasicsLibBounds[10][0]);
+	OFFSET(PT_DLBOUND10HI, pt_regs, dasicsLibBounds[10][1]);
+	OFFSET(PT_DLBOUND11LO, pt_regs, dasicsLibBounds[11][0]);
+	OFFSET(PT_DLBOUND11HI, pt_regs, dasicsLibBounds[11][1]);
+	OFFSET(PT_DLBOUND12LO, pt_regs, dasicsLibBounds[12][0]);
+	OFFSET(PT_DLBOUND12HI, pt_regs, dasicsLibBounds[12][1]);
+	OFFSET(PT_DLBOUND13LO, pt_regs, dasicsLibBounds[13][0]);
+	OFFSET(PT_DLBOUND13HI, pt_regs, dasicsLibBounds[13][1]);
+	OFFSET(PT_DLBOUND14LO, pt_regs, dasicsLibBounds[14][0]);
+	OFFSET(PT_DLBOUND14HI, pt_regs, dasicsLibBounds[14][1]);
+	OFFSET(PT_DLBOUND15LO, pt_regs, dasicsLibBounds[15][0]);
+	OFFSET(PT_DLBOUND15HI, pt_regs, dasicsLibBounds[15][1]);
+
+
+	OFFSET(PT_DMAINCALL, pt_regs, dasicsMaincall);
+	OFFSET(PT_DRETURNPC, pt_regs, dasicsReturnPC);
+	OFFSET(PT_DFZRETURN, pt_regs, dasicsFreezoneRet);
+	OFFSET(PT_DFREASON, pt_regs, dasicsFaultReason);
+
+	OFFSET(PT_DJBOUND0LO, pt_regs, dasicsJumpBounds[0][0]);
+	OFFSET(PT_DJBOUND0HI, pt_regs, dasicsJumpBounds[0][1]);
+	OFFSET(PT_DJBOUND1LO, pt_regs, dasicsJumpBounds[1][0]);
+	OFFSET(PT_DJBOUND1HI, pt_regs, dasicsJumpBounds[1][1]);
+	OFFSET(PT_DJBOUND2LO, pt_regs, dasicsJumpBounds[2][0]);
+	OFFSET(PT_DJBOUND2HI, pt_regs, dasicsJumpBounds[2][1]);
+	OFFSET(PT_DJBOUND3LO, pt_regs, dasicsJumpBounds[3][0]);
+	OFFSET(PT_DJBOUND3HI, pt_regs, dasicsJumpBounds[3][1]);
+
+	OFFSET(PT_DJCFG, pt_regs, dasicsJumpCfg);
+
+#endif
 
 	OFFSET(SUSPEND_CONTEXT_REGS, suspend_context, regs);
 

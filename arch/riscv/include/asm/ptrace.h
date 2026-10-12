@@ -53,6 +53,23 @@ struct pt_regs {
 	unsigned long cause;
 	/* a0 value before the syscall */
 	unsigned long orig_a0;
+#ifdef CONFIG_RISCV_DASICS_KERNEL
+	/* dasics supervisor registers */
+	unsigned long dasicsUmainCfg;  		/* initialize should be zero */
+	unsigned long dasicsUMainBoundLo;
+	unsigned long dasicsUMainBoundHi;
+
+    /* Saved DASICS user registers */
+    unsigned long dasicsLibCfg0;
+    unsigned long dasicsLibCfg1;    // reserved
+    unsigned long dasicsLibBounds[16][2];
+    unsigned long dasicsMaincall;
+    unsigned long dasicsReturnPC;
+    unsigned long dasicsFreezoneRet;
+	unsigned long dasicsFaultReason;
+    unsigned long dasicsJumpBounds[4][2];
+    unsigned long dasicsJumpCfg;
+#endif
 };
 
 #define PTRACE_SYSEMU			0x1f

@@ -1,0 +1,193 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+
+#include <linux/linkage.h>
+#include <linux/errno.h>
+#include <asm/asm.h>
+#include <asm/asm-offsets.h>
+#include <asm/csr.h>
+
+	.text
+	.align 2
+SYM_FUNC_START(__dasics_hw_call)
+	REG_S	zero, DASICS_RECOVERY_MAGIC(a1)
+	REG_S	a0, DASICS_RECOVERY_REGS(a1)
+	csrr	t0, CSR_SCRATCH
+	REG_S	t0, DASICS_RECOVERY_SCRATCH(a1)
+	REG_S	gp, DASICS_RECOVERY_GP(a1)
+	REG_S	tp, DASICS_RECOVERY_TP(a1)
+	REG_S	sp, DASICS_RECOVERY_SP(a1)
+	REG_S	ra, DASICS_RECOVERY_RA(a1)
+	REG_S	s0, DASICS_RECOVERY_S0(a1)
+	REG_S	s1, DASICS_RECOVERY_S1(a1)
+	REG_S	s2, DASICS_RECOVERY_S2(a1)
+	REG_S	s3, DASICS_RECOVERY_S3(a1)
+	REG_S	s4, DASICS_RECOVERY_S4(a1)
+	REG_S	s5, DASICS_RECOVERY_S5(a1)
+	REG_S	s6, DASICS_RECOVERY_S6(a1)
+	REG_S	s7, DASICS_RECOVERY_S7(a1)
+	REG_S	s8, DASICS_RECOVERY_S8(a1)
+	REG_S	s9, DASICS_RECOVERY_S9(a1)
+	REG_S	s10, DASICS_RECOVERY_S10(a1)
+	REG_S	s11, DASICS_RECOVERY_S11(a1)
+	li	t0, DASICS_RECOVERY_MAGIC_VALUE
+	REG_S	t0, DASICS_RECOVERY_MAGIC(a1)
+	/*
+	 * Exception entry interprets a non-zero sscratch as a protected TP.
+	 * This lets an interrupt recover the task and kernel stack even if
+	 * untrusted code corrupts tp or sp.
+	 */
+	REG_S	sp, TASK_TI_KERNEL_SP(tp)
+	csrw	CSR_SCRATCH, tp
+
+	mv	t6, a0
+	REG_L	t3, DASICS_CALL_TARGET(t6)
+	REG_L	a0, DASICS_CALL_A0(t6)
+	REG_L	a1, DASICS_CALL_A1(t6)
+	REG_L	a2, DASICS_CALL_A2(t6)
+	REG_L	a3, DASICS_CALL_A3(t6)
+	REG_L	a4, DASICS_CALL_A4(t6)
+	REG_L	a5, DASICS_CALL_A5(t6)
+	REG_L	a6, DASICS_CALL_A6(t6)
+	REG_L	a7, DASICS_CALL_A7(t6)
+
+	.word	0x000e10fb /* dasicscall.jr ra, t3 (NanhuV5 custom3) */
+
+	/*
+	 * Untrusted code need not preserve sp, tp, gp, s1, or any other ABI
+	 * register. Resolve the trusted frame without touching an
+	 * untrusted-selected stack, then restore the complete caller context.
+	 */
+	.option push
+	.option norelax
+	la	t0, dasics_maincall_active_frame
+	.option pop
+	REG_L	t0, 0(t0)
+	beqz	t0, 3f
+	addi	t0, t0, DASICS_FRAME_RECOVERY
+	REG_L	t1, DASICS_RECOVERY_MAGIC(t0)
+	li	t2, DASICS_RECOVERY_MAGIC_VALUE
+	bne	t1, t2, 3f
+	REG_L	t1, DASICS_RECOVERY_REGS(t0)
+	REG_S	a0, DASICS_CALL_RET_A0(t1)
+	REG_S	a1, DASICS_CALL_RET_A1(t1)
+	REG_S	zero, DASICS_RECOVERY_MAGIC(t0)
+	li	a0, 0
+	REG_L	t1, DASICS_RECOVERY_SCRATCH(t0)
+	csrw	CSR_SCRATCH, t1
+	REG_L	gp, DASICS_RECOVERY_GP(t0)
+	REG_L	tp, DASICS_RECOVERY_TP(t0)
+	REG_L	ra, DASICS_RECOVERY_RA(t0)
+	REG_L	s0, DASICS_RECOVERY_S0(t0)
+	REG_L	s1, DASICS_RECOVERY_S1(t0)
+	REG_L	s2, DASICS_RECOVERY_S2(t0)
+	REG_L	s3, DASICS_RECOVERY_S3(t0)
+	REG_L	s4, DASICS_RECOVERY_S4(t0)
+	REG_L	s5, DASICS_RECOVERY_S5(t0)
+	REG_L	s6, DASICS_RECOVERY_S6(t0)
+	REG_L	s7, DASICS_RECOVERY_S7(t0)
+	REG_L	s8, DASICS_RECOVERY_S8(t0)
+	REG_L	s9, DASICS_RECOVERY_S9(t0)
+	REG_L	s10, DASICS_RECOVERY_S10(t0)
+	REG_L	s11, DASICS_RECOVERY_S11(t0)
+	REG_L	sp, DASICS_RECOVERY_SP(t0)
+	ret
+3:
+	ebreak
+	j	3b
+SYM_FUNC_END(__dasics_hw_call)
+
+/* Entered only from the DASICS trap path with a trusted context in a0. */
+SYM_FUNC_START(__dasics_hw_recover)
+	mv	t0, a0
+	REG_S	zero, DASICS_RECOVERY_MAGIC(t0)
+	REG_L	t1, DASICS_RECOVERY_SCRATCH(t0)
+	csrw	CSR_SCRATCH, t1
+	REG_L	gp, DASICS_RECOVERY_GP(t0)
+	REG_L	tp, DASICS_RECOVERY_TP(t0)
+	REG_L	ra, DASICS_RECOVERY_RA(t0)
+	REG_L	s0, DASICS_RECOVERY_S0(t0)
+	REG_L	s1, DASICS_RECOVERY_S1(t0)
+	REG_L	s2, DASICS_RECOVERY_S2(t0)
+	REG_L	s3, DASICS_RECOVERY_S3(t0)
+	REG_L	s4, DASICS_RECOVERY_S4(t0)
+	REG_L	s5, DASICS_RECOVERY_S5(t0)
+	REG_L	s6, DASICS_RECOVERY_S6(t0)
+	REG_L	s7, DASICS_RECOVERY_S7(t0)
+	REG_L	s8, DASICS_RECOVERY_S8(t0)
+	REG_L	s9, DASICS_RECOVERY_S9(t0)
+	REG_L	s10, DASICS_RECOVERY_S10(t0)
+	REG_L	s11, DASICS_RECOVERY_S11(t0)
+	REG_L	a0, DASICS_RECOVERY_ERROR(t0)
+	REG_L	sp, DASICS_RECOVERY_SP(t0)
+	ret
+SYM_FUNC_END(__dasics_hw_recover)
+
+/* Fixed a0-a7 request ABI for untrusted-to-trusted services. */
+SYM_FUNC_START(dasics_maincall_gate)
+	mv	t3, sp
+	li	t4, SR_IE
+	csrrc	t2, CSR_STATUS, t4
+	/*
+	 * Do not touch the untrusted-supplied stack before resolving the
+	 * trusted frame.  The single-hart runtime updates this trusted shadow
+	 * whenever it pushes or pops the hart-local frame stack.
+	 */
+	.option push
+	.option norelax
+	la	t0, dasics_maincall_active_frame
+	.option pop
+	REG_L	t0, 0(t0)
+	beqz	t0, 2f
+	addi	t5, t0, DASICS_FRAME_RECOVERY
+	REG_L	gp, DASICS_RECOVERY_GP(t5)
+	REG_L	tp, DASICS_RECOVERY_TP(t5)
+	/* Trusted maincall C code uses normal kernel exception semantics. */
+	csrw	CSR_SCRATCH, zero
+	addi	t1, t0, DASICS_FRAME_MAINCALL_REQUEST
+	addi	sp, t0, DASICS_FRAME_MAINCALL_STACK
+	li	t4, DASICS_MAINCALL_TRUSTED_STACK_SIZE
+	add	sp, sp, t4
+	REG_S	a0, DASICS_MAINCALL_SERVICE_ID(t1)
+	REG_S	a1, DASICS_MAINCALL_ARG0(t1)
+	REG_S	a2, DASICS_MAINCALL_ARG1(t1)
+	REG_S	a3, DASICS_MAINCALL_ARG2(t1)
+	REG_S	a4, DASICS_MAINCALL_ARG3(t1)
+	REG_S	a5, DASICS_MAINCALL_ARG4(t1)
+	REG_S	a6, DASICS_MAINCALL_ARG5(t1)
+	REG_S	a7, DASICS_MAINCALL_ARG6(t1)
+	REG_S	ra, DASICS_MAINCALL_RETURN_PC(t1)
+	REG_S	t3, DASICS_MAINCALL_UNTRUSTED_SP(t1)
+	REG_S	t2, DASICS_MAINCALL_IRQ_STATUS(t1)
+	mv	a0, t1
+	call	dasics_maincall_dispatch
+
+	mv	t0, a0
+	REG_L	ra, DASICS_MAINCALL_RETURN_PC(t0)
+	REG_L	t1, DASICS_MAINCALL_UNTRUSTED_SP(t0)
+	REG_L	t2, DASICS_MAINCALL_IRQ_STATUS(t0)
+	REG_L	a0, DASICS_MAINCALL_STATUS(t0)
+	REG_L	a1, DASICS_MAINCALL_VALUE(t0)
+	/*
+	 * A maincall may have taken interrupts or scheduled on the trusted
+	 * service stack.  Restore the original trusted continuation stack as
+	 * the exception stack before resuming untrusted code.
+	 */
+	addi	t4, t0, -DASICS_FRAME_MAINCALL_REQUEST
+	addi	t5, t4, DASICS_FRAME_RECOVERY
+	REG_L	t4, DASICS_RECOVERY_SP(t5)
+	REG_S	t4, TASK_TI_KERNEL_SP(tp)
+	csrw	CSR_SCRATCH, tp
+	mv	sp, t1
+	andi	t2, t2, SR_IE
+	beqz	t2, 1f
+	csrs	CSR_STATUS, SR_IE
+1:
+	ret
+2:
+	/*
+	 * No valid call frame means there is no trusted stack or continuation.
+	 * Never return through the untrusted-controlled ra in that state.
+	 */
+	ebreak
+	j	2b
+SYM_FUNC_END(dasics_maincall_gate)
