@@ -423,6 +423,17 @@ config DASICS_POC_FAULT_CONTINUE
 	  Preserve the reference kernel's optional faulting-instruction skip
 	  mode for PoC comparison rather than unwinding the isolated call.
 
+config RISCV_DASICS_VALIDATION
+	bool "DASICS restricted software validation support"
+	depends on RISCV_DASICS_KERNEL_DEBUG && RISCV_DASICS_N_EXTENSION
+	depends on MULTIUSER && RISCV_SBI
+	default n
+	help
+	  Permit a privileged test module to observe real user illegal-instruction
+	  exceptions and temporarily enable CBO for its owning task. User DASICS
+	  check faults remain delegated to the user handler. Disable in kernels
+	  that do not need the software validation interface.
+
 config RISCV_DASICS_UTIMER
 	bool "HU cycle budget timer (CSR 0x045)"
 	depends on RISCV_DASICS_N_EXTENSION

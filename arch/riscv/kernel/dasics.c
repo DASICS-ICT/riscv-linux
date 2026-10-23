@@ -5,6 +5,8 @@
 #include <linux/elf.h>
 #include <linux/fs.h>
 #include <linux/init.h>
+#include <linux/irqflags.h>
+#include <linux/preempt.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/smp.h>
@@ -47,8 +49,7 @@ static bool riscv_dasics_ready;
 #define DASICS_MAINCFG_ARM		0x41524dUL
 #define DASICS_MAINCFG_REPORT		0x525054UL
 #define DASICS_MAINCFG_HU_REPORT		0x4855525054UL
-/* This regression profile covers load, store and jump only. */
-#define DASICS_MAINCFG_OBSERVATIONS	12UL
+#define DASICS_MAINCFG_OBSERVATIONS	16UL
 
 #define DASICS_MAINCFG_ECALL_SENTINEL	0x4543414c4c534954UL
 #define DASICS_MAINCFG_ECALL_GUARD	0x47554152444d4346UL
@@ -661,7 +662,7 @@ static bool riscv_dasics_pc_is_trusted(const struct pt_regs *regs)
 static enum riscv_dasics_maincfg_operation
 riscv_dasics_maincfg_operation(unsigned long step)
 {
-	return DASICS_MAINCFG_LOAD + step / 4;
+	return step / 4;
 }
 
 static enum riscv_dasics_maincfg_stage
@@ -1069,7 +1070,7 @@ static bool riscv_dasics_maincfg_report(struct pt_regs *regs)
 	control->next_step++;
 
 	if (control->next_step == DASICS_MAINCFG_OBSERVATIONS) {
-		pr_info("DASICS_MAINCFG_TOGGLE_SUMMARY version=1 total=12 "
+		pr_info("DASICS_MAINCFG_TOGGLE_SUMMARY version=1 total=16 "
 			"failed=%lu result=%s\n",
 			control->failures,
 			control->failures ? "FAIL" : "PASS");
@@ -1238,6 +1239,7 @@ bool riscv_dasics_handle_syscall(struct pt_regs *regs, long syscall)
 
 void riscv_dasics_clear_task(struct task_struct *task)
 {
+	riscv_dasics_verify_reset_task(task);
 	memset(&task->thread.dasics, 0, sizeof(task->thread.dasics));
 	if (task == current && READ_ONCE(riscv_dasics_ready)) {
 #ifdef CONFIG_RISCV_DASICS_N_EXTENSION
@@ -1265,6 +1267,7 @@ void riscv_dasics_finish_copy(struct task_struct *task)
 	struct riscv_dasics_maincfg_control *control =
 		&state->maincfg_control;
 
+	riscv_dasics_verify_reset_task(task);
 #ifdef CONFIG_RISCV_DASICS_UTIMER
 	state->n_hw.utimer = 0;
 	state->n_hw.uip &= ~DASICS_UTIMER_BIT;
@@ -1509,6 +1512,61 @@ static void riscv_dasics_enable_cpu(void *unused)
 #endif
 }
 
+#if defined(CONFIG_RISCV_DASICS_VALIDATION) && defined(CONFIG_RISCV_DASICS_UTIMER)
+static noinline unsigned long dasics_supervisor_utimer_freeze(void)
+{
+	const unsigned long budget = 0x100000040UL;
+	unsigned long saved, before, after, checksum, restored;
+	unsigned long irq_flags, irq_after, failures;
+	bool frozen, restored_ok;
+
+	preempt_disable();
+	local_irq_save(irq_flags);
+	/* Keep the saved timer on this CPU and remain in trusted S-mode. No
+	 * scheduling, SBI call, or console access belongs in this interval. */
+	asm volatile(
+		".option push\n"
+		".option norvc\n"
+		".option norelax\n"
+		".balign 4\n"
+		".global riscv_dasics_utimer_freeze_begin\n"
+		"riscv_dasics_utimer_freeze_begin:\n"
+		"csrr %[saved], 0x045\n"
+		"csrw 0x045, %[budget]\n"
+		"csrr %[before], 0x045\n"
+		"li %[checksum], 0\n"
+		".rept 64\n"
+		"addi %[checksum], %[checksum], 1\n"
+		".endr\n"
+		"csrr %[after], 0x045\n"
+		"csrw 0x045, %[saved]\n"
+		"csrr %[restored], 0x045\n"
+		".global riscv_dasics_utimer_freeze_end\n"
+		"riscv_dasics_utimer_freeze_end:\n"
+		".option pop\n"
+		: [saved] "=&r" (saved), [before] "=&r" (before),
+		  [after] "=&r" (after), [checksum] "=&r" (checksum),
+		  [restored] "=&r" (restored)
+		: [budget] "r" (budget)
+		: "memory");
+	local_irq_restore(irq_flags);
+	irq_after = csr_read(CSR_STATUS) & SR_IE;
+	preempt_enable();
+
+	frozen = before == budget && after == budget && checksum == 64;
+	restored_ok = restored == saved && irq_after == (irq_flags & SR_IE);
+	failures = !frozen + !restored_ok;
+	pr_info("FDI_UTIMER_PRIVILEGE version=1 privilege=supervisor "
+		"saved=0x%lx budget=0x%lx before=0x%lx after=0x%lx "
+		"checksum=0x%lx checksum_expected=0x40 restored=0x%lx "
+		"freeze=%s restore=%s result=%s\n",
+		saved, budget, before, after, checksum, restored,
+		frozen ? "PASS" : "FAIL", restored_ok ? "PASS" : "FAIL",
+		failures ? "FAIL" : "PASS");
+	return failures;
+}
+#endif
+
 static int __init riscv_dasics_init(void)
 {
 	unsigned long failures;
@@ -1516,6 +1574,9 @@ static int __init riscv_dasics_init(void)
 	on_each_cpu(riscv_dasics_enable_cpu, NULL, 1);
 	failures = dasics_supervisor_mask_ops();
 	failures += dasics_supervisor_smoke();
+#if defined(CONFIG_RISCV_DASICS_VALIDATION) && defined(CONFIG_RISCV_DASICS_UTIMER)
+	failures += dasics_supervisor_utimer_freeze();
+#endif
 	WRITE_ONCE(riscv_dasics_ready, true);
 
 	if (failures)

@@ -4,6 +4,7 @@
 #define _ASM_RISCV_DASICS_H
 
 #include <linux/types.h>
+#include <asm/dasics_verify.h>
 
 #define RISCV_DASICS_LIB_BOUND_COUNT	16
 #define RISCV_DASICS_JUMP_BOUND_COUNT	4
@@ -88,6 +89,9 @@ struct riscv_dasics_state {
 #endif
 	struct riscv_dasics_metadata metadata;
 	struct riscv_dasics_maincfg_control maincfg_control;
+#ifdef CONFIG_RISCV_DASICS_VALIDATION
+	struct riscv_dasics_verify_state verify;
+#endif
 };
 
 struct linux_binprm;
