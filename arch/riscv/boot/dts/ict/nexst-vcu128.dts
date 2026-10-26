@@ -1,0 +1,189 @@
+// SPDX-License-Identifier: GPL-2.0
+/* NexST VCU128 single-core PCIe configuration. */
+/dts-v1/;
+
+/ {
+	#address-cells = <0x02>;
+	#size-cells = <0x02>;
+	compatible = "freechips,rocketchip-unknown-dev";
+	model = "freechips,rocketchip-unknown";
+
+	chosen {
+		bootargs = "earlycon=sbi clock_ignore_unused console=hvc0 root=/dev/nvme0n1p1 rootwait rw init=/sbin/init uio_pdrv_genirq.of_id=generic-uio";
+	};
+
+	cpus {
+		#address-cells = <0x01>;
+		#size-cells = <0x00>;
+		timebase-frequency = <0x7a120>;
+
+		cpu@0 {
+			clock-frequency = <0x00>;
+			compatible = "ICT,xiangshan", "riscv";
+			d-cache-block-size = <0x40>;
+			d-cache-sets = <0x80>;
+			d-cache-size = <0x8000>;
+			d-tlb-sets = <0x01>;
+			d-tlb-size = <0x10>;
+			device_type = "cpu";
+			i-cache-block-size = <0x40>;
+			i-cache-sets = <0x40>;
+			i-cache-size = <0x4000>;
+			i-tlb-sets = <0x01>;
+			i-tlb-size = <0x04>;
+			mmu-type = "riscv,sv39";
+			next-level-cache = <&memory0>;
+			reg = <0x00>;
+			riscv,isa = "rv64imafdc";
+			status = "okay";
+			tlb-split;
+
+			cpu_intc: interrupt-controller {
+				#interrupt-cells = <0x01>;
+				compatible = "riscv,cpu-intc";
+				interrupt-controller;
+			};
+		};
+	};
+
+	memory0: memory@80000000 {
+		device_type = "memory";
+		reg = <0x00 0x80000000 0x00 0x80000000>;
+	};
+
+	soc {
+		#address-cells = <0x02>;
+		#size-cells = <0x02>;
+		compatible = "freechips,rocketchip-unknown-soc", "simple-bus";
+		ranges;
+
+		cache-controller@39000000 {
+			reg = <0x00 0x39000000 0x00 0x10000>;
+			reg-names = "control";
+		};
+
+		clint@38000000 {
+			compatible = "riscv,clint0";
+			interrupts-extended = <&cpu_intc 3 &cpu_intc 7>;
+			reg = <0x00 0x38000000 0x00 0x10000>;
+			reg-names = "control";
+		};
+
+		error-device@0 {
+			compatible = "sifive,error0";
+			reg = <0x00 0x00 0x00 0x80000000>;
+		};
+
+		plic: interrupt-controller@3c000000 {
+			#interrupt-cells = <0x01>;
+			compatible = "riscv,plic0";
+			interrupt-controller;
+			interrupts-extended = <&cpu_intc 11 &cpu_intc 9 &cpu_intc 8>;
+			reg = <0x00 0x3c000000 0x00 0x4000000>;
+			reg-names = "control";
+			riscv,max-priority = <0x07>;
+			riscv,ndev = <0x41>;
+		};
+
+		mmpma@38021000 {
+			reg = <0x00 0x38021000 0x00 0x1000>;
+			reg-names = "control";
+		};
+
+		pll_ctrl@3a000000 {
+			reg = <0x00 0x3a000000 0x00 0x1000>;
+			reg-names = "control";
+		};
+
+		axi_clk: axi_clk {
+			#clock-cells = <0x00>;
+			clock-frequency = <0x2faf080>;
+			clock-output-names = "axi_clk";
+			compatible = "fixed-clock";
+		};
+
+		dbchecker_uio@40000000 {
+			compatible = "generic-uio";
+			reg = <0x00 0x40000000 0x00 0x20000>;
+			status = "okay";
+			uio-name = "dbchecker_uio";
+		};
+
+		eth_dma: eth_dma@30100000 {
+			compatible = "xlnx,eth-dma";
+			reg = <0x00 0x30100000 0x00 0x10000>;
+			xlnx,addrwidth = [40];
+			interrupts = <0x07 0x06>;
+			interrupt-parent = <&plic>;
+		};
+
+		ethernet@30200000 {
+			compatible = "xlnx,axi-ethernet-1.00.a";
+			reg = <0x00 0x30200000 0x00 0x40000>;
+			reg-names = "control";
+			status = "okay";
+			mac-address = [00 11 22 33 44 55];
+			clock-frequency = <0x2faf080>;
+			clocks = <&axi_clk>;
+			device_type = "network";
+			axistream-connected = <&eth_dma>;
+			phy-handle = <&phy0>;
+			phy-mode = "sgmii";
+			xlnx,txcsum = <0x02>;
+			xlnx,rxcsum = <0x02>;
+			xlnx,rxmem = <0x1000>;
+			interrupts = <0x05>;
+			interrupt-parent = <&plic>;
+
+			mdio {
+				#address-cells = <0x01>;
+				#size-cells = <0x00>;
+
+				phy0: phy@3 {
+					#phy-cells = <0x01>;
+					device_type = "ethernet-phy";
+					reg = <0x03>;
+					ti,dp83867-rxctrl-strap-quirk;
+					ti,sgmii-ref-clock-output-enable;
+					ti,fifo-depth = <0x01>;
+					ti,rx-internal-delay = <0x08>;
+					ti,tx-internal-delay = <0x0a>;
+				};
+			};
+		};
+
+		pcie: pcie@60000000 {
+			compatible = "xlnx,xdma-host-3.00";
+			device_type = "pci";
+			reg = <0x00 0x60000000 0x00 0x800000>;
+			reg-names = "rp0";
+			#address-cells = <0x03>;
+			#size-cells = <0x02>;
+			bus-range = <0x00 0x01>;
+			ranges = <0x2000000 0x00 0x50000000 0x00 0x50000000 0x00 0x1000000>;
+			interrupts = <2 3 4>;
+			interrupt-names = "misc", "msi0", "msi1";
+			interrupt-parent = <&plic>;
+
+			pcie@0,0 {
+				device_type = "pci";
+				reg = <0x00 0x00 0x00 0x00 0x00>;
+				#address-cells = <0x03>;
+				#size-cells = <0x02>;
+				ranges;
+				#interrupt-cells = <0x01>;
+				interrupt-map-mask = <0x00 0x00 0x00 0x07>;
+				interrupt-map = <0 0 0 1 &pcie_intc 1>,
+						<0 0 0 2 &pcie_intc 2>,
+						<0 0 0 3 &pcie_intc 3>,
+						<0 0 0 4 &pcie_intc 4>;
+
+				pcie_intc: interrupt-controller {
+					interrupt-controller;
+					#address-cells = <0x00>;
+					#interrupt-cells = <0x01>;
+				};
+			};
+		};
+	};
+};
