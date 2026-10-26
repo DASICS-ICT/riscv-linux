@@ -195,6 +195,10 @@ static bool xilinx_pcie_valid_device(struct pci_bus *bus, unsigned int devfn)
 {
 	struct xilinx_pcie_port *port = bus->sysdata;
 
+	/* NexST XDMA supports only function 0 of a downstream device. */
+	if (PCI_FUNC(devfn))
+		return false;
+
 	/* Check if link is up when trying to access downstream ports */
 	if (bus->number != port->root_busno)
 		if (!xilinx_pcie_link_is_up(port))
