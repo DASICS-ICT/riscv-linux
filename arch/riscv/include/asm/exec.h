@@ -22,8 +22,11 @@ struct riscv_dasics_elf_sections {
 
 struct riscv_dasics_exec_state {
 	struct riscv_dasics_elf_sections sections;
+	unsigned long interp_entry;
+	unsigned long copy_interp_entry;
 	bool requested;
 	bool validated;
+	bool dynamic;
 };
 
 struct linux_binprm;

@@ -12,6 +12,7 @@
 #include <linux/binfmts.h>
 #include <linux/err.h>
 #include <asm/page.h>
+#include <asm/dasics.h>
 #include <asm/vdso.h>
 #include <linux/vdso_datastore.h>
 #include <vdso/datapage.h>
@@ -121,7 +122,13 @@ static int __setup_additional_pages(struct mm_struct *mm,
 	/* Be sure to map the data page */
 	vdso_mapping_len = vdso_text_len + VVAR_SIZE;
 
-	vdso_base = get_unmapped_area(NULL, 0, vdso_mapping_len, 0, 0);
+#ifdef CONFIG_RISCV_DASICS
+	if (bprm->dasics.dynamic)
+		/* The old address names the code, not the preceding vvar. */
+		vdso_base = RISCV_DASICS_VDSO_BASE - VVAR_SIZE;
+	else
+#endif
+		vdso_base = get_unmapped_area(NULL, 0, vdso_mapping_len, 0, 0);
 	if (IS_ERR_VALUE(vdso_base)) {
 		ret = ERR_PTR(vdso_base);
 		goto up_fail;

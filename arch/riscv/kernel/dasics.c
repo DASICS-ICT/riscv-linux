@@ -406,8 +406,8 @@ int riscv_dasics_validate_elf(struct linux_binprm *bprm,
 		return -ENOEXEC;
 	if (bprm->interp != bprm->filename)
 		return -ENOEXEC;
-	/* The opt-in contract currently supports fixed-address static ELFs. */
-	if (has_interpreter || elf_ex->e_type != ET_EXEC)
+	/* Both static and legacy dynamic opt-in programs use fixed addresses. */
+	if (elf_ex->e_type != ET_EXEC)
 		return -ENOEXEC;
 
 	ret = riscv_dasics_read_elf_sections(bprm, elf_ex,
@@ -415,6 +415,7 @@ int riscv_dasics_validate_elf(struct linux_binprm *bprm,
 	if (ret)
 		return ret;
 
+	bprm->dasics.dynamic = has_interpreter;
 	bprm->dasics.validated = true;
 	return 0;
 }
@@ -449,7 +450,8 @@ void riscv_dasics_setup_elf(struct linux_binprm *bprm,
 	state->metadata.start_data = start_data;
 
 	hw->umain_cfg = RISCV_DASICS_UMAIN_UENA;
-	hw->umain_bound_lo = riscv_dasics_align_down(sections.text_lo);
+	hw->umain_bound_lo = bprm->dasics.dynamic ? RISCV_DASICS_LINKER_BASE :
+			     riscv_dasics_align_down(sections.text_lo);
 	/* Main bounds use an exclusive upper address at 8-byte granularity. */
 	hw->umain_bound_hi = riscv_dasics_align_up(sections.text_hi);
 

@@ -33,8 +33,16 @@
 #define AT_L3_CACHESIZE		46
 #define AT_L3_CACHEGEOMETRY	47
 
-/* entries in ARCH_DLINFO */
-#define AT_VECTOR_SIZE_ARCH	10
 #define AT_MINSIGSTKSZ		51
+
+/* Legacy DASICS dynamic-loader protocol. */
+#define AT_LINKER		55
+#define AT_FIXUP		56
+#define AT_DASICS		57
+#define AT_LINKER_COPY		58
+#define AT_TRUST_BASE		59
+
+/* Ten ARCH_DLINFO entries plus up to five ARCH_DLINFO_DASICS entries. */
+#define AT_VECTOR_SIZE_ARCH	15
 
 #endif /* _UAPI_ASM_RISCV_AUXVEC_H */

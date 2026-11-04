@@ -86,6 +86,25 @@ extern unsigned long elf_hwcap;
 #ifdef CONFIG_RISCV_DASICS
 #define arch_elf_dasics_validate	riscv_dasics_validate_elf
 #define arch_elf_dasics_setup	riscv_dasics_setup_elf
+#define arch_elf_dasics_interp_base(bprm, copy)			\
+	((bprm)->dasics.dynamic ? ((copy) ?			\
+	 RISCV_DASICS_COPY_LINKER_BASE : RISCV_DASICS_LINKER_BASE) : 0)
+#define arch_elf_dasics_set_interps(bprm, entry, copy_entry)	\
+do {								\
+	(bprm)->dasics.interp_entry = (entry);			\
+	(bprm)->dasics.copy_interp_entry = (copy_entry);		\
+} while (0)
+#define ARCH_DLINFO_DASICS					\
+do {								\
+	if (bprm->dasics.dynamic) {				\
+		NEW_AUX_ENT(AT_LINKER, bprm->dasics.interp_entry); \
+		NEW_AUX_ENT(AT_FIXUP, 0);				\
+		NEW_AUX_ENT(AT_DASICS, 1);				\
+		NEW_AUX_ENT(AT_LINKER_COPY,			\
+			    bprm->dasics.copy_interp_entry);	\
+		NEW_AUX_ENT(AT_TRUST_BASE, RISCV_DASICS_TRUST_LIB_BASE); \
+	}							\
+} while (0)
 #endif
 
 #define ARCH_DLINFO						\

@@ -263,6 +263,9 @@ create_elf_tables(struct linux_binprm *bprm, const struct elfhdr *exec,
 	NEW_AUX_ENT(AT_EGID, from_kgid_munged(cred->user_ns, cred->egid));
 	NEW_AUX_ENT(AT_SECURE, bprm->secureexec);
 	NEW_AUX_ENT(AT_RANDOM, (elf_addr_t)(unsigned long)u_rand_bytes);
+#ifdef ARCH_DLINFO_DASICS
+	ARCH_DLINFO_DASICS;
+#endif
 #ifdef ELF_HWCAP2
 	NEW_AUX_ENT(AT_HWCAP2, ELF_HWCAP2);
 #endif
@@ -645,10 +648,10 @@ static inline int make_prot(u32 p_flags, struct arch_elf_state *arch_state,
 static unsigned long load_elf_interp(struct elfhdr *interp_elf_ex,
 		struct file *interpreter,
 		unsigned long no_base, struct elf_phdr *interp_elf_phdata,
-		struct arch_elf_state *arch_state)
+		struct arch_elf_state *arch_state, unsigned long fixed_base)
 {
 	struct elf_phdr *eppnt;
-	unsigned long load_addr = 0;
+	unsigned long load_addr = fixed_base;
 	int load_addr_set = 0;
 	unsigned long error = ~0UL;
 	unsigned long total_size;
@@ -681,7 +684,8 @@ static unsigned long load_elf_interp(struct elfhdr *interp_elf_ex,
 			unsigned long k, map_addr;
 
 			vaddr = eppnt->p_vaddr;
-			if (interp_elf_ex->e_type == ET_EXEC || load_addr_set)
+			if (fixed_base || interp_elf_ex->e_type == ET_EXEC ||
+			    load_addr_set)
 				elf_type |= MAP_FIXED;
 			else if (no_base && interp_elf_ex->e_type == ET_DYN)
 				load_addr = -vaddr;
@@ -843,6 +847,7 @@ static int load_elf_binary(struct linux_binprm *bprm)
 	unsigned long elf_entry;
 	unsigned long e_entry;
 	unsigned long interp_load_addr = 0;
+	unsigned long interp_base = 0;
 	unsigned long start_code, end_code, start_data, end_data;
 	unsigned long reloc_func_desc __maybe_unused = 0;
 	int executable_stack = EXSTACK_DEFAULT;
@@ -1257,10 +1262,13 @@ out_free_interp:
 	end_data += load_bias;
 
 	if (interpreter) {
+#ifdef arch_elf_dasics_interp_base
+		interp_base = arch_elf_dasics_interp_base(bprm, false);
+#endif
 		elf_entry = load_elf_interp(interp_elf_ex,
 					    interpreter,
 					    load_bias, interp_elf_phdata,
-					    &arch_state);
+					    &arch_state, interp_base);
 		if (!IS_ERR_VALUE(elf_entry)) {
 			/*
 			 * load_elf_interp() returns relocation
@@ -1274,6 +1282,27 @@ out_free_interp:
 					(int)elf_entry : -EINVAL;
 			goto out_free_dentry;
 		}
+#ifdef arch_elf_dasics_interp_base
+		interp_base = arch_elf_dasics_interp_base(bprm, true);
+		if (interp_base) {
+			unsigned long copy_entry;
+
+			/* Keep the legacy second mapping even in mode 1. */
+			copy_entry = load_elf_interp(interp_elf_ex, interpreter,
+					load_bias, interp_elf_phdata, &arch_state,
+					interp_base);
+			if (!IS_ERR_VALUE(copy_entry))
+				copy_entry += interp_elf_ex->e_entry;
+			if (BAD_ADDR(copy_entry)) {
+				retval = IS_ERR_VALUE(copy_entry) ?
+					(int)copy_entry : -EINVAL;
+				goto out_free_dentry;
+			}
+			arch_elf_dasics_set_interps(bprm, elf_entry, copy_entry);
+			/* The runtime hands control to ld.so after stage 1. */
+			elf_entry = e_entry;
+		}
+#endif
 		reloc_func_desc = interp_load_addr;
 
 		exe_file_allow_write_access(interpreter);
