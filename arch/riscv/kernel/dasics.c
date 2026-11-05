@@ -20,7 +20,7 @@
 static bool riscv_dasics_ready;
 
 #define DASICS_SSTATEEN0_CUSTOM_CSR	0x1UL
-#define DASICS_UMAIN_CFG_MASK		0x3eUL
+#define DASICS_UMAIN_CFG_MASK		0xc3eUL
 #define DASICS_SUPERVISOR_MASK_TOTAL	9UL
 
 #define DASICS_FREASON_ECALL		1UL
@@ -50,6 +50,9 @@ static bool riscv_dasics_ready;
 #define DASICS_MAINCFG_REPORT		0x525054UL
 #define DASICS_MAINCFG_HU_REPORT		0x4855525054UL
 #define DASICS_MAINCFG_OBSERVATIONS	16UL
+
+/* Close the four operation checks while retaining CSR and call checks. */
+#define DASICS_MAINCFG_CLOSED_CFG		0x3eUL
 
 #define DASICS_MAINCFG_ECALL_SENTINEL	0x4543414c4c534954UL
 #define DASICS_MAINCFG_ECALL_GUARD	0x47554152444d4346UL
@@ -680,7 +683,7 @@ static unsigned long riscv_dasics_maincfg_expected_cfg(
 	if (stage == DASICS_MAINCFG_OPEN)
 		return riscv_dasics_maincfg_open_cfg[operation];
 	if (stage == DASICS_MAINCFG_CLOSED)
-		return DASICS_UMAIN_CFG_MASK;
+		return DASICS_MAINCFG_CLOSED_CFG;
 	return 0;
 }
 
