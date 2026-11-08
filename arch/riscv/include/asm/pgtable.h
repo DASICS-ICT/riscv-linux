@@ -65,9 +65,9 @@
 #endif
 
 #ifdef CONFIG_RISCV_DASICS_KERNEL
-/* Preserve the reference split, within the 6.18 module relocation window. */
+/* Keep module allocation and FDI bounds on the same page-aligned split. */
 #define UT_MODULES_START MODULES_VADDR
-#define UT_MODULES_END (MODULES_VADDR + (MODULES_END - MODULES_VADDR) / 2)
+#define UT_MODULES_END PFN_ALIGN(MODULES_VADDR + (MODULES_END - MODULES_VADDR) / 2)
 #define T_MODULES_START UT_MODULES_END
 #define T_MODULES_END MODULES_END
 #endif
